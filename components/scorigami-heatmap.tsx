@@ -1,146 +1,134 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useTeamStore } from "@/lib/store";
-import Papa from "papaparse";
+import { useEffect, useState } from "react"
+import Papa from "papaparse"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
-const getColor = (frequency: number) => {
-  if (frequency === 0) return "#f3f4f6";
-  if (frequency <= 10) return "#dbeafe";
-  if (frequency <= 50) return "#bfdbfe";
-  if (frequency <= 200) return "#93c5fd";
-  if (frequency <= 500) return "#60a5fa";
-  if (frequency <= 1000) return "#3b82f6";
-  if (frequency <= 2500) return "#2563eb";
-  return "#1d4ed8";
-};
+/* ----------------------------------------------------------------
+ *  Types
+ * ---------------------------------------------------------------- */
+type CsvRow = {
+  score1: string   // home / first team score
+  score2: string   // away / second team score
+  occurrences: string
+}
 
-const getFrequencyText = (frequency: number) => {
-  if (frequency === 0) return "Never happened";
-  if (frequency === 1) return "Happened once";
-  return `Happened approximately ${frequency} times`;
-};
+/* ----------------------------------------------------------------
+ *  Constants
+ * ---------------------------------------------------------------- */
+const MAX_SCORE = 30                       // render 0-30 on both axes
+const CSV_PATH  = "/data/mlb_scorigami_scores.csv"  // file lives in /public/data
 
+/* ----------------------------------------------------------------
+ *  Helper functions
+ * ---------------------------------------------------------------- */
+const getColor = (f: number) => {
+  if (f === 0) return "#f3f4f6"
+  if (f <= 10) return "#dbeafe"
+  if (f <= 50) return "#bfdbfe"
+  if (f <= 200) return "#93c5fd"
+  if (f <= 500) return "#60a5fa"
+  if (f <= 1000) return "#3b82f6"
+  if (f <= 2500) return "#2563eb"
+  return "#1d4ed8"
+}
+
+const getFrequencyText = (f: number) =>
+  f === 0 ? "Never happened" : f === 1 ? "Happened once" : `Happened ${f} times`
+
+/* ----------------------------------------------------------------
+ *  Component
+ * ---------------------------------------------------------------- */
 export default function ScorigamiHeatmap() {
-  const [activeCell, setActiveCell] = useState<string | null>(null);
-  const { selectedTeams } = useTeamStore();
-  const maxScore = 30;
-  const [baseScores, setBaseScores] = useState<{ [key: string]: number }>({});
-  const [teamData, setTeamData] = useState<{ [teamId: string]: { [score: string]: number } }>({});
+  const [data, setData] = useState<Record<string, number>>({}) // "5-3" => 27
+  const [hovered, setHovered] = useState<string | null>(null)
 
+  /* ---- Load CSV once on mount --------------------------------- */
   useEffect(() => {
-    Papa.parse("/data/mlb_scorigami_scores.csv", {
+    Papa.parse<CsvRow>(CSV_PATH, {
       download: true,
       header: true,
-      complete: (result) => {
-        const newBaseScores: { [key: string]: number } = {};
-        const newTeamData: { [teamId: string]: { [score: string]: number } } = {};
-
-        result.data.forEach((row: any) => {
-          const homeScore = parseInt(row.home_score, 10);
-          const awayScore = parseInt(row.away_score, 10);
-          const homeTeam = row.home_team?.toLowerCase();
-          const awayTeam = row.away_team?.toLowerCase();
-
-          if (!isNaN(homeScore) && !isNaN(awayScore) && homeTeam && awayTeam) {
-            const key = `${homeScore}-${awayScore}`;
-            newBaseScores[key] = (newBaseScores[key] || 0) + 1;
-
-            [homeTeam, awayTeam].forEach((teamId) => {
-              if (!newTeamData[teamId]) newTeamData[teamId] = {};
-              newTeamData[teamId][key] = (newTeamData[teamId][key] || 0) + 1;
-            });
+      skipEmptyLines: true,
+      complete: ({ data: rows }) => {
+        const map: Record<string, number> = {}
+        rows.forEach(({ score1, score2, occurrences }) => {
+          const h = parseInt(score1, 10)
+          const a = parseInt(score2, 10)
+          const n = parseInt(occurrences, 10)
+          if (!isNaN(h) && !isNaN(a) && !isNaN(n)) {
+            map[`${h}-${a}`] = n
           }
-        });
-
-        setBaseScores(newBaseScores);
-        setTeamData(newTeamData);
+        })
+        setData(map)
       },
-    });
-  }, []);
+    })
+  }, [])
 
-  const getFrequency = (score: string) => {
-    if (selectedTeams.length === 0) {
-      return baseScores[score] || 0;
-    }
-    let total = 0;
-    selectedTeams.forEach((teamId) => {
-      if (teamData[teamId] && teamData[teamId][score]) {
-        total += teamData[teamId][score];
-      }
-    });
-    return total;
-  };
-
+  /* ---- Render -------------------------------------------------- */
   return (
     <TooltipProvider>
-      <div className="w-full overflow-auto" style={{ maxHeight: "700px" }}>
-        <div className="relative">
-          <div className="flex border-b border-gray-300 sticky top-0 bg-white z-10 pl-10">
-            <div className="w-10 flex-shrink-0"></div>
-            {Array.from({ length: maxScore + 1 }, (_, i) => (
+      <div className="w-full overflow-auto" style={{ maxHeight: 700 }}>
+        {/* Column headers */}
+        <div className="flex border-b border-gray-300 sticky top-0 bg-white z-10 pl-10">
+          <div className="w-10 flex-shrink-0" />
+          {Array.from({ length: MAX_SCORE + 1 }, (_, i) => (
+            <div key={i} className="w-6 flex-shrink-0 text-xs text-center font-medium">
+              {i}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex">
+          {/* Row headers */}
+          <div className="sticky left-0 bg-white z-10">
+            {Array.from({ length: MAX_SCORE + 1 }, (_, i) => (
               <div
-                key={`x-${i}`}
-                className="w-6 flex-shrink-0 text-xs text-center font-medium"
-                style={{ height: "24px" }}
+                key={i}
+                className="h-6 w-10 flex items-center justify-center text-xs font-medium border-r border-gray-300"
               >
                 {i}
               </div>
             ))}
           </div>
 
-          <div className="flex">
-            <div className="sticky left-0 bg-white z-10">
-              {Array.from({ length: maxScore + 1 }, (_, i) => (
-                <div
-                  key={`y-${i}`}
-                  className="h-6 w-10 flex-shrink-0 text-xs flex items-center justify-center font-medium border-r border-gray-300"
-                >
-                  {i}
-                </div>
-              ))}
-            </div>
+          {/* Grid */}
+          <div>
+            {Array.from({ length: MAX_SCORE + 1 }, (_, home) => (
+              <div key={home} className="flex h-6">
+                {Array.from({ length: MAX_SCORE + 1 }, (_, away) => {
+                  const key = `${home}-${away}`
+                  const freq = data[key] ?? 0
+                  const active = hovered === key
 
-            <div>
-              {Array.from({ length: maxScore + 1 }, (_, homeScore) => (
-                <div key={`row-${homeScore}`} className="flex h-6">
-                  {Array.from({ length: maxScore + 1 }, (_, awayScore) => {
-                    const key = `${homeScore}-${awayScore}`;
-                    const frequency = getFrequency(key);
-                    const color = getColor(frequency);
-                    const isActive = activeCell === key;
-
-                    return (
-                      <Tooltip key={`cell-${key}`}>
-                        <TooltipTrigger asChild>
-                          <div
-                            className={`w-6 h-6 flex-shrink-0 cursor-pointer transition-colors duration-200 border ${
-                              isActive ? "border-black" : "border-gray-100"
-                            }`}
-                            style={{ backgroundColor: color }}
-                            onMouseEnter={() => setActiveCell(key)}
-                            onMouseLeave={() => setActiveCell(null)}
-                          ></div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <div className="text-sm font-medium">Score: {key}</div>
-                          <div className="text-xs text-gray-600">{getFrequencyText(frequency)}</div>
-                          {selectedTeams.length > 0 && (
-                            <div className="text-xs text-gray-600">
-                              {selectedTeams.length} team{selectedTeams.length !== 1 ? "s" : ""} selected
-                            </div>
-                          )}
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
+                  return (
+                    <Tooltip key={key}>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={`w-6 h-6 cursor-pointer border transition-colors ${
+                            active ? "border-black" : "border-gray-100"
+                          }`}
+                          style={{ backgroundColor: getColor(freq) }}
+                          onMouseEnter={() => setHovered(key)}
+                          onMouseLeave={() => setHovered(null)}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="text-sm font-medium">Score {key}</div>
+                        <div className="text-xs text-gray-600">{getFrequencyText(freq)}</div>
+                      </TooltipContent>
+                    </Tooltip>
+                  )
+                })}
+              </div>
+            ))}
           </div>
         </div>
       </div>
     </TooltipProvider>
-  );
+  )
 }

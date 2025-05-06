@@ -16,18 +16,31 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { useTeamStore, teams, allTeams } from "@/lib/store"
+import {
+  useTeamStore,
+  teams,
+  allTeams,
+  Division,          // ⬅ typed union: "AL East" | … | "NL West"
+} from "@/lib/store"
 
 export default function TeamFilters() {
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
-  const { selectedTeams, selectTeam, deselectTeam, selectAll, deselectAll, selectDivision, selectLeague } =
-    useTeamStore()
+  const {
+    selectedTeams,
+    selectTeam,
+    deselectTeam,
+    selectAll,
+    deselectAll,
+    selectDivision,
+    selectLeague,
+  } = useTeamStore()
 
   const selectedCount = selectedTeams.length
 
   return (
     <div className="flex flex-col space-y-4">
+      {/* ─────────── Trigger / Popover ─────────── */}
       <div className="flex flex-wrap gap-2 items-center">
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
@@ -35,7 +48,7 @@ export default function TeamFilters() {
               {selectedCount > 0 ? (
                 <>
                   <span>
-                    {selectedCount} team{selectedCount !== 1 ? "s" : ""} selected
+                    {selectedCount} team{selectedCount !== 1 ? "s" : ""}
                   </span>
                   <Badge variant="secondary" className="ml-2 rounded-sm px-1">
                     {selectedCount}
@@ -47,8 +60,11 @@ export default function TeamFilters() {
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
+
+          {/* ─────────── Popover Content ─────────── */}
           <PopoverContent className="w-[400px] p-0" align="start">
             <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+              {/* Tabs Header */}
               <div className="flex items-center border-b px-3">
                 <TabsList className="h-10">
                   <TabsTrigger value="all" className="text-xs">
@@ -62,44 +78,47 @@ export default function TeamFilters() {
                   </TabsTrigger>
                 </TabsList>
               </div>
+
+              {/* ---------- ALL TEAMS TAB ---------- */}
               <TabsContent value="all" className="p-0">
                 <Command>
                   <CommandInput placeholder="Search teams..." />
                   <CommandList>
                     <CommandEmpty>No team found.</CommandEmpty>
+
                     <CommandGroup>
                       <div className="flex items-center px-2 py-1.5">
-                        <Button variant="outline" size="sm" className="mr-2 h-8" onClick={() => selectAll()}>
+                        <Button variant="outline" size="sm" className="mr-2 h-8" onClick={selectAll}>
                           Select All
                         </Button>
-                        <Button variant="outline" size="sm" className="h-8" onClick={() => deselectAll()}>
+                        <Button variant="outline" size="sm" className="h-8" onClick={deselectAll}>
                           Clear All
                         </Button>
                       </div>
                     </CommandGroup>
                     <CommandSeparator />
-                    {Object.entries(teams).map(([division, divisionTeams]) => (
+
+                    {(Object.keys(teams) as Division[]).map((division) => (
                       <CommandGroup key={division} heading={division}>
                         <div className="px-2 py-1">
                           <Button
                             variant="link"
                             size="sm"
                             className="h-6 p-0 text-xs"
-                            onClick={() => selectDivision(divisionTeams.map((t) => t.id))}
+                            onClick={() => selectDivision(teams[division].map((t) => t.id))}
                           >
                             Select Division
                           </Button>
                         </div>
-                        {divisionTeams.map((team) => (
+
+                        {teams[division].map((team) => (
                           <CommandItem
                             key={team.id}
-                            onSelect={() => {
-                              if (selectedTeams.includes(team.id)) {
-                                deselectTeam(team.id)
-                              } else {
-                                selectTeam(team.id)
-                              }
-                            }}
+                            onSelect={() =>
+                              selectedTeams.includes(team.id)
+                                ? deselectTeam(team.id)
+                                : selectTeam(team.id)
+                            }
                           >
                             <div className="mr-2 h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
                             <span>{team.name}</span>
@@ -116,11 +135,14 @@ export default function TeamFilters() {
                   </CommandList>
                 </Command>
               </TabsContent>
+
+              {/* ---------- AMERICAN LEAGUE TAB ---------- */}
               <TabsContent value="al" className="p-0">
                 <Command>
                   <CommandInput placeholder="Search AL teams..." />
                   <CommandList>
                     <CommandEmpty>No team found.</CommandEmpty>
+
                     <CommandGroup>
                       <div className="flex items-center px-2 py-1.5">
                         <Button variant="outline" size="sm" className="mr-2 h-8" onClick={() => selectLeague("AL")}>
@@ -129,7 +151,8 @@ export default function TeamFilters() {
                       </div>
                     </CommandGroup>
                     <CommandSeparator />
-                    {["AL East", "AL Central", "AL West"].map((division) => (
+
+                    {(["AL East", "AL Central", "AL West"] as Division[]).map((division) => (
                       <CommandGroup key={division} heading={division}>
                         <div className="px-2 py-1">
                           <Button
@@ -141,16 +164,15 @@ export default function TeamFilters() {
                             Select Division
                           </Button>
                         </div>
+
                         {teams[division].map((team) => (
                           <CommandItem
                             key={team.id}
-                            onSelect={() => {
-                              if (selectedTeams.includes(team.id)) {
-                                deselectTeam(team.id)
-                              } else {
-                                selectTeam(team.id)
-                              }
-                            }}
+                            onSelect={() =>
+                              selectedTeams.includes(team.id)
+                                ? deselectTeam(team.id)
+                                : selectTeam(team.id)
+                            }
                           >
                             <div className="mr-2 h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
                             <span>{team.name}</span>
@@ -167,11 +189,14 @@ export default function TeamFilters() {
                   </CommandList>
                 </Command>
               </TabsContent>
+
+              {/* ---------- NATIONAL LEAGUE TAB ---------- */}
               <TabsContent value="nl" className="p-0">
                 <Command>
                   <CommandInput placeholder="Search NL teams..." />
                   <CommandList>
                     <CommandEmpty>No team found.</CommandEmpty>
+
                     <CommandGroup>
                       <div className="flex items-center px-2 py-1.5">
                         <Button variant="outline" size="sm" className="mr-2 h-8" onClick={() => selectLeague("NL")}>
@@ -180,7 +205,8 @@ export default function TeamFilters() {
                       </div>
                     </CommandGroup>
                     <CommandSeparator />
-                    {["NL East", "NL Central", "NL West"].map((division) => (
+
+                    {(["NL East", "NL Central", "NL West"] as Division[]).map((division) => (
                       <CommandGroup key={division} heading={division}>
                         <div className="px-2 py-1">
                           <Button
@@ -192,16 +218,15 @@ export default function TeamFilters() {
                             Select Division
                           </Button>
                         </div>
+
                         {teams[division].map((team) => (
                           <CommandItem
                             key={team.id}
-                            onSelect={() => {
-                              if (selectedTeams.includes(team.id)) {
-                                deselectTeam(team.id)
-                              } else {
-                                selectTeam(team.id)
-                              }
-                            }}
+                            onSelect={() =>
+                              selectedTeams.includes(team.id)
+                                ? deselectTeam(team.id)
+                                : selectTeam(team.id)
+                            }
                           >
                             <div className="mr-2 h-3 w-3 rounded-full" style={{ backgroundColor: team.color }} />
                             <span>{team.name}</span>
@@ -222,6 +247,7 @@ export default function TeamFilters() {
           </PopoverContent>
         </Popover>
 
+        {/* Selected‑team badges */}
         <div className="flex flex-wrap gap-1">
           {selectedTeams.length > 0 ? (
             selectedTeams.map((teamId) => {
@@ -249,13 +275,16 @@ export default function TeamFilters() {
               )
             })
           ) : (
-            <div className="text-sm text-muted-foreground">No teams selected. Showing data for all teams.</div>
+            <div className="text-sm text-muted-foreground">
+              No teams selected. Showing data for all teams.
+            </div>
           )}
         </div>
       </div>
 
+      {/* Quick‑select buttons */}
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => selectAll()}>
+        <Button variant="outline" size="sm" onClick={selectAll}>
           All Teams
         </Button>
         <Button variant="outline" size="sm" onClick={() => selectLeague("AL")}>
@@ -264,7 +293,7 @@ export default function TeamFilters() {
         <Button variant="outline" size="sm" onClick={() => selectLeague("NL")}>
           National League
         </Button>
-        {Object.keys(teams).map((division) => (
+        {(Object.keys(teams) as Division[]).map((division) => (
           <Button
             key={division}
             variant="outline"
@@ -276,28 +305,26 @@ export default function TeamFilters() {
         ))}
       </div>
 
+      {/* Tiny color legend */}
       <div className="flex items-center gap-2 text-sm">
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-sm bg-[#dbeafe]"></div>
-          <span>Very rare</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-sm bg-[#93c5fd]"></div>
-          <span>Uncommon</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-sm bg-[#60a5fa]"></div>
-          <span>Common</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-sm bg-[#2563eb]"></div>
-          <span>Very common</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-sm bg-[#1d4ed8]"></div>
-          <span>Extremely common</span>
-        </div>
+        <LegendSquare color="#dbeafe" label="Very rare" />
+        <LegendSquare color="#93c5fd" label="Uncommon" />
+        <LegendSquare color="#60a5fa" label="Common" />
+        <LegendSquare color="#2563eb" label="Very common" />
+        <LegendSquare color="#1d4ed8" label="Extremely common" />
       </div>
+    </div>
+  )
+}
+
+/* ----------------------------------------------------------------
+ *  Tiny helper component for the color legend
+ * ---------------------------------------------------------------- */
+function LegendSquare({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="flex items-center gap-1">
+      <div className="w-3 h-3 rounded-sm" style={{ background: color }} />
+      <span>{label}</span>
     </div>
   )
 }
