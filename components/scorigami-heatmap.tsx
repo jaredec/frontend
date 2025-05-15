@@ -21,21 +21,66 @@ interface ApiRow {
 /* ----------------------------------------------------------------
  *  Constants
  * ---------------------------------------------------------------- */
-const TEAMS = ["ALL", "SDN", "TBA", "NYA", "PIT", "DET", "ANA"] as const; // add more codes as desired
-const CELL_SIZE = 24; // px – tweak for larger / smaller boxes
+const TEAMS = [
+  "ALL",
+  "ARI", "ATL", "BAL", "BOS", "CHA", "CHN", "CIN", "CLE", "COL",
+  "DET", "HOU", "KCA", "LAN", "MIL", "MIN", "MIA", "NYA", "NYN",
+  "OAK", "PHI", "PIT", "SDN", "SEA", "SFN", "SLN", "TBA", "TEX",
+  "TOR", "WAS",
+] as const;
+
+/** ▸ Human-readable names */
+const TEAM_NAMES: Record<string, string> = {
+  ARI: "Arizona Diamondbacks",
+  ATL: "Atlanta Braves",
+  BAL: "Baltimore Orioles",
+  BOS: "Boston Red Sox",
+  CHA: "Chicago White Sox",
+  CHN: "Chicago Cubs",
+  CIN: "Cincinnati Reds",
+  CLE: "Cleveland Guardians",
+  COL: "Colorado Rockies",
+  DET: "Detroit Tigers",
+  HOU: "Houston Astros",
+  KCA: "Kansas City Royals",
+  LAN: "Los Angeles Dodgers",
+  MIA: "Miami Marlins",
+  MIL: "Milwaukee Brewers",
+  MIN: "Minnesota Twins",
+  NYA: "New York Yankees",
+  NYN: "New York Mets",
+  OAK: "Oakland Athletics",
+  PHI: "Philadelphia Phillies",
+  PIT: "Pittsburgh Pirates",
+  SDN: "San Diego Padres",
+  SEA: "Seattle Mariners",
+  SFN: "San Francisco Giants",
+  SLN: "St. Louis Cardinals",
+  TBA: "Tampa Bay Rays",
+  TEX: "Texas Rangers",
+  TOR: "Toronto Blue Jays",
+  WAS: "Washington Nationals",
+};
+
+const CELL_SIZE = 24;                       // px – tweak for larger / smaller boxes
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 /* ----------------------------------------------------------------
  *  Helper functions
  * ---------------------------------------------------------------- */
-const getColor = (f: number) => {
-  if (f === 0) return "#f3f4f6";
-  if (f <= 10) return "#dbeafe";
-  if (f <= 50) return "#bfdbfe";
-  if (f <= 200) return "#93c5fd";
-  if (f <= 500) return "#60a5fa";
-  if (f <= 1000) return "#3b82f6";
-  if (f <= 2500) return "#2563eb";
+/** Shade based on relative frequency so filtering keeps deep colors. */
+const getColor = (f: number, max: number) => {
+  if (f === 0) return "#f3f4f6";            // never happened → light gray
+
+  // proportion of max (0 – 1)
+  const p = f / max;
+
+  if (p <= 0.02) return "#dbeafe";
+  if (p <= 0.10) return "#bfdbfe";
+  if (p <= 0.25) return "#93c5fd";
+  if (p <= 0.50) return "#60a5fa";
+  if (p <= 0.75) return "#3b82f6";
+  if (p <= 0.90) return "#2563eb";
   return "#1d4ed8";
 };
 
@@ -47,13 +92,11 @@ const getFrequencyText = (f: number) =>
  * ---------------------------------------------------------------- */
 export default function ScorigamiHeatmap() {
   const [club, setClub] = useState<(typeof TEAMS)[number]>("ALL");
-  const { data: rows } = useSWR<ApiRow[]>(
-    `/api/scorigami?team=${club}`,
-    fetcher
-  );
+  const { data: rows } = useSWR<ApiRow[]>(`/api/scorigami?team=${club}`, fetcher);
 
-  const [data, setData] = useState<Record<string, number>>({}); // "5-3" ⇒ 27
-  const [maxScore, setMaxScore] = useState(0);
+  const [grid, setGrid] = useState<Record<string, number>>({}); // "5-3" ⇒ 27
+  const [maxScore, setMaxScore] = useState(0);                  // axis size
+  const [maxFreq, setMaxFreq] = useState(1);                    // brightest cell
   const [hovered, setHovered] = useState<string | null>(null);
 
   /* ---- Convert API rows to lookup map ------------------------- */
@@ -61,16 +104,19 @@ export default function ScorigamiHeatmap() {
     if (!rows) return;
 
     const map: Record<string, number> = {};
-    let localMax = 0;
+    let localMaxScore = 0;
+    let localMaxFreq  = 0;
 
     rows.forEach(({ score1, score2, occurrences }) => {
       const key = `${score1}-${score2}`;
       map[key] = occurrences;
-      localMax = Math.max(localMax, score1, score2);
+      localMaxScore = Math.max(localMaxScore, score1, score2);
+      localMaxFreq  = Math.max(localMaxFreq, occurrences);
     });
 
-    setData(map);
-    setMaxScore(localMax);
+    setGrid(map);
+    setMaxScore(localMaxScore);
+    setMaxFreq(localMaxFreq || 1);          // avoid divide-by-zero
   }, [rows]);
 
   /* ---- Guard until data loads --------------------------------- */
@@ -82,12 +128,12 @@ export default function ScorigamiHeatmap() {
       {/* ─────────── Team selector ─────────── */}
       <select
         value={club}
-        onChange={(e) => setClub(e.target.value as any)}
+        onChange={(e) => setClub(e.target.value as (typeof TEAMS)[number])}
         className="mb-4 border rounded px-2 py-1 text-sm"
       >
-        {TEAMS.map((t) => (
-          <option key={t} value={t}>
-            {t === "ALL" ? "All Teams" : t}
+        {TEAMS.map((code) => (
+          <option key={code} value={code}>
+            {code === "ALL" ? "All Teams" : TEAM_NAMES[code]}
           </option>
         ))}
       </select>
@@ -99,7 +145,7 @@ export default function ScorigamiHeatmap() {
           style={{
             display: "grid",
             gridTemplateColumns: `40px repeat(${maxScore + 1}, ${CELL_SIZE}px)`,
-            gridTemplateRows: `40px repeat(${maxScore + 1}, ${CELL_SIZE}px)`,
+            gridTemplateRows:    `40px repeat(${maxScore + 1}, ${CELL_SIZE}px)`,
           }}
         >
           {/* Corner */}
@@ -130,8 +176,8 @@ export default function ScorigamiHeatmap() {
           {/* Cells */}
           {Array.from({ length: maxScore + 1 }, (_, home) =>
             Array.from({ length: maxScore + 1 }, (_, away) => {
-              const key = `${home}-${away}`;
-              const freq = data[key] ?? 0;
+              const key  = `${home}-${away}`;
+              const freq = grid[key] ?? 0;
               const active = hovered === key;
 
               return (
@@ -141,7 +187,7 @@ export default function ScorigamiHeatmap() {
                       style={{
                         gridColumn: away + 2,
                         gridRow: home + 2,
-                        backgroundColor: getColor(freq),
+                        backgroundColor: getColor(freq, maxFreq),
                         width: CELL_SIZE,
                         height: CELL_SIZE,
                       }}
@@ -152,6 +198,7 @@ export default function ScorigamiHeatmap() {
                       onMouseLeave={() => setHovered(null)}
                     />
                   </TooltipTrigger>
+
                   <TooltipContent>
                     <div className="text-sm font-medium">
                       Home {home} – Visitor {away}
