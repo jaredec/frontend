@@ -13,9 +13,9 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 
 /* ───────── Types ───────── */
 interface ApiRow {
-  score1: number;
-  score2: number;
-  occurrences: number; // Typed as number, but we'll be extra careful
+  score1: number; // If 'ALL' teams, this is home_score. If specific team, this is selected_team_score.
+  score2: number; // If 'ALL' teams, this is visitor_score. If specific team, this is opponent_score.
+  occurrences: number;
   last_date: string | null;
   last_home_team: string | null;
   last_visitor_team: string | null;
@@ -106,17 +106,13 @@ const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const MAX_DISPLAY_SCORE = 30;
 const GRID_DIMENSION = MAX_DISPLAY_SCORE + 1;
 
-const stops = [0, 10, 50, 200, 500, 1000, 2500];
 const hex = [
   "#f3f4f6", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa",
   "#3b82f6", "#2563eb", "#1d4ed8",
 ];
-const getColor = (f: number) => {
-  for (let i = 0; i < stops.length; i++) if (f <= stops[i]) return hex[i];
-  return hex.at(-1)!;
-};
+
 const freqText = (f: number) =>
-  f === 0 ? "Never happened" : f === 1 ? "Happened once" : `Happened ${f} times`;
+  f === 0 ? "Never Happened" : f === 1 ? "Happened Once" : `Happened ${f} Times`; // Adjusted casing
 
 /* ───────── Component ───────── */
 export default function ScorigamiHeatmap() {
@@ -140,6 +136,7 @@ export default function ScorigamiHeatmap() {
       return;
     }
     const map: Record<string, ApiRow> = {};
+    // score1 and score2 from the API are already oriented correctly
     effectiveRows!.forEach((r) => (map[`${r.score1}-${r.score2}`] = r));
     setData(map);
   }, [effectiveRows, hasData]);
@@ -155,17 +152,46 @@ export default function ScorigamiHeatmap() {
   const totalGamesDisplayed = useMemo(() => {
     if (!effectiveRows || effectiveRows.length === 0) return 0;
     return effectiveRows.reduce((sum, row) => {
-      return sum + Number(row.occurrences); // Ensure numerical addition
+      return sum + Number(row.occurrences);
     }, 0);
   }, [effectiveRows]);
 
+  const maxOccurrencesInView = useMemo(() => {
+    if (!effectiveRows || effectiveRows.length === 0) return 1; 
+    const maxOcc = Math.max(...effectiveRows.map(row => Number(row.occurrences)));
+    return maxOcc === 0 ? 1 : maxOcc; 
+  }, [effectiveRows]);
+
+  const getLogScaledColor = (currentOccurrences: number, maxInView: number) => {
+    if (currentOccurrences === 0) return hex[0];
+    const colorsForOccurrences = hex.slice(1);
+    const numColors = colorsForOccurrences.length;
+    const logOccurrences = Math.log1p(currentOccurrences);
+    const maxLogOccurrences = Math.log1p(maxInView);
+    if (maxLogOccurrences === Math.log1p(1) && logOccurrences === Math.log1p(1)) {
+         return colorsForOccurrences[numColors - 1];
+    }
+    const ratio = maxLogOccurrences > 0 ? logOccurrences / maxLogOccurrences : 0;
+    let colorIndex = Math.floor(ratio * numColors);
+    colorIndex = Math.min(colorIndex, numColors - 1);
+    colorIndex = Math.max(0, colorIndex); 
+    return colorsForOccurrences[colorIndex];
+  };
+
+  // UPDATED: Dynamic Axis Labels
+  const yAxisLabel = club === "ALL" ? "Home Team Score" : `${TEAM_NAMES[club as string] ?? club} Score`;
+  const xAxisLabel = club === "ALL" ? "Visitor Team Score" : "Opponent Score";
+
+
   if (error) return <div className="text-center py-10 text-red-600 dark:text-red-400">Failed to load data. Please try again.</div>;
-  if (isLoading) return <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading heatmap data...</div>;
+  if (isLoading && !lastRows.current) return <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading heatmap data...</div>;
   if (!hasData && !isLoading) return <div className="text-center py-10 text-gray-500 dark:text-gray-400">No Scorigami data found for the current selection.</div>;
+
 
   return (
     <TooltipProvider>
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
+        {/* Team Select Dropdown */}
         <Select.Root value={club} onValueChange={(val) => setClub(val as any)}>
           <Select.Trigger className="flex w-full sm:w-56 items-center justify-between rounded border dark:border-gray-700 px-2 py-1 text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-800">
             <Select.Value aria-label={club}>{club === "ALL" ? "All Teams" : TEAM_NAMES[club as string] ?? club}</Select.Value>
@@ -189,6 +215,7 @@ export default function ScorigamiHeatmap() {
           </Select.Portal>
         </Select.Root>
 
+        {/* Year Select Dropdown */}
         <Select.Root value={selectedYear} onValueChange={(val) => setSelectedYear(val as string)}>
           <Select.Trigger
             className="flex w-full sm:w-56 items-center justify-between rounded border dark:border-gray-700
@@ -232,23 +259,25 @@ export default function ScorigamiHeatmap() {
         </Select.Root>
       </div>
 
-      {hasData && (
+      {hasData && !isLoading && (
         <div className="mb-4 text-sm text-center text-gray-600 dark:text-gray-400">
           Displaying Scorigami from {totalGamesDisplayed.toLocaleString()} games.
         </div>
       )}
 
-      {hasData && (
+      {hasData && !isLoading && (
         <div className="relative inline-block">
-          <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-sm font-medium dark:text-gray-300">
-            Visitor&nbsp;Team
+          {/* UPDATED: X-axis label (top) */}
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs sm:text-sm font-medium dark:text-gray-300 whitespace-nowrap">
+            {xAxisLabel}
           </div>
+          {/* UPDATED: Y-axis label (left, rotated) */}
           <div
             className="absolute top-1/2 -translate-y-1/2 -rotate-90 origin-center
-                      text-sm font-medium dark:text-gray-300"
-            style={{ left: -48 }}
+                       text-xs sm:text-sm font-medium dark:text-gray-300 whitespace-nowrap"
+            style={{ left: -60 }} // Adjusted offset for potentially longer labels
           >
-            Home&nbsp;Team
+            {yAxisLabel}
           </div>
           <div
             style={{
@@ -257,10 +286,10 @@ export default function ScorigamiHeatmap() {
               gridTemplateRows: `40px repeat(${GRID_DIMENSION}, ${CELL_SIZE}px)`,
             }}
           >
-            <div className="border-b border-r border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800" />
+            <div className="border-b border-r border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800" /> 
             {Array.from({ length: GRID_DIMENSION }, (_, i) => (
               <div
-                key={`c${i}`}
+                key={`c${i}`} // Corresponds to score2 (Visitor or Opponent)
                 style={{ gridColumn: i + 2, gridRow: 1 }}
                 className="flex items-center justify-center border-b border-gray-300
                           bg-white text-xs font-medium dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
@@ -268,71 +297,77 @@ export default function ScorigamiHeatmap() {
                 {i}
               </div>
             ))}
-            {Array.from({ length: GRID_DIMENSION }, (_, i) => (
-              <div
-                key={`r${i}`}
-                style={{ gridColumn: 1, gridRow: i + 2 }}
-                className="flex items-center justify-center border-r border-gray-300
-                          bg-white text-xs font-medium dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-              >
-                {i}
-              </div>
-            ))}
-            {Array.from({ length: GRID_DIMENSION }, (_, home) =>
-              Array.from({ length: GRID_DIMENSION }, (_, away) => {
-                const k = `${home}-${away}`;
-                const row = data[k];
-                const f = row?.occurrences ?? 0;
-                const active = hover === k;
+            {Array.from({ length: GRID_DIMENSION }, (_, score1_iterator) => ( // This iterator represents score1 (Home or Selected Team)
+              <>
+                <div
+                  key={`r${score1_iterator}`}
+                  style={{ gridColumn: 1, gridRow: score1_iterator + 2 }}
+                  className="flex items-center justify-center border-r border-gray-300
+                            bg-white text-xs font-medium dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                >
+                  {score1_iterator}
+                </div>
+                {Array.from({ length: GRID_DIMENSION }, (_, score2_iterator) => { // This iterator represents score2 (Visitor or Opponent)
+                  // k is constructed based on the visual grid positions: score1_iterator for the row, score2_iterator for the column
+                  const k = `${score1_iterator}-${score2_iterator}`;
+                  const rowData = data[k]; // data keys are already 'score1-score2' from API
+                  const f = rowData?.occurrences ?? 0;
+                  const active = hover === k;
 
-                return (
-                  <Tooltip key={k}>
-                    <TooltipTrigger asChild>
-                      <div
-                        style={{
-                          gridColumn: away + 2,
-                          gridRow: home + 2,
-                          backgroundColor: getColor(f),
-                          width: CELL_SIZE,
-                          height: CELL_SIZE,
-                        }}
-                        className={`border cursor-pointer transition-colors ${
-                          active ? "border-black dark:border-white" : "border-gray-100 dark:border-gray-750"
-                        }`}
-                        onMouseEnter={() => setHover(k)}
-                        onMouseLeave={() => setHover(null)}
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <div className="mb-1 text-sm font-semibold text-gray-900 dark:text-gray-50">
-                        Home {home} – Visitor {away}
-                      </div>
-                      <div className="text-xs text-gray-700 dark:text-gray-300">
-                        {freqText(f)}
-                      </div>
-                      {row?.last_date && (
-                        <>
-                          <hr className="my-1 border-gray-300 dark:border-gray-700" />
-                          <div className="space-y-0.5">
-                            <div className="font-medium text-gray-900 dark:text-gray-50">
-                              Last game
+                  // UPDATED: Tooltip score line
+                  const tooltipScoreLine = club === "ALL" 
+                    ? `Home ${score1_iterator} – Visitor ${score2_iterator}` 
+                    : `${TEAM_NAMES[club as string] ?? club} ${score1_iterator} – Opponent ${score2_iterator}`;
+
+                  return (
+                    <Tooltip key={k}>
+                      <TooltipTrigger asChild>
+                        <div
+                          style={{
+                            gridColumn: score2_iterator + 2, // score2 determines column
+                            gridRow: score1_iterator + 2,    // score1 determines row
+                            backgroundColor: getLogScaledColor(f, maxOccurrencesInView),
+                            width: CELL_SIZE,
+                            height: CELL_SIZE,
+                          }}
+                          className={`border cursor-pointer transition-colors ${
+                            active ? "border-black dark:border-white" : "border-gray-100 dark:border-gray-750" 
+                          }`}
+                          onMouseEnter={() => setHover(k)}
+                          onMouseLeave={() => setHover(null)}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="mb-1 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                          {tooltipScoreLine}
+                        </div>
+                        <div className="text-xs text-gray-700 dark:text-gray-300">
+                          {freqText(f)}
+                        </div>
+                        {rowData?.last_date && (
+                          <>
+                            <hr className="my-1 border-gray-300 dark:border-gray-700" />
+                            <div className="space-y-0.5">
+                              <div className="font-medium text-gray-900 dark:text-gray-50">
+                                Last game
+                              </div>
+                              <div className="text-gray-700 dark:text-gray-300">
+                                {formatDisplayDate(rowData.last_date)}
+                              </div>
+                              <div className="text-gray-700 dark:text-gray-300">
+                                {getDisplayTeamName(rowData.last_home_team)}
+                                {" vs "}
+                                {getDisplayTeamName(rowData.last_visitor_team)}
+                              </div>
                             </div>
-                            <div className="text-gray-700 dark:text-gray-300">
-                              {formatDisplayDate(row.last_date)}
-                            </div>
-                            <div className="text-gray-700 dark:text-gray-300">
-                              {getDisplayTeamName(row.last_home_team)}
-                              {" vs "}
-                              {getDisplayTeamName(row.last_visitor_team)}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })
-            )}
+                          </>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </>
+            ))}
           </div>
         </div>
       )}
