@@ -1,5 +1,6 @@
 "use client";
 
+import React from 'react';
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import {
@@ -298,7 +299,7 @@ export default function ScorigamiHeatmap() {
               </div>
             ))}
             {Array.from({ length: GRID_DIMENSION }, (_, score1_iterator) => ( // This iterator represents score1 (Home or Selected Team)
-              <>
+              <React.Fragment key={`row-${score1_iterator}`}>
                 <div
                   key={`r${score1_iterator}`}
                   style={{ gridColumn: 1, gridRow: score1_iterator + 2 }}
@@ -366,7 +367,7 @@ export default function ScorigamiHeatmap() {
                     </Tooltip>
                   );
                 })}
-              </>
+              </React.Fragment>
             ))}
           </div>
         </div>
