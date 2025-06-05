@@ -1,74 +1,73 @@
-/**
- * /api/scorigami?team=SDN&year=2023
- * Returns score grid + last-time-seen metadata, optionally filtered by year.
- */
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 
-// Helper to build the 'eligible' games CTE with an optional date filter
+// Corrected Helper to build the 'eligible' games CTE
 function buildEligibleGamesQuery(
-  currentTeamFilter: string, // Added: "ALL" or specific team code
+  currentTeamParam: string,
   yearFilter: string | null,
-  paramOffset: number // Starting index for date filter parameters
+  paramIdxStart: number
 ): { query: string; params: (string | number)[] } {
-  let dateFilterCondition = "";
   const queryParams: (string | number)[] = [];
+  let conditions: string[] = [];
+  let currentParamIdx = paramIdxStart;
 
   if (yearFilter && yearFilter.toUpperCase() !== "ALL") {
     const year = parseInt(yearFilter, 10);
     if (!isNaN(year)) {
-      dateFilterCondition = `AND EXTRACT(YEAR FROM TO_DATE(g.date::text, 'YYYYMMDD')) = $${paramOffset}`;
-      queryParams.push(year);
+      conditions.push(
+        `g.date >= MAKE_DATE($${currentParamIdx}, 1, 1) AND g.date < MAKE_DATE($${currentParamIdx} + 1, 1, 1)`
+      );
+      queryParams.push(year); // Push year value ONCE for this parameter $currentParamIdx
+      currentParamIdx++; // Increment for the next distinct parameter this function might add
     }
   }
 
-  // --- MODIFICATION: Conditionally apply franchise check ---
-  let franchiseNotNullCondition = "AND th.franchise IS NOT NULL AND tv.franchise IS NOT NULL";
-  // If "ALL" teams are selected AND a specific year is chosen, relax the franchise constraint.
-  if (currentTeamFilter.toUpperCase() === "ALL" && (yearFilter && yearFilter.toUpperCase() !== "ALL")) {
-    franchiseNotNullCondition = ""; // Remove the franchise constraint for this specific view
+  let applyFranchiseNotNullCondition = true;
+  if (currentTeamParam.toUpperCase() === "ALL" && (yearFilter && yearFilter.toUpperCase() !== "ALL")) {
+    applyFranchiseNotNullCondition = false;
+  }
+  if (applyFranchiseNotNullCondition) {
+    // Assuming 'teams.franchise' is the column to check.
+    // If you meant to ensure the team records themselves exist, INNER JOINs already do that.
+    conditions.push("th.franchise IS NOT NULL AND tv.franchise IS NOT NULL");
   }
 
-  const whereClauses: string[] = [];
-  if (franchiseNotNullCondition) { // Add if not empty
-      whereClauses.push(franchiseNotNullCondition.replace(/^AND\s*/, '')); // Remove leading AND if present
-  }
-  if (dateFilterCondition) { // Add if not empty
-      whereClauses.push(dateFilterCondition.replace(/^AND\s*/, '')); // Remove leading AND if present
-  }
-  
-  const whereClauseString = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+  const whereClauseString = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const query = `
     SELECT
-      g.date               AS game_date,
+      g.game_id, 
+      g.date AS game_date,
       g.home_score,
       g.visitor_score,
-      g.home_team,
-      g.visitor_team
-    FROM   gamelogs g
-    JOIN   teams th ON th.team = g.home_team
-    JOIN   teams tv ON tv.team = g.visitor_team
-    ${whereClauseString} 
+      th.team AS home_team_code,
+      tv.team AS visitor_team_code
+    FROM gamelogs g
+    INNER JOIN teams th ON th.team_id = g.home_team_id
+    INNER JOIN teams tv ON tv.team_id = g.visitor_team_id
+    ${whereClauseString}
   `;
   return { query, params: queryParams };
 }
 
+// The rest of your GET function...
 export async function GET(req: NextRequest) {
-  const team = (req.nextUrl.searchParams.get("team") ?? "ALL").toUpperCase();
-  const year = req.nextUrl.searchParams.get("year"); 
+  const teamParam = (req.nextUrl.searchParams.get("team") ?? "ALL").toUpperCase();
+  const yearParam = req.nextUrl.searchParams.get("year");
 
   let finalQuery: string;
   const finalQueryParams: (string | number)[] = [];
-  
-  let eligibleGamesClause: string;
-  let dateParams: (string | number)[];
+  let queryParamIndex = 1; 
 
-  if (team === "ALL") {
-    // Pass 'team' ("ALL") to buildEligibleGamesQuery
-    ({ query: eligibleGamesClause, params: dateParams } = buildEligibleGamesQuery(team, year, 1));
-    finalQueryParams.push(...dateParams);
+  if (teamParam !== "ALL") {
+    finalQueryParams.push(teamParam); 
+    queryParamIndex++;
+  }
 
+  const { query: eligibleGamesClause, params: dateParams } = buildEligibleGamesQuery(teamParam, yearParam, queryParamIndex);
+  finalQueryParams.push(...dateParams);
+
+  if (teamParam === "ALL") {
     finalQuery = `
       WITH eligible_games AS (${eligibleGamesClause}),
       ranked AS (
@@ -76,47 +75,44 @@ export async function GET(req: NextRequest) {
           home_score,
           visitor_score,
           game_date,
-          home_team,
-          visitor_team,
+          game_id,
+          home_team_code,
+          visitor_team_code,
           ROW_NUMBER() OVER (
             PARTITION BY home_score, visitor_score
-            ORDER BY    game_date DESC
+            ORDER BY game_date DESC, game_id DESC
           ) AS rn
-        FROM eligible_games AS g
+        FROM eligible_games -- Removed AS g here, not strictly needed and can avoid confusion
       )
       SELECT
-        home_score    AS score1,
+        home_score AS score1,
         visitor_score AS score2,
-        COUNT(*)      AS occurrences,
-        TO_CHAR( TO_DATE(MAX(game_date)::text,'YYYYMMDD'), 'YYYY-MM-DD') AS last_date,
-        MAX(CASE WHEN rn = 1 THEN home_team    END) AS last_home_team,
-        MAX(CASE WHEN rn = 1 THEN visitor_team END) AS last_visitor_team
+        COUNT(*) AS occurrences,
+        TO_CHAR(MAX(game_date), 'YYYY-MM-DD') AS last_date,
+        MAX(CASE WHEN rn = 1 THEN home_team_code END) AS last_home_team,
+        MAX(CASE WHEN rn = 1 THEN visitor_team_code END) AS last_visitor_team
       FROM ranked
       GROUP BY score1, score2;
     `;
   } else {
-    finalQueryParams.push(team); // Team is $1
-    // Pass specific 'team' to buildEligibleGamesQuery
-    ({ query: eligibleGamesClause, params: dateParams } = buildEligibleGamesQuery(team, year, 2));
-    finalQueryParams.push(...dateParams);
-
     finalQuery = `
       WITH eligible_games AS (${eligibleGamesClause}),
       oriented AS (
         SELECT
-          CASE WHEN home_team = $1 THEN home_score   ELSE visitor_score END AS score1,
-          CASE WHEN home_team = $1 THEN visitor_score ELSE home_score   END AS score2,
-          game_date,
-          home_team,
-          visitor_team
-        FROM eligible_games AS g
-        WHERE (home_team = $1 OR visitor_team = $1)
+          el_g.game_date,
+          el_g.game_id,
+          el_g.home_team_code,
+          el_g.visitor_team_code,
+          CASE WHEN el_g.home_team_code = $1 THEN el_g.home_score ELSE el_g.visitor_score END AS score1,
+          CASE WHEN el_g.home_team_code = $1 THEN el_g.visitor_score ELSE el_g.home_score END AS score2
+        FROM eligible_games AS el_g
+        WHERE (el_g.home_team_code = $1 OR el_g.visitor_team_code = $1)
       ),
       ranked AS (
         SELECT *,
                ROW_NUMBER() OVER (
                  PARTITION BY score1, score2
-                 ORDER BY    game_date DESC
+                 ORDER BY game_date DESC, game_id DESC
                ) AS rn
         FROM oriented
       )
@@ -124,27 +120,27 @@ export async function GET(req: NextRequest) {
         score1,
         score2,
         COUNT(*) AS occurrences,
-        TO_CHAR( TO_DATE(MAX(game_date)::text,'YYYYMMDD'), 'YYYY-MM-DD') AS last_date,
-        MAX(CASE WHEN rn = 1 THEN home_team    END) AS last_home_team,
-        MAX(CASE WHEN rn = 1 THEN visitor_team END) AS last_visitor_team
+        TO_CHAR(MAX(game_date), 'YYYY-MM-DD') AS last_date,
+        MAX(CASE WHEN rn = 1 THEN home_team_code END) AS last_home_team,
+        MAX(CASE WHEN rn = 1 THEN visitor_team_code END) AS last_visitor_team
       FROM ranked
       GROUP BY score1, score2;
     `;
   }
-  
+
   try {
     const { rows } = await pool.query(finalQuery, finalQueryParams);
     return NextResponse.json(rows, {
       headers: { "Cache-Control": "s-maxage=300, stale-while-revalidate" },
     });
   } catch (error) {
-    console.error("Database query error:", { 
-        message: (error as Error).message, 
-        query: finalQuery, 
-        params: finalQueryParams 
+    console.error("Database query error:", {
+        message: (error as Error).message,
+        stack: (error as Error).stack, // Added stack for more details
+        query: finalQuery,
+        params: finalQueryParams
     });
     const errorMessage = error instanceof Error ? error.message : "Unknown database error";
-    // For debugging, you might want to return the query and params in the error response
     return NextResponse.json({ message: "Error fetching scorigami data", details: errorMessage, query: finalQuery, params: finalQueryParams }, { status: 500 });
   }
 }

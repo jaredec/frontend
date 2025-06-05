@@ -10,12 +10,12 @@ import {
 } from "@/components/ui/tooltip";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import * as Select from "@radix-ui/react-select";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertTriangle, Loader2, Info, FilterX } from "lucide-react";
 
 /* ───────── Types ───────── */
 interface ApiRow {
-  score1: number; // If 'ALL' teams, this is home_score. If specific team, this is selected_team_score.
-  score2: number; // If 'ALL' teams, this is visitor_score. If specific team, this is opponent_score.
+  score1: number;
+  score2: number;
   occurrences: number;
   last_date: string | null;
   last_home_team: string | null;
@@ -31,7 +31,6 @@ const formatDisplayDate = (iso: string) =>
     timeZone: "UTC",
   });
 
-/* Tooltip w/out arrow */
 type TCProps = React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>;
 const TooltipContent = ({ className = "", ...props }: TCProps) => (
   <TooltipPrimitive.Portal>
@@ -39,8 +38,8 @@ const TooltipContent = ({ className = "", ...props }: TCProps) => (
       side="right"
       sideOffset={8}
       className={
-        "rounded-md bg-white dark:bg-gray-900 shadow-lg ring-1 ring-gray-200 " +
-        "dark:ring-gray-700 px-3 py-2 text-xs " +
+        "z-50 rounded-md bg-white dark:bg-gray-950 shadow-xl ring-1 ring-gray-200 " +
+        "dark:ring-gray-800 px-3.5 py-2.5 text-xs " +
         className
       }
       {...props}
@@ -102,18 +101,25 @@ for (let y = CURRENT_YEAR; y >= EARLIEST_MLB_YEAR; y--) {
 }
 
 /* ───────── Misc constants ───────── */
-const CELL_SIZE = 22;
+const CELL_SIZE = 22; 
+const HEADER_CELL_SIZE = 36; 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const MAX_DISPLAY_SCORE = 30;
-const GRID_DIMENSION = MAX_DISPLAY_SCORE + 1;
+const GRID_DIMENSION = MAX_DISPLAY_SCORE + 1; 
 
 const hex = [
-  "#f3f4f6", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa",
+  "#f3f4f6", 
+  "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa",
   "#3b82f6", "#2563eb", "#1d4ed8",
+];
+const darkHex = [ 
+    "#374151", 
+    "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa",
+    "#3b82f6", "#2563eb", "#1d4ed8",
 ];
 
 const freqText = (f: number) =>
-  f === 0 ? "Never Happened" : f === 1 ? "Happened Once" : `Happened ${f} Times`; // Adjusted casing
+  f === 0 ? "Never Happened" : f === 1 ? "Happened Once" : `Happened ${f.toLocaleString()} Times`;
 
 /* ───────── Component ───────── */
 export default function ScorigamiHeatmap() {
@@ -127,20 +133,21 @@ export default function ScorigamiHeatmap() {
 
   const lastRows = useRef<ApiRow[] | null>(null);
   if (rows) lastRows.current = rows;
-  const effectiveRows = rows ?? lastRows.current;
+  // Use SWR's 'rows' if available (new data), otherwise fall back to 'lastRows.current' (stale data)
+  // This allows the UI to show old data while new data is loading after a filter change.
+  const effectiveRows = rows ?? lastRows.current; 
   const hasData = !!effectiveRows && effectiveRows.length > 0;
 
   const [data, setData] = useState<Record<string, ApiRow | undefined>>({});
   useEffect(() => {
-    if (!hasData || !effectiveRows) {
+    if (!effectiveRows || effectiveRows.length === 0) { // Use effectiveRows here
       setData({});
       return;
     }
     const map: Record<string, ApiRow> = {};
-    // score1 and score2 from the API are already oriented correctly
     effectiveRows!.forEach((r) => (map[`${r.score1}-${r.score2}`] = r));
     setData(map);
-  }, [effectiveRows, hasData]);
+  }, [effectiveRows]); // Depend on effectiveRows
 
   const [hover, setHover] = useState<string | null>(null);
 
@@ -158,14 +165,24 @@ export default function ScorigamiHeatmap() {
   }, [effectiveRows]);
 
   const maxOccurrencesInView = useMemo(() => {
-    if (!effectiveRows || effectiveRows.length === 0) return 1; 
+    if (!effectiveRows || effectiveRows.length === 0) return 1;
     const maxOcc = Math.max(...effectiveRows.map(row => Number(row.occurrences)));
-    return maxOcc === 0 ? 1 : maxOcc; 
+    return maxOcc === 0 ? 1 : maxOcc;
   }, [effectiveRows]);
 
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    setIsDarkMode(mediaQuery.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
   const getLogScaledColor = (currentOccurrences: number, maxInView: number) => {
-    if (currentOccurrences === 0) return hex[0];
-    const colorsForOccurrences = hex.slice(1);
+    const currentHex = isDarkMode ? darkHex : hex;
+    if (currentOccurrences === 0) return currentHex[0];
+    const colorsForOccurrences = currentHex.slice(1);
     const numColors = colorsForOccurrences.length;
     const logOccurrences = Math.log1p(currentOccurrences);
     const maxLogOccurrences = Math.log1p(maxInView);
@@ -175,203 +192,285 @@ export default function ScorigamiHeatmap() {
     const ratio = maxLogOccurrences > 0 ? logOccurrences / maxLogOccurrences : 0;
     let colorIndex = Math.floor(ratio * numColors);
     colorIndex = Math.min(colorIndex, numColors - 1);
-    colorIndex = Math.max(0, colorIndex); 
+    colorIndex = Math.max(0, colorIndex);
     return colorsForOccurrences[colorIndex];
   };
 
-  // UPDATED: Dynamic Axis Labels
-  const yAxisLabel = club === "ALL" ? "Home Team Score" : `${TEAM_NAMES[club as string] ?? club} Score`;
-  const xAxisLabel = club === "ALL" ? "Visitor Team Score" : "Opponent Score";
+  const yAxisTextLabel = club === "ALL" ? "Home Team Score" : `${TEAM_NAMES[club as string] ?? club} Score`;
+  const xAxisTextLabel = club === "ALL" ? "Visitor Team Score" : "Opponent Score";
 
+  const innerGridWidth = HEADER_CELL_SIZE + GRID_DIMENSION * CELL_SIZE;
 
-  if (error) return <div className="text-center py-10 text-red-600 dark:text-red-400">Failed to load data. Please try again.</div>;
-  if (isLoading && !lastRows.current) return <div className="text-center py-10 text-gray-500 dark:text-gray-400">Loading heatmap data...</div>;
-  if (!hasData && !isLoading) return <div className="text-center py-10 text-gray-500 dark:text-gray-400">No Scorigami data found for the current selection.</div>;
+  // If there's a critical error fetching data, show an error message.
+  // This still takes over the component view as it's a significant issue.
+  if (error) return (
+    <div className="flex flex-col items-center justify-center p-6 sm:p-10 bg-red-50 dark:bg-red-900/30 rounded-xl shadow-lg min-h-[350px] text-center">
+      <AlertTriangle className="w-14 h-14 text-red-500 dark:text-red-400 mb-5" />
+      <h3 className="text-xl sm:text-2xl font-semibold text-red-700 dark:text-red-300 mb-2">Data Load Error</h3>
+      <p className="text-red-600 dark:text-red-400 max-w-md">
+        We encountered an issue while fetching the Scorigami data. Please try refreshing.
+      </p>
+    </div>
+  );
 
-
+  // The main component structure is always rendered.
+  // Loading states and data presence will determine what's shown *inside* the heatmap panel.
   return (
-    <TooltipProvider>
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
-        {/* Team Select Dropdown */}
-        <Select.Root value={club} onValueChange={(val) => setClub(val as any)}>
-          <Select.Trigger className="flex w-full sm:w-56 items-center justify-between rounded border dark:border-gray-700 px-2 py-1 text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-800">
-            <Select.Value aria-label={club}>{club === "ALL" ? "All Teams" : TEAM_NAMES[club as string] ?? club}</Select.Value>
-            <Select.Icon><ChevronDown className="h-4 w-4 opacity-70" /></Select.Icon>
-          </Select.Trigger>
-          <Select.Portal>
-            <Select.Content className="z-50 max-h-72 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded border bg-white p-1 text-sm shadow-lg dark:bg-gray-800 dark:border-gray-600" position="popper" sideOffset={5}>
-              <Select.ScrollUpButton className="flex justify-center py-1 text-gray-700 dark:text-gray-300"><ChevronUp className="h-4 w-4" /></Select.ScrollUpButton>
-              <Select.Viewport>
-                <Select.Item key="ALL" value="ALL" className="cursor-pointer select-none rounded px-2 py-1 leading-none outline-none text-gray-800 dark:text-gray-100 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white dark:data-[highlighted]:bg-blue-600">
-                  <Select.ItemText>All Teams</Select.ItemText>
-                </Select.Item>
-                {sortedTeamsForDropdown.map((team) => (
-                  <Select.Item key={team.code} value={team.code} className="cursor-pointer select-none rounded px-2 py-1 leading-none outline-none text-gray-800 dark:text-gray-100 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white dark:data-[highlighted]:bg-blue-600">
-                    <Select.ItemText>{team.name}</Select.ItemText>
-                  </Select.Item>
-                ))}
-              </Select.Viewport>
-              <Select.ScrollDownButton className="flex justify-center py-1 text-gray-700 dark:text-gray-300"><ChevronDown className="h-4 w-4" /></Select.ScrollDownButton>
-            </Select.Content>
-          </Select.Portal>
-        </Select.Root>
-
-        {/* Year Select Dropdown */}
-        <Select.Root value={selectedYear} onValueChange={(val) => setSelectedYear(val as string)}>
-          <Select.Trigger
-            className="flex w-full sm:w-56 items-center justify-between rounded border dark:border-gray-700
-                       px-2 py-1 text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-800"
-          >
-            <Select.Value aria-label={selectedYear}>
-              {selectedYear === "ALL" ? "All Years" : selectedYear}
-            </Select.Value>
-            <Select.Icon>
-              <ChevronDown className="h-4 w-4 opacity-70" />
-            </Select.Icon>
-          </Select.Trigger>
-          <Select.Portal>
-            <Select.Content
-              className="z-50 max-h-72 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded border bg-white
-                         p-1 text-sm shadow-lg dark:bg-gray-800 dark:border-gray-600"
-              position="popper" sideOffset={5}
-            >
-              <Select.ScrollUpButton className="flex justify-center py-1 text-gray-700 dark:text-gray-300">
-                <ChevronUp className="h-4 w-4" />
-              </Select.ScrollUpButton>
-              <Select.Viewport>
-                {YEARS_FOR_DROPDOWN.map((year) => (
-                  <Select.Item
-                    key={year}
-                    value={year}
-                    className="cursor-pointer select-none rounded px-2 py-1 leading-none
-                               outline-none text-gray-800 dark:text-gray-100
-                               data-[highlighted]:bg-blue-500 data-[highlighted]:text-white
-                               dark:data-[highlighted]:bg-blue-600"
-                  >
-                    <Select.ItemText>{year === "ALL" ? "All Years" : year}</Select.ItemText>
-                  </Select.Item>
-                ))}
-              </Select.Viewport>
-              <Select.ScrollDownButton className="flex justify-center py-1 text-gray-700 dark:text-gray-300">
-                <ChevronDown className="h-4 w-4" />
-              </Select.ScrollDownButton>
-            </Select.Content>
-          </Select.Portal>
-        </Select.Root>
-      </div>
-
-      {hasData && !isLoading && (
-        <div className="mb-4 text-sm text-center text-gray-600 dark:text-gray-400">
-          Displaying Scorigami from {totalGamesDisplayed.toLocaleString()} games.
-        </div>
-      )}
-
-      {hasData && !isLoading && (
-        <div className="relative inline-block">
-          {/* UPDATED: X-axis label (top) */}
-          <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs sm:text-sm font-medium dark:text-gray-300 whitespace-nowrap">
-            {xAxisLabel}
+    <TooltipProvider delayDuration={200}>
+      <div className="mx-auto w-full space-y-6 sm:space-y-8">
+        
+        {/* Controls Section - Always visible and interactive */}
+        <section aria-labelledby="filter-controls-heading" className="bg-white dark:bg-gray-800/60 p-5 sm:p-6 rounded-xl shadow-2xl shadow-gray-500/10 dark:shadow-black/20 border border-gray-200 dark:border-gray-700/80 transition-all duration-300 ease-out">
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-5 sm:mb-6">
+            <h2 id="filter-controls-heading" className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
+              Explore Scorigami
+            </h2>
+            {/* Show game count if we have data (stale or fresh) */}
+            {(hasData || (isLoading && lastRows.current)) && ( // Show if there's any data or loading new data with old data present
+                 <p className="mt-2 sm:mt-0 text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-semibold text-blue-600 dark:text-blue-400">{totalGamesDisplayed.toLocaleString()}</span> games in view
+                    {isLoading && <Loader2 className="inline w-4 h-4 ml-2 animate-spin text-blue-500" />} {/* Subtle loading indicator here */}
+                </p>
+            )}
           </div>
-          {/* UPDATED: Y-axis label (left, rotated) */}
-          <div
-            className="absolute top-1/2 -translate-y-1/2 -rotate-90 origin-center
-                       text-xs sm:text-sm font-medium dark:text-gray-300 whitespace-nowrap"
-            style={{ left: -60 }} // Adjusted offset for potentially longer labels
-          >
-            {yAxisLabel}
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: `40px repeat(${GRID_DIMENSION}, ${CELL_SIZE}px)`,
-              gridTemplateRows: `40px repeat(${GRID_DIMENSION}, ${CELL_SIZE}px)`,
-            }}
-          >
-            <div className="border-b border-r border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800" /> 
-            {Array.from({ length: GRID_DIMENSION }, (_, i) => (
-              <div
-                key={`c${i}`} // Corresponds to score2 (Visitor or Opponent)
-                style={{ gridColumn: i + 2, gridRow: 1 }}
-                className="flex items-center justify-center border-b border-gray-300
-                          bg-white text-xs font-medium dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-              >
-                {i}
-              </div>
-            ))}
-            {Array.from({ length: GRID_DIMENSION }, (_, score1_iterator) => ( // This iterator represents score1 (Home or Selected Team)
-              <React.Fragment key={`row-${score1_iterator}`}>
-                <div
-                  key={`r${score1_iterator}`}
-                  style={{ gridColumn: 1, gridRow: score1_iterator + 2 }}
-                  className="flex items-center justify-center border-r border-gray-300
-                            bg-white text-xs font-medium dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+            <div>
+              <label htmlFor="team-select-trigger" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5 tracking-wide uppercase">
+                Team
+              </label>
+              <Select.Root value={club} onValueChange={(val) => setClub(val as any)}>
+                <Select.Trigger 
+                  id="team-select-trigger"
+                  className="flex w-full items-center justify-between rounded-lg border border-gray-300 dark:border-gray-600 
+                             bg-gray-50 dark:bg-gray-700/60 px-4 py-2.5 text-sm sm:text-base text-gray-900 dark:text-gray-50
+                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
                 >
-                  {score1_iterator}
-                </div>
-                {Array.from({ length: GRID_DIMENSION }, (_, score2_iterator) => { // This iterator represents score2 (Visitor or Opponent)
-                  // k is constructed based on the visual grid positions: score1_iterator for the row, score2_iterator for the column
-                  const k = `${score1_iterator}-${score2_iterator}`;
-                  const rowData = data[k]; // data keys are already 'score1-score2' from API
-                  const f = rowData?.occurrences ?? 0;
-                  const active = hover === k;
-
-                  // UPDATED: Tooltip score line
-                  const tooltipScoreLine = club === "ALL" 
-                    ? `Home ${score1_iterator} – Visitor ${score2_iterator}` 
-                    : `${TEAM_NAMES[club as string] ?? club} ${score1_iterator} – Opponent ${score2_iterator}`;
-
-                  return (
-                    <Tooltip key={k}>
-                      <TooltipTrigger asChild>
-                        <div
-                          style={{
-                            gridColumn: score2_iterator + 2, // score2 determines column
-                            gridRow: score1_iterator + 2,    // score1 determines row
-                            backgroundColor: getLogScaledColor(f, maxOccurrencesInView),
-                            width: CELL_SIZE,
-                            height: CELL_SIZE,
-                          }}
-                          className={`border cursor-pointer transition-colors ${
-                            active ? "border-black dark:border-white" : "border-gray-100 dark:border-gray-750" 
-                          }`}
-                          onMouseEnter={() => setHover(k)}
-                          onMouseLeave={() => setHover(null)}
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <div className="mb-1 text-sm font-semibold text-gray-900 dark:text-gray-50">
-                          {tooltipScoreLine}
-                        </div>
-                        <div className="text-xs text-gray-700 dark:text-gray-300">
-                          {freqText(f)}
-                        </div>
-                        {rowData?.last_date && (
-                          <>
-                            <hr className="my-1 border-gray-300 dark:border-gray-700" />
-                            <div className="space-y-0.5">
-                              <div className="font-medium text-gray-900 dark:text-gray-50">
-                                Last game
-                              </div>
-                              <div className="text-gray-700 dark:text-gray-300">
-                                {formatDisplayDate(rowData.last_date)}
-                              </div>
-                              <div className="text-gray-700 dark:text-gray-300">
-                                {getDisplayTeamName(rowData.last_home_team)}
-                                {" vs "}
-                                {getDisplayTeamName(rowData.last_visitor_team)}
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </TooltipContent>
-                    </Tooltip>
-                  );
-                })}
-              </React.Fragment>
-            ))}
+                  <Select.Value aria-label={club}>{club === "ALL" ? "All Teams" : TEAM_NAMES[club as string] ?? club}</Select.Value>
+                  <Select.Icon><ChevronDown className="h-5 w-5 text-gray-500 dark:text-gray-400" /></Select.Icon>
+                </Select.Trigger>
+                <Select.Portal> 
+                  <Select.Content className="z-[99] max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-lg border bg-white p-1.5 text-sm shadow-xl dark:bg-gray-800 dark:border-gray-700" position="popper" sideOffset={6}>
+                    <Select.ScrollUpButton className="flex justify-center py-1 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"><ChevronUp className="h-4 w-4" /></Select.ScrollUpButton>
+                    <Select.Viewport className="p-1">
+                      <Select.Item key="ALL" value="ALL" className="cursor-pointer select-none rounded-md px-3 py-2 text-sm sm:text-base leading-none outline-none text-gray-800 dark:text-gray-100 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white dark:data-[highlighted]:bg-blue-600">
+                        <Select.ItemText>All Teams</Select.ItemText>
+                      </Select.Item>
+                      {sortedTeamsForDropdown.map((team) => (
+                        <Select.Item key={team.code} value={team.code} className="cursor-pointer select-none rounded-md px-3 py-2 text-sm sm:text-base leading-none outline-none text-gray-800 dark:text-gray-100 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white dark:data-[highlighted]:bg-blue-600">
+                          <Select.ItemText>{team.name}</Select.ItemText>
+                        </Select.Item>
+                      ))}
+                    </Select.Viewport>
+                    <Select.ScrollDownButton className="flex justify-center py-1 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"><ChevronDown className="h-4 w-4" /></Select.ScrollDownButton>
+                  </Select.Content>
+                </Select.Portal>
+              </Select.Root>
+            </div>
+            <div>
+              <label htmlFor="year-select-trigger" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5 tracking-wide uppercase">
+                Year
+              </label>
+              <Select.Root value={selectedYear} onValueChange={(val) => setSelectedYear(val as string)}>
+                <Select.Trigger
+                  id="year-select-trigger"
+                  className="flex w-full items-center justify-between rounded-lg border border-gray-300 dark:border-gray-600 
+                             bg-gray-50 dark:bg-gray-700/60 px-4 py-2.5 text-sm sm:text-base text-gray-900 dark:text-gray-50
+                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                >
+                  <Select.Value aria-label={selectedYear}>
+                    {selectedYear === "ALL" ? "All Years" : selectedYear}
+                  </Select.Value>
+                  <Select.Icon><ChevronDown className="h-5 w-5 text-gray-500 dark:text-gray-400" /></Select.Icon>
+                </Select.Trigger>
+                 <Select.Portal>
+                  <Select.Content
+                    className="z-[99] max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-lg border bg-white
+                               p-1.5 text-sm shadow-xl dark:bg-gray-800 dark:border-gray-700"
+                    position="popper" sideOffset={6}
+                  >
+                    <Select.ScrollUpButton className="flex justify-center py-1 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                      <ChevronUp className="h-4 w-4" />
+                    </Select.ScrollUpButton>
+                    <Select.Viewport className="p-1">
+                      {YEARS_FOR_DROPDOWN.map((year) => (
+                        <Select.Item
+                          key={year}
+                          value={year}
+                          className="cursor-pointer select-none rounded-md px-3 py-2 text-sm sm:text-base leading-none
+                                     outline-none text-gray-800 dark:text-gray-100
+                                     data-[highlighted]:bg-blue-500 data-[highlighted]:text-white
+                                     dark:data-[highlighted]:bg-blue-600"
+                        >
+                          <Select.ItemText>{year === "ALL" ? "All Years" : year}</Select.ItemText>
+                        </Select.Item>
+                      ))}
+                    </Select.Viewport>
+                    <Select.ScrollDownButton className="flex justify-center py-1 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                      <ChevronDown className="h-4 w-4" />
+                    </Select.ScrollDownButton>
+                  </Select.Content>
+                </Select.Portal>
+              </Select.Root>
+            </div>
           </div>
-        </div>
-      )}
+        </section>
+
+        {/* Heatmap Visualization Section - Content changes based on loading/data state */}
+        <section 
+          aria-labelledby="heatmap-visualization-heading" 
+          className="bg-white dark:bg-gray-800/60 p-3 sm:p-4 rounded-xl shadow-2xl shadow-gray-500/10 dark:shadow-black/20 border border-gray-200 dark:border-gray-700/80 min-h-[400px] flex flex-col" // Added min-h and flex
+        >
+          {/* Conditional rendering for the content of this section */}
+          {isLoading && !lastRows.current && !error && ( // Only show for initial load if no error
+            <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
+              <Loader2 className="w-12 h-12 text-blue-600 dark:text-blue-400 mb-4 animate-spin" />
+              <p className="text-lg font-medium text-gray-600 dark:text-gray-300">Initializing Scorigami Grid...</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Fetching initial data.</p>
+            </div>
+          )}
+
+          {!isLoading && !hasData && !error && ( // Finished loading, but no data found
+            <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
+                <FilterX className="w-14 h-14 text-yellow-500 dark:text-yellow-400 mb-5" />
+                <h3 className="text-xl sm:text-2xl font-semibold text-yellow-700 dark:text-yellow-300 mb-2">No Scorigami Found</h3>
+                <p className="text-yellow-600 dark:text-yellow-400 max-w-md mb-1">
+                    No Scorigami data matches your selection:
+                </p>
+                <p className="text-sm text-yellow-500 dark:text-yellow-500 font-medium">
+                    {club === "ALL" ? "All Teams" : TEAM_NAMES[club as string] ?? club}
+                    {selectedYear === "ALL" ? ", All Years" : ` in ${selectedYear}`}
+                </p>
+                <p className="text-yellow-500 dark:text-yellow-500 text-sm mt-3">Try adjusting the team or year filters.</p>
+            </div>
+          )}
+          
+          {/* Render heatmap if data exists (stale or fresh), or if loading with stale data */}
+          {(hasData || (isLoading && lastRows.current)) && !error && (
+            <div className="flex flex-col flex-grow"> {/* Allow content to grow */}
+              <div className="flex"> {/* Y-Axis Label Column and Main Chart Content */}
+                <div className="flex-none w-16 sm:w-20 flex items-center justify-center pr-2 sm:pr-3">
+                  <div 
+                    className="transform -rotate-90 whitespace-nowrap text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 tracking-wide"
+                  >
+                    {yAxisTextLabel}
+                  </div>
+                </div>
+
+                <div className="flex-grow flex flex-col min-w-0">
+                  <div className="text-center pb-2 sm:pb-3 pt-1">
+                    <span className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 tracking-wide">
+                      {xAxisTextLabel}
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto flex-grow pb-1 relative"> {/* Added relative for potential overlay */}
+                    {isLoading && lastRows.current && ( // Subtle loading overlay when showing stale data
+                      <div className="absolute inset-0 bg-white/30 dark:bg-black/30 flex items-center justify-center z-30 backdrop-blur-sm">
+                        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                      </div>
+                    )}
+                    <div 
+                      className="heatmap-grid-inner border border-gray-300 dark:border-gray-600 rounded-sm"
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: `${HEADER_CELL_SIZE}px repeat(${GRID_DIMENSION}, ${CELL_SIZE}px)`,
+                        gridTemplateRows: `${HEADER_CELL_SIZE}px repeat(${GRID_DIMENSION}, ${CELL_SIZE}px)`,
+                        width: `${innerGridWidth}px`,
+                      }}
+                    >
+                      <div 
+                        style={{ gridColumn: 1, gridRow: 1 }} 
+                        className="border-b border-r border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700/50" 
+                      />
+                      
+                      {Array.from({ length: GRID_DIMENSION }, (_, i) => (
+                        <div
+                          key={`col-header-${i}`}
+                          style={{ gridColumn: i + 2, gridRow: 1 }}
+                          className="flex items-center justify-center border-b border-l border-gray-300 
+                                    bg-gray-100/70 text-xs font-medium text-gray-600 dark:border-gray-600 dark:bg-gray-700/60 dark:text-gray-400"
+                        >
+                          {i}
+                        </div>
+                      ))}
+
+                      {Array.from({ length: GRID_DIMENSION }, (_, score1_iterator) => (
+                        <React.Fragment key={`row-data-${score1_iterator}`}>
+                          <div
+                            key={`row-header-${score1_iterator}`}
+                            style={{ gridColumn: 1, gridRow: score1_iterator + 2 }}
+                            className="flex items-center justify-center border-r border-t border-gray-300 
+                                      bg-gray-100/70 text-xs font-medium text-gray-600 dark:border-gray-600 dark:bg-gray-700/60 dark:text-gray-400"
+                          >
+                            {score1_iterator}
+                          </div>
+                          {Array.from({ length: GRID_DIMENSION }, (_, score2_iterator) => { 
+                            const k = `${score1_iterator}-${score2_iterator}`;
+                            const rowData = data[k]; 
+                            const f = rowData?.occurrences ?? 0;
+                            const active = hover === k;
+                            const tooltipScoreLine = club === "ALL" 
+                              ? `Home ${score1_iterator} – Visitor ${score2_iterator}` 
+                              : `${TEAM_NAMES[club as string] ?? club} ${score1_iterator} – Opponent ${score2_iterator}`;
+
+                            return (
+                              <Tooltip key={k}>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    style={{
+                                      gridColumn: score2_iterator + 2, 
+                                      gridRow: score1_iterator + 2,    
+                                      backgroundColor: getLogScaledColor(f, maxOccurrencesInView),
+                                      width: `${CELL_SIZE}px`,
+                                      height: `${CELL_SIZE}px`,
+                                    }}
+                                    className={`border-t border-l cursor-pointer transition-all duration-100 ease-in-out group
+                                      ${active ? "ring-2 ring-offset-0 ring-blue-500 dark:ring-blue-400 relative z-20 shadow-lg" 
+                                              : "border-gray-200 dark:border-gray-700/80"}
+                                      hover:border-gray-400 dark:hover:border-gray-500 hover:relative hover:z-10`}
+                                    onMouseEnter={() => setHover(k)}
+                                    onMouseLeave={() => setHover(null)}
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs"> 
+                                  <div className="mb-1.5 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                                    {tooltipScoreLine}
+                                  </div>
+                                  <div className="text-xs text-gray-700 dark:text-gray-300 mb-2">
+                                    {freqText(f)}
+                                  </div>
+                                  {rowData?.last_date && (
+                                    <>
+                                      <hr className="my-1.5 border-gray-200 dark:border-gray-600" />
+                                      <div className="space-y-1">
+                                        <div className="font-medium text-xs text-gray-800 dark:text-gray-200">
+                                          Last Occurence:
+                                        </div>
+                                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                                          {formatDisplayDate(rowData.last_date)}
+                                        </div>
+                                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                                          {getDisplayTeamName(rowData.last_home_team)}
+                                          {" vs "}
+                                          {getDisplayTeamName(rowData.last_visitor_team)}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
+                        </React.Fragment>
+                      ))}
+                    </div> {/* End of .heatmap-grid-inner */}
+                  </div> {/* End of .scrollable-grid-container */}
+                </div> {/* End of .main-chart-content */}
+              </div> {/* End of .flex container for Y-Axis + Main Chart */}
+            </div>
+          )}
+        </section>
+      </div> {/* End of main page container */}
     </TooltipProvider>
   );
 }
