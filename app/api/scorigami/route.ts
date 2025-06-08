@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 
-// Corrected Helper to build the 'eligible' games CTE
+// This helper is now used by both query paths
 function buildEligibleGamesQuery(
-  currentTeamParam: string,
   yearFilter: string | null,
   paramIdxStart: number
 ): { query: string; params: (string | number)[] } {
@@ -17,21 +16,11 @@ function buildEligibleGamesQuery(
       conditions.push(
         `g.date >= MAKE_DATE($${currentParamIdx}, 1, 1) AND g.date < MAKE_DATE($${currentParamIdx} + 1, 1, 1)`
       );
-      queryParams.push(year); // Push year value ONCE for this parameter $currentParamIdx
-      currentParamIdx++; // Increment for the next distinct parameter this function might add
+      queryParams.push(year);
+      currentParamIdx++;
     }
   }
-
-  let applyFranchiseNotNullCondition = true;
-  if (currentTeamParam.toUpperCase() === "ALL" && (yearFilter && yearFilter.toUpperCase() !== "ALL")) {
-    applyFranchiseNotNullCondition = false;
-  }
-  if (applyFranchiseNotNullCondition) {
-    // Assuming 'teams.franchise' is the column to check.
-    // If you meant to ensure the team records themselves exist, INNER JOINs already do that.
-    conditions.push("th.franchise IS NOT NULL AND tv.franchise IS NOT NULL");
-  }
-
+  
   const whereClauseString = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const query = `
@@ -50,63 +39,38 @@ function buildEligibleGamesQuery(
   return { query, params: queryParams };
 }
 
-// The rest of your GET function...
 export async function GET(req: NextRequest) {
   const teamParam = (req.nextUrl.searchParams.get("team") ?? "ALL").toUpperCase();
   const yearParam = req.nextUrl.searchParams.get("year");
+  const scorigamiType = req.nextUrl.searchParams.get("type") ?? "oriented"; // Default to 'oriented'
 
   let finalQuery: string;
   const finalQueryParams: (string | number)[] = [];
-  let queryParamIndex = 1; 
+  let queryParamIndex = 1;
 
-  if (teamParam !== "ALL") {
-    finalQueryParams.push(teamParam); 
-    queryParamIndex++;
-  }
+  // The parameter for the team is always handled first.
+  finalQueryParams.push(teamParam);
+  queryParamIndex++;
 
-  const { query: eligibleGamesClause, params: dateParams } = buildEligibleGamesQuery(teamParam, yearParam, queryParamIndex);
+  // The year parameter is handled second.
+  const { query: eligibleGamesClause, params: dateParams } = buildEligibleGamesQuery(yearParam, queryParamIndex);
   finalQueryParams.push(...dateParams);
 
-  if (teamParam === "ALL") {
+
+  if (scorigamiType === 'traditional') {
+    // AXIS SWAP: Winning score (GREATEST) is now score2 (X-axis), Losing (LEAST) is score1 (Y-axis)
     finalQuery = `
       WITH eligible_games AS (${eligibleGamesClause}),
-      ranked AS (
-        SELECT
-          home_score,
-          visitor_score,
-          game_date,
-          game_id,
-          home_team_code,
-          visitor_team_code,
-          ROW_NUMBER() OVER (
-            PARTITION BY home_score, visitor_score
-            ORDER BY game_date DESC, game_id DESC
-          ) AS rn
-        FROM eligible_games -- Removed AS g here, not strictly needed and can avoid confusion
-      )
-      SELECT
-        home_score AS score1,
-        visitor_score AS score2,
-        COUNT(*) AS occurrences,
-        TO_CHAR(MAX(game_date), 'YYYY-MM-DD') AS last_date,
-        MAX(CASE WHEN rn = 1 THEN home_team_code END) AS last_home_team,
-        MAX(CASE WHEN rn = 1 THEN visitor_team_code END) AS last_visitor_team
-      FROM ranked
-      GROUP BY score1, score2;
-    `;
-  } else {
-    finalQuery = `
-      WITH eligible_games AS (${eligibleGamesClause}),
-      oriented AS (
+      scores AS (
         SELECT
           el_g.game_date,
           el_g.game_id,
           el_g.home_team_code,
           el_g.visitor_team_code,
-          CASE WHEN el_g.home_team_code = $1 THEN el_g.home_score ELSE el_g.visitor_score END AS score1,
-          CASE WHEN el_g.home_team_code = $1 THEN el_g.visitor_score ELSE el_g.home_score END AS score2
-        FROM eligible_games AS el_g
-        WHERE (el_g.home_team_code = $1 OR el_g.visitor_team_code = $1)
+          LEAST(el_g.home_score, el_g.visitor_score) AS score1,
+          GREATEST(el_g.home_score, el_g.visitor_score) AS score2
+        FROM eligible_games el_g
+        WHERE ($1 = 'ALL' OR el_g.home_team_code = $1 OR el_g.visitor_team_code = $1)
       ),
       ranked AS (
         SELECT *,
@@ -114,7 +78,7 @@ export async function GET(req: NextRequest) {
                  PARTITION BY score1, score2
                  ORDER BY game_date DESC, game_id DESC
                ) AS rn
-        FROM oriented
+        FROM scores
       )
       SELECT
         score1,
@@ -126,6 +90,76 @@ export async function GET(req: NextRequest) {
       FROM ranked
       GROUP BY score1, score2;
     `;
+
+  } else { // 'oriented' scorigami
+    if (teamParam === "ALL") {
+      const orientedParams = finalQueryParams.filter(p => p !== "ALL");
+      
+      // AXIS SWAP: Home score is now score2 (X-axis), Visitor score is score1 (Y-axis)
+      finalQuery = `
+        WITH eligible_games AS (${buildEligibleGamesQuery(yearParam, 1).query}),
+        ranked AS (
+          SELECT
+            home_score,
+            visitor_score,
+            game_date,
+            game_id,
+            home_team_code,
+            visitor_team_code,
+            ROW_NUMBER() OVER (
+              PARTITION BY home_score, visitor_score
+              ORDER BY game_date DESC, game_id DESC
+            ) AS rn
+          FROM eligible_games
+        )
+        SELECT
+          visitor_score AS score1,
+          home_score AS score2,
+          COUNT(*) AS occurrences,
+          TO_CHAR(MAX(game_date), 'YYYY-MM-DD') AS last_date,
+          MAX(CASE WHEN rn = 1 THEN home_team_code END) AS last_home_team,
+          MAX(CASE WHEN rn = 1 THEN visitor_team_code END) AS last_visitor_team
+        FROM ranked
+        GROUP BY score1, score2;
+      `;
+      // Override params for this specific case
+      finalQueryParams.length = 0;
+      finalQueryParams.push(...dateParams);
+      
+    } else {
+       // AXIS SWAP: Selected Team score is now score2 (X-axis), Opponent score is score1 (Y-axis)
+      finalQuery = `
+        WITH eligible_games AS (${eligibleGamesClause}),
+        oriented AS (
+          SELECT
+            el_g.game_date,
+            el_g.game_id,
+            el_g.home_team_code,
+            el_g.visitor_team_code,
+            CASE WHEN el_g.home_team_code = $1 THEN el_g.visitor_score ELSE el_g.home_score END AS score1,
+            CASE WHEN el_g.home_team_code = $1 THEN el_g.home_score ELSE el_g.visitor_score END AS score2
+          FROM eligible_games AS el_g
+          WHERE (el_g.home_team_code = $1 OR el_g.visitor_team_code = $1)
+        ),
+        ranked AS (
+          SELECT *,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY score1, score2
+                   ORDER BY game_date DESC, game_id DESC
+                 ) AS rn
+          FROM oriented
+        )
+        SELECT
+          score1,
+          score2,
+          COUNT(*) AS occurrences,
+          TO_CHAR(MAX(game_date), 'YYYY-MM-DD') AS last_date,
+          MAX(CASE WHEN rn = 1 THEN home_team_code END) AS last_home_team,
+          MAX(CASE WHEN rn = 1 THEN visitor_team_code END) AS last_visitor_team
+        FROM ranked
+        GROUP BY score1, score2;
+      `;
+    }
   }
 
   try {
@@ -136,11 +170,11 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("Database query error:", {
         message: (error as Error).message,
-        stack: (error as Error).stack, // Added stack for more details
+        stack: (error as Error).stack,
         query: finalQuery,
         params: finalQueryParams
     });
     const errorMessage = error instanceof Error ? error.message : "Unknown database error";
-    return NextResponse.json({ message: "Error fetching scorigami data", details: errorMessage, query: finalQuery, params: finalQueryParams }, { status: 500 });
+    return NextResponse.json({ message: "Error fetching scorigami data", details: errorMessage }, { status: 500 });
   }
 }
