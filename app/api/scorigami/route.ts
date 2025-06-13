@@ -23,6 +23,7 @@ function buildEligibleGamesQuery(
   
   const whereClauseString = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
+  // ▼▼▼ UPDATED: Query now also fetches franchise codes for filtering ▼▼▼
   const query = `
     SELECT
       g.game_id, 
@@ -30,12 +31,17 @@ function buildEligibleGamesQuery(
       g.home_score,
       g.visitor_score,
       th.team AS home_team_code,
-      tv.team AS visitor_team_code
+      tv.team AS visitor_team_code,
+      th.franchise AS home_franchise_code,
+      tv.franchise AS visitor_franchise_code,
+      th.city || ' ' || th.nickname AS home_team_name,
+      tv.city || ' ' || tv.nickname AS visitor_team_name
     FROM gamelogs g
     INNER JOIN teams th ON th.team_id = g.home_team_id
     INNER JOIN teams tv ON tv.team_id = g.visitor_team_id
     ${whereClauseString}
   `;
+  // ▲▲▲ END UPDATE ▲▲▲
   return { query, params: queryParams };
 }
 
@@ -48,29 +54,30 @@ export async function GET(req: NextRequest) {
   const finalQueryParams: (string | number)[] = [];
   let queryParamIndex = 1;
 
-  // The parameter for the team is always handled first.
   finalQueryParams.push(teamParam);
   queryParamIndex++;
 
-  // The year parameter is handled second.
   const { query: eligibleGamesClause, params: dateParams } = buildEligibleGamesQuery(yearParam, queryParamIndex);
   finalQueryParams.push(...dateParams);
 
 
   if (scorigamiType === 'traditional') {
-    // AXIS SWAP: Winning score (GREATEST) is now score2 (X-axis), Losing (LEAST) is score1 (Y-axis)
     finalQuery = `
       WITH eligible_games AS (${eligibleGamesClause}),
       scores AS (
         SELECT
           el_g.game_date,
           el_g.game_id,
-          el_g.home_team_code,
-          el_g.visitor_team_code,
+          el_g.home_team_name,
+          el_g.visitor_team_name,
           LEAST(el_g.home_score, el_g.visitor_score) AS score1,
           GREATEST(el_g.home_score, el_g.visitor_score) AS score2
         FROM eligible_games el_g
-        WHERE ($1 = 'ALL' OR el_g.home_team_code = $1 OR el_g.visitor_team_code = $1)
+        -- ▼▼▼ UPDATED: Filter by franchise, falling back to team code ▼▼▼
+        WHERE ($1 = 'ALL' 
+           OR COALESCE(el_g.home_franchise_code, el_g.home_team_code) = $1 
+           OR COALESCE(el_g.visitor_franchise_code, el_g.visitor_team_code) = $1)
+        -- ▲▲▲ END UPDATE ▲▲▲
       ),
       ranked AS (
         SELECT *,
@@ -85,8 +92,8 @@ export async function GET(req: NextRequest) {
         score2,
         COUNT(*) AS occurrences,
         TO_CHAR(MAX(game_date), 'YYYY-MM-DD') AS last_date,
-        MAX(CASE WHEN rn = 1 THEN home_team_code END) AS last_home_team,
-        MAX(CASE WHEN rn = 1 THEN visitor_team_code END) AS last_visitor_team
+        MAX(CASE WHEN rn = 1 THEN home_team_name END) AS last_home_team,
+        MAX(CASE WHEN rn = 1 THEN visitor_team_name END) AS last_visitor_team
       FROM ranked
       GROUP BY score1, score2;
     `;
@@ -95,7 +102,6 @@ export async function GET(req: NextRequest) {
     if (teamParam === "ALL") {
       const orientedParams = finalQueryParams.filter(p => p !== "ALL");
       
-      // AXIS SWAP: Home score is now score2 (X-axis), Visitor score is score1 (Y-axis)
       finalQuery = `
         WITH eligible_games AS (${buildEligibleGamesQuery(yearParam, 1).query}),
         ranked AS (
@@ -104,8 +110,8 @@ export async function GET(req: NextRequest) {
             visitor_score,
             game_date,
             game_id,
-            home_team_code,
-            visitor_team_code,
+            home_team_name,
+            visitor_team_name,
             ROW_NUMBER() OVER (
               PARTITION BY home_score, visitor_score
               ORDER BY game_date DESC, game_id DESC
@@ -117,29 +123,31 @@ export async function GET(req: NextRequest) {
           home_score AS score2,
           COUNT(*) AS occurrences,
           TO_CHAR(MAX(game_date), 'YYYY-MM-DD') AS last_date,
-          MAX(CASE WHEN rn = 1 THEN home_team_code END) AS last_home_team,
-          MAX(CASE WHEN rn = 1 THEN visitor_team_code END) AS last_visitor_team
+          MAX(CASE WHEN rn = 1 THEN home_team_name END) AS last_home_team,
+          MAX(CASE WHEN rn = 1 THEN visitor_team_name END) AS last_visitor_team
         FROM ranked
         GROUP BY score1, score2;
       `;
-      // Override params for this specific case
       finalQueryParams.length = 0;
       finalQueryParams.push(...dateParams);
       
     } else {
-       // AXIS SWAP: Selected Team score is now score2 (X-axis), Opponent score is score1 (Y-axis)
       finalQuery = `
         WITH eligible_games AS (${eligibleGamesClause}),
         oriented AS (
           SELECT
             el_g.game_date,
             el_g.game_id,
-            el_g.home_team_code,
-            el_g.visitor_team_code,
-            CASE WHEN el_g.home_team_code = $1 THEN el_g.visitor_score ELSE el_g.home_score END AS score1,
-            CASE WHEN el_g.home_team_code = $1 THEN el_g.home_score ELSE el_g.visitor_score END AS score2
+            el_g.home_team_name,
+            el_g.visitor_team_name,
+            -- ▼▼▼ UPDATED: Orient scores based on franchise, falling back to team code ▼▼▼
+            CASE WHEN COALESCE(el_g.home_franchise_code, el_g.home_team_code) = $1 THEN el_g.visitor_score ELSE el_g.home_score END AS score1,
+            CASE WHEN COALESCE(el_g.home_franchise_code, el_g.home_team_code) = $1 THEN el_g.home_score ELSE el_g.visitor_score END AS score2
+            -- ▲▲▲ END UPDATE ▲▲▲
           FROM eligible_games AS el_g
-          WHERE (el_g.home_team_code = $1 OR el_g.visitor_team_code = $1)
+          -- ▼▼▼ UPDATED: Filter by franchise, falling back to team code ▼▼▼
+          WHERE (COALESCE(el_g.home_franchise_code, el_g.home_team_code) = $1 OR COALESCE(el_g.visitor_franchise_code, el_g.visitor_team_code) = $1)
+          -- ▲▲▲ END UPDATE ▲▲▲
         ),
         ranked AS (
           SELECT *,
@@ -154,8 +162,8 @@ export async function GET(req: NextRequest) {
           score2,
           COUNT(*) AS occurrences,
           TO_CHAR(MAX(game_date), 'YYYY-MM-DD') AS last_date,
-          MAX(CASE WHEN rn = 1 THEN home_team_code END) AS last_home_team,
-          MAX(CASE WHEN rn = 1 THEN visitor_team_code END) AS last_visitor_team
+          MAX(CASE WHEN rn = 1 THEN home_team_name END) AS last_home_team,
+          MAX(CASE WHEN rn = 1 THEN visitor_team_name END) AS last_visitor_team
         FROM ranked
         GROUP BY score1, score2;
       `;

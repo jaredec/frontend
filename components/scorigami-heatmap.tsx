@@ -75,31 +75,6 @@ const TEAM_NAMES: Record<string, string> = {
   TEX: "Texas Rangers", TOR: "Toronto Blue Jays", WAS: "Washington Nationals",
 };
 
-const TEAM_CODE_TO_MODERN_FRANCHISE: Record<string, string> = {
-  ANA: "ANA", ARI: "ARI", ATL: "ATL", BAL: "BAL", BLA: "NYA",
-  BOS: "BOS", BR3: "LAN", BRO: "LAN", BS1: "ATL", BSN: "ATL",
-  CAL: "ANA", CH1: "CHN", CH2: "CHN", CHA: "CHA", CHN: "CHN",
-  CIN: "CIN", CLE: "CLE", CN2: "CIN", COL: "COL", DET: "DET",
-  FLO: "MIA", HOU: "HOU", KC1: "OAK", KCA: "KCA", LAA: "ANA",
-  LAN: "LAN", MIA: "MIA", MIL: "MIL", MIN: "MIN", MLA: "BAL",
-  MLN: "ATL", MON: "WAS", NY1: "SFN", NYA: "NYA", NYN: "NYN",
-  OAK: "OAK", PHA: "OAK", PHI: "PHI", PIT: "PIT", PT1: "PIT",
-  SDN: "SDN", SE1: "MIL", SEA: "SEA", SFN: "SFN", SL4: "SLN",
-  SLA: "BAL", SLN: "SLN", TBA: "TBA", TEX: "TEX", TOR: "TOR",
-  WAS: "WAS", WS1: "MIN", WS2: "TEX"
-};
-CURRENT_FRANCHISE_CODES.forEach(code => {
-    if (!TEAM_CODE_TO_MODERN_FRANCHISE[code]) {
-        TEAM_CODE_TO_MODERN_FRANCHISE[code] = code;
-    }
-});
-
-const getDisplayTeamName = (apiTeamCode: string | null): string => {
-  if (!apiTeamCode) return "N/A";
-  const modernFranchiseCode = TEAM_CODE_TO_MODERN_FRANCHISE[apiTeamCode] ?? apiTeamCode;
-  return TEAM_NAMES[modernFranchiseCode] ?? modernFranchiseCode;
-};
-
 /* ───────── Date Filter Years ───────── */
 const CURRENT_YEAR = new Date().getFullYear();
 const EARLIEST_MLB_YEAR = 1871;
@@ -118,9 +93,23 @@ const GRID_DIMENSION = MAX_DISPLAY_SCORE + 1;
 const hex = ["#f3f4f6", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8"];
 const darkHex = ["#374151", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8"];
 
+const HeatmapLegend = ({ isDarkMode }: { isDarkMode: boolean }) => {
+    const colors = (isDarkMode ? darkHex : hex).slice(1);
+    return (
+        <div className="flex items-center justify-center space-x-2 mt-4">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Fewer games</span>
+            <div className="flex">
+                {colors.map((color, i) => (
+                    <div key={i} className="h-4 w-6 rounded-sm" style={{ backgroundColor: color }} />
+                ))}
+            </div>
+            <span className="text-xs text-gray-500 dark:text-gray-400">More games</span>
+        </div>
+    );
+};
+
 /* ───────── Component ───────── */
 export default function ScorigamiHeatmap() {
-  // UPDATED: Default is now 'traditional'
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>('traditional');
   const [club, setClub] = useState<(typeof CURRENT_FRANCHISE_CODES[number] | "ALL")>("ALL");
   const [selectedYear, setSelectedYear] = useState<string>("ALL");
@@ -219,8 +208,8 @@ export default function ScorigamiHeatmap() {
 
   return (
     <TooltipProvider delayDuration={100}>
-      <div className="mx-auto w-full space-y-6 sm:space-y-8">
-        <section aria-labelledby="filter-controls-heading" className="bg-white dark:bg-gray-800/60 p-5 sm:p-6 rounded-xl shadow-2xl shadow-gray-500/10 dark:shadow-black/20 border border-gray-200 dark:border-gray-700/80 transition-all duration-300 ease-out">
+      <div className="bg-white dark:bg-gray-800/50 rounded-2xl shadow-2xl shadow-gray-500/10 dark:shadow-black/20 border border-gray-200/80 dark:border-gray-700/60 transition-all duration-300 ease-out">
+        <div className="p-5 sm:p-6 border-b border-gray-200 dark:border-gray-700/60">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-5 sm:mb-6">
             <h2 id="filter-controls-heading" className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">Explore Scorigami</h2>
             {(hasData || (isLoading && lastRows.current)) && (
@@ -239,7 +228,6 @@ export default function ScorigamiHeatmap() {
                 onValueChange={(val: string) => setScorigamiType(val as ScorigamiType)}
                 aria-label="Select Scorigami Type"
             >
-                {/* UPDATED: Swapped order of buttons */}
                 <RadioGroup.Item value="traditional" id="rg-traditional" className="focus:outline-none">
                     <label htmlFor="rg-traditional" className={`flex flex-col items-center justify-center rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap cursor-pointer transition-colors
                         ${scorigamiType === 'traditional' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600/50'}`}>
@@ -304,9 +292,9 @@ export default function ScorigamiHeatmap() {
               </Select.Root>
             </div>
           </div>
-        </section>
-
-        <section aria-labelledby="heatmap-visualization-heading" className="bg-white dark:bg-gray-800/60 p-3 sm:p-4 rounded-xl shadow-2xl shadow-gray-500/10 dark:shadow-black/20 border border-gray-200 dark:border-gray-700/80 min-h-[400px] flex flex-col">
+        </div>
+        
+        <div className="p-3 sm:p-4 min-h-[400px] flex flex-col justify-center">
           {isLoading && !lastRows.current && !error && (
             <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
               <Loader2 className="w-12 h-12 text-blue-600 dark:text-blue-400 mb-4 animate-spin" />
@@ -329,14 +317,15 @@ export default function ScorigamiHeatmap() {
             </div>
           )}
           
+          {/* ▼▼▼ CORRECTED: The container for the visualization is now centered correctly ▼▼▼ */}
           {(hasData || (isLoading && lastRows.current)) && !error && (
-            <div className="flex flex-col flex-grow">
-              <div className="flex">
+            <div className="flex flex-col items-center">
+              <div className="inline-flex">
                 <div className="flex-none w-16 sm:w-20 flex items-center justify-center pr-2 sm:pr-3">
                   <div className="transform -rotate-90 whitespace-nowrap text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 tracking-wide">{yAxisTextLabel}</div>
                 </div>
 
-                <div className="flex-grow flex flex-col min-w-0">
+                <div className="flex flex-col min-w-0">
                   <div className="text-center pb-2 sm:pb-3 pt-1">
                     <span className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 tracking-wide">{xAxisTextLabel}</span>
                   </div>
@@ -394,7 +383,7 @@ export default function ScorigamiHeatmap() {
                                           gridRow: score1_iterator + 2,    
                                           backgroundColor: getLogScaledColor(f, maxOccurrencesInView),
                                         }}
-                                        className={`border-t border-l cursor-pointer transition-all duration-100 ease-in-out group relative
+                                        className={`border-t border-l cursor-pointer transition-colors duration-150 ease-in-out group relative
                                           ${isActive ? "ring-2 ring-offset-0 ring-blue-500 dark:ring-blue-400 z-20 shadow-lg" 
                                                   : "border-gray-200 dark:border-gray-700/80"}
                                           hover:border-gray-400 dark:hover:border-gray-500 hover:z-10`}
@@ -404,9 +393,7 @@ export default function ScorigamiHeatmap() {
                                       </div>
                                     </TooltipTrigger>
                                     <TooltipContent> 
-                                      {/* ▼▼▼ UPDATED TOOLTIP STRUCTURE ▼▼▼ */}
                                       <div className="flex flex-col items-start text-left">
-                                          {/* Primary Info */}
                                           <div className="flex flex-col">
                                             <span className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">
                                               {tooltipScoreLine}
@@ -415,27 +402,22 @@ export default function ScorigamiHeatmap() {
                                               {freqText(f)}
                                             </span>
                                           </div>
-
-                                          {/* Last Occurrence Section */}
                                           {f > 0 && rowData?.last_date && (
-                                              // UPDATED: Removed border-t and pt-2, leaving only mt-2 for a clean gap
                                               <div className="mt-2 w-full"> 
                                                   <div className="text-xs text-gray-400 dark:text-gray-500 space-y-0.5">
-                                                      {/* UPDATED: Changed "Last game:" to "Last occurrence:" */}
                                                       <div>Last occurrence:</div>
                                                       <div className='font-medium text-gray-600 dark:text-gray-300'>
                                                           {formatDisplayDate(rowData.last_date)}
                                                       </div>
                                                       <div className='font-medium text-gray-600 dark:text-gray-300'>
-                                                        {getDisplayTeamName(rowData.last_home_team)}
+                                                        {rowData.last_home_team}
                                                         {' vs '}
-                                                        {getDisplayTeamName(rowData.last_visitor_team)}
+                                                        {rowData.last_visitor_team}
                                                       </div>
                                                   </div>
                                               </div>
                                           )}
                                       </div>
-                                      {/* ▲▲▲ UPDATED TOOLTIP STRUCTURE ▲▲▲ */}
                                     </TooltipContent>
                                   </Tooltip>
                                 );
@@ -445,11 +427,14 @@ export default function ScorigamiHeatmap() {
                       })}
                     </div>
                   </div>
+                  
+                  <HeatmapLegend isDarkMode={isDarkMode} />
+
                 </div>
               </div>
             </div>
           )}
-        </section>
+        </div>
       </div>
     </TooltipProvider>
   );
