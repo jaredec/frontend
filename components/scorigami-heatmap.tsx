@@ -62,6 +62,8 @@ const CURRENT_FRANCHISE_CODES = [
   "OAK", "PHI", "PIT", "SDN", "SEA", "SFN", "SLN", "TBA", "TEX", "TOR", "WAS",
 ] as const;
 
+type FranchiseCode = typeof CURRENT_FRANCHISE_CODES[number];
+
 const TEAM_NAMES: Record<string, string> = {
   ANA: "Los Angeles Angels", ARI: "Arizona Diamondbacks", ATL: "Atlanta Braves",
   BAL: "Baltimore Orioles", BOS: "Boston Red Sox", CHA: "Chicago White Sox",
@@ -111,7 +113,7 @@ const HeatmapLegend = ({ isDarkMode }: { isDarkMode: boolean }) => {
 /* ───────── Component ───────── */
 export default function ScorigamiHeatmap() {
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>('traditional');
-  const [club, setClub] = useState<(typeof CURRENT_FRANCHISE_CODES[number] | "ALL")>("ALL");
+  const [club, setClub] = useState<FranchiseCode | "ALL">("ALL");
   const [selectedYear, setSelectedYear] = useState<string>("ALL");
 
   const { data: rows, error, isLoading } = useSWR<ApiRow[]>(
@@ -246,9 +248,10 @@ export default function ScorigamiHeatmap() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
             <div>
               <label htmlFor="team-select-trigger" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5 tracking-wide uppercase">Team</label>
-              <Select.Root value={club} onValueChange={(val: string) => setClub(val as any)}>
+              {/* ▼▼▼ CORRECTED: The 'any' type is removed for type safety ▼▼▼ */}
+              <Select.Root value={club} onValueChange={(val: FranchiseCode | "ALL") => setClub(val)}>
                 <Select.Trigger id="team-select-trigger" className="flex w-full items-center justify-between rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/60 px-4 py-2.5 text-sm sm:text-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
-                  <Select.Value aria-label={club}>{club === "ALL" ? "All Teams" : TEAM_NAMES[club as string] ?? club}</Select.Value>
+                  <Select.Value aria-label={club}>{club === "ALL" ? "All Teams" : TEAM_NAMES[club] ?? club}</Select.Value>
                   <Select.Icon><ChevronDown className="h-5 w-5 text-gray-500 dark:text-gray-400" /></Select.Icon>
                 </Select.Trigger>
                 <Select.Portal> 
@@ -309,7 +312,7 @@ export default function ScorigamiHeatmap() {
                 <h3 className="text-xl sm:text-2xl font-semibold text-yellow-700 dark:text-yellow-300 mb-2">No Scorigami Found</h3>
                 <p className="text-yellow-600 dark:text-yellow-400 max-w-md mb-1">No Scorigami data matches your selection:</p>
                 <p className="text-sm text-yellow-500 dark:text-yellow-500 font-medium">
-                    {club === "ALL" ? "All Teams" : TEAM_NAMES[club as string] ?? club}
+                    {club === "ALL" ? "All Teams" : TEAM_NAMES[club] ?? club}
                     {selectedYear === "ALL" ? ", All Years" : ` in ${selectedYear}`}
                     {`, ${scorigamiType} mode`}
                 </p>
@@ -317,7 +320,6 @@ export default function ScorigamiHeatmap() {
             </div>
           )}
           
-          {/* ▼▼▼ CORRECTED: The container for the visualization is now centered correctly ▼▼▼ */}
           {(hasData || (isLoading && lastRows.current)) && !error && (
             <div className="flex flex-col items-center">
               <div className="inline-flex">

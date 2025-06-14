@@ -20,8 +20,9 @@ export default function Home() {
             <div className="md:col-span-2 space-y-3">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">What is MLB Scorigami?</h3>
                 <div className="text-sm text-gray-600 dark:text-gray-400 space-y-3">
+                    {/* ▼▼▼ CORRECTED: Replaced ' with &apos; for JSX compatibility ▼▼▼ */}
                     <p>
-                        MLB Scorigami tracks all final scores in Major League Baseball history. Many scores still haven't occurred. It's always exciting when a 'Scorigami' happens—a final score that's never been seen before.
+                        MLB Scorigami tracks all final scores in Major League Baseball history. Many scores still haven&apos;t occurred. It&apos;s always exciting when a &apos;Scorigami&apos; happens—a final score that&apos;s never been seen before.
                     </p>
                     <p>
                         This project not only captures the frequency of scores, but also celebrates those rare, brand new scores. It was inspired by the original <a href="https://nflscorigami.com/" target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 dark:text-blue-400 hover:underline">NFL Scorigami</a> by Jon Bois.
@@ -51,10 +52,11 @@ export default function Home() {
               <div className="flex items-center gap-4">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Created by Jared Connolly</span>
                   <div className="flex items-center gap-4">
-                      <a href="https://www.linkedin.com/in/jared-connolly/" target="_blank" rel="noopener noreferrer" aria-label="Jared Connolly's LinkedIn" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                      {/* ▼▼▼ CORRECTED: Replaced ' with &apos; in aria-label ▼▼▼ */}
+                      <a href="https://www.linkedin.com/in/jared-connolly/" target="_blank" rel="noopener noreferrer" aria-label="Jared Connolly&apos;s LinkedIn" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                           <Linkedin className="h-5 w-5" />
                       </a>
-                       <a href="https://twitter.com/jaredconnolly1" target="_blank" rel="noopener noreferrer" aria-label="Jared Connolly's Twitter" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                       <a href="https://twitter.com/jaredconnolly1" target="_blank" rel="noopener noreferrer" aria-label="Jared Connolly&apos;s Twitter" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                           <Twitter className="h-5 w-5" />
                       </a>
                        <a href="mailto:jared.connolly@example.com" aria-label="Email Jared Connolly" className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">

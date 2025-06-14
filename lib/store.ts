@@ -1,7 +1,7 @@
 import { create } from "zustand"
 
 /* ----------------------------------------------------------------
- *  Types
+ * Types
  * ---------------------------------------------------------------- */
 export type League = "AL" | "NL"
 
@@ -16,7 +16,7 @@ export interface Team {
 }
 
 /* ----------------------------------------------------------------
- *  Teams organised by division
+ * Teams organised by division
  * ---------------------------------------------------------------- */
 export const teams: Record<Division, Team[]> = {
   // ---------------- American League ----------------
@@ -66,7 +66,7 @@ export const teams: Record<Division, Team[]> = {
 }
 
 /* ----------------------------------------------------------------
- *  Helpers
+ * Helpers
  * ---------------------------------------------------------------- */
 const getAllTeamIds = (): string[] =>
   Object.values(teams).flat().map((t) => t.id)
@@ -77,7 +77,7 @@ const getLeagueTeamIds = (league: League): string[] =>
     .flatMap((d) => teams[d].map((t) => t.id))
 
 /* ----------------------------------------------------------------
- *  Zustand store
+ * Zustand store
  * ---------------------------------------------------------------- */
 interface TeamStore {
   selectedTeams: string[]
@@ -89,7 +89,8 @@ interface TeamStore {
   selectLeague:    (league: League) => void
 }
 
-export const useTeamStore = create<TeamStore>((set, get) => ({
+// ▼▼▼ CORRECTED: Removed the unused 'get' parameter from the function ▼▼▼
+export const useTeamStore = create<TeamStore>((set) => ({
   selectedTeams: [],
 
   selectTeam: (id) =>
@@ -119,6 +120,6 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
 }))
 
 /* ----------------------------------------------------------------
- *  Flattened list for search chips etc.
+ * Flattened list for search chips etc.
  * ---------------------------------------------------------------- */
 export const allTeams: Team[] = Object.values(teams).flat()

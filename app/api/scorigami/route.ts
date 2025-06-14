@@ -7,7 +7,8 @@ function buildEligibleGamesQuery(
   paramIdxStart: number
 ): { query: string; params: (string | number)[] } {
   const queryParams: (string | number)[] = [];
-  let conditions: string[] = [];
+  // ▼▼▼ CORRECTED: Changed 'let' to 'const' as it's not reassigned ▼▼▼
+  const conditions: string[] = [];
   let currentParamIdx = paramIdxStart;
 
   if (yearFilter && yearFilter.toUpperCase() !== "ALL") {
@@ -23,7 +24,6 @@ function buildEligibleGamesQuery(
   
   const whereClauseString = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  // ▼▼▼ UPDATED: Query now also fetches franchise codes for filtering ▼▼▼
   const query = `
     SELECT
       g.game_id, 
@@ -41,7 +41,6 @@ function buildEligibleGamesQuery(
     INNER JOIN teams tv ON tv.team_id = g.visitor_team_id
     ${whereClauseString}
   `;
-  // ▲▲▲ END UPDATE ▲▲▲
   return { query, params: queryParams };
 }
 
@@ -73,11 +72,9 @@ export async function GET(req: NextRequest) {
           LEAST(el_g.home_score, el_g.visitor_score) AS score1,
           GREATEST(el_g.home_score, el_g.visitor_score) AS score2
         FROM eligible_games el_g
-        -- ▼▼▼ UPDATED: Filter by franchise, falling back to team code ▼▼▼
         WHERE ($1 = 'ALL' 
            OR COALESCE(el_g.home_franchise_code, el_g.home_team_code) = $1 
            OR COALESCE(el_g.visitor_franchise_code, el_g.visitor_team_code) = $1)
-        -- ▲▲▲ END UPDATE ▲▲▲
       ),
       ranked AS (
         SELECT *,
@@ -100,8 +97,7 @@ export async function GET(req: NextRequest) {
 
   } else { // 'oriented' scorigami
     if (teamParam === "ALL") {
-      const orientedParams = finalQueryParams.filter(p => p !== "ALL");
-      
+      // ▼▼▼ CORRECTED: Removed the unused 'orientedParams' variable ▼▼▼
       finalQuery = `
         WITH eligible_games AS (${buildEligibleGamesQuery(yearParam, 1).query}),
         ranked AS (
@@ -140,14 +136,10 @@ export async function GET(req: NextRequest) {
             el_g.game_id,
             el_g.home_team_name,
             el_g.visitor_team_name,
-            -- ▼▼▼ UPDATED: Orient scores based on franchise, falling back to team code ▼▼▼
             CASE WHEN COALESCE(el_g.home_franchise_code, el_g.home_team_code) = $1 THEN el_g.visitor_score ELSE el_g.home_score END AS score1,
             CASE WHEN COALESCE(el_g.home_franchise_code, el_g.home_team_code) = $1 THEN el_g.home_score ELSE el_g.visitor_score END AS score2
-            -- ▲▲▲ END UPDATE ▲▲▲
           FROM eligible_games AS el_g
-          -- ▼▼▼ UPDATED: Filter by franchise, falling back to team code ▼▼▼
           WHERE (COALESCE(el_g.home_franchise_code, el_g.home_team_code) = $1 OR COALESCE(el_g.visitor_franchise_code, el_g.visitor_team_code) = $1)
-          -- ▲▲▲ END UPDATE ▲▲▲
         ),
         ranked AS (
           SELECT *,
