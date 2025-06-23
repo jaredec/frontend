@@ -27,6 +27,7 @@
     "pg": "^8.15.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-resize-detector": "^12.0.2",
     "swr": "^2.3.3",
     "tailwind-merge": "^3.2.0",
     "zustand": "^5.0.4"
