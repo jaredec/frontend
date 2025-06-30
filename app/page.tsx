@@ -7,7 +7,7 @@ import useSWR from "swr";
 import ScorigamiHeatmap from "@/components/scorigami-heatmap";
 import * as Select from "@radix-ui/react-select";
 import * as RadioGroup from "@radix-ui/react-radio-group";
-import { Linkedin, Mail, Twitter, ChevronDown, HelpCircle, Loader2 } from "lucide-react";
+import { Mail, Twitter, ChevronDown, HelpCircle, Loader2 } from "lucide-react";
 
 // --- Helpers & Data ---
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
@@ -86,12 +86,13 @@ export default function Home() {
                 <div className="flex flex-col sm:flex-row sm:items-end gap-x-4 gap-y-4">
                     <div>
                         <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Type</label>
-                        <RadioGroup.Root value={scorigamiType} onValueChange={(v) => setScorigamiType(v as any)} className="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-gray-800 p-1">
+                        <RadioGroup.Root value={scorigamiType} onValueChange={(v: ScorigamiType) => setScorigamiType(v)} className="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-gray-800 p-1">
                           <RadioGroup.Item value="traditional" id="rg-trad-sm" className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md">
-                            <label htmlFor="rg-trad-sm" className={`block text-center rounded-md px-3 py-1 text-sm font-medium cursor-pointer transition-colors ${scorigamiType === 'traditional' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-gray-700'}`}>Trad.</label>
+                            {/* FIX: Changed "Trad." to "Traditional" */}
+                            <label htmlFor="rg-trad-sm" className={`block text-center rounded-md px-3 py-1 text-sm font-medium cursor-pointer transition-colors whitespace-nowrap ${scorigamiType === 'traditional' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-gray-700'}`}>Traditional</label>
                           </RadioGroup.Item>
                           <RadioGroup.Item value="oriented" id="rg-ori-sm" className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md">
-                            <label htmlFor="rg-ori-sm" className={`block text-center rounded-md px-3 py-1 text-sm font-medium cursor-pointer transition-colors ${scorigamiType === 'oriented' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-gray-700'}`}>Oriented</label>
+                            <label htmlFor="rg-ori-sm" className={`block text-center rounded-md px-3 py-1 text-sm font-medium cursor-pointer transition-colors whitespace-nowrap ${scorigamiType === 'oriented' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-gray-700'}`}>Oriented</label>
                           </RadioGroup.Item>
                         </RadioGroup.Root>
                     </div>
@@ -105,15 +106,9 @@ export default function Home() {
                            <Select.Portal>
                             <Select.Content className="z-[99] max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-lg border bg-white p-1.5 text-sm shadow-xl dark:bg-gray-800 dark:border-gray-700" position="popper" sideOffset={6}>
                                <Select.Viewport className="p-1">
-                                  {/* FIX: Wrapped text in <Select.ItemText> */}
-                                  <Select.Item value="ALL" className="cursor-pointer select-none rounded-md px-3 py-2 text-sm leading-none outline-none text-gray-800 dark:text-gray-100 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white dark:data-[highlighted]:bg-blue-600">
-                                    <Select.ItemText>All Teams</Select.ItemText>
-                                  </Select.Item>
+                                  <Select.Item value="ALL" className="cursor-pointer select-none rounded-md px-3 py-2 text-sm leading-none outline-none text-gray-800 dark:text-gray-100 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white dark:data-[highlighted]:bg-blue-600"><Select.ItemText>All Teams</Select.ItemText></Select.Item>
                                   {sortedTeamsForDropdown.map((team) => (
-                                    <Select.Item key={team.code} value={team.code} className="cursor-pointer select-none rounded-md px-3 py-2 text-sm leading-none outline-none text-gray-800 dark:text-gray-100 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white dark:data-[highlighted]:bg-blue-600">
-                                      {/* FIX: Wrapped text in <Select.ItemText> */}
-                                      <Select.ItemText>{team.name}</Select.ItemText>
-                                    </Select.Item>
+                                    <Select.Item key={team.code} value={team.code} className="cursor-pointer select-none rounded-md px-3 py-2 text-sm leading-none outline-none text-gray-800 dark:text-gray-100 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white dark:data-[highlighted]:bg-blue-600"><Select.ItemText>{team.name}</Select.ItemText></Select.Item>
                                   ))}
                                </Select.Viewport>
                             </Select.Content>
@@ -131,10 +126,7 @@ export default function Home() {
                               <Select.Content className="z-[99] max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-lg border bg-white p-1.5 text-sm shadow-xl dark:bg-gray-800 dark:border-gray-700" position="popper" sideOffset={6}>
                                 <Select.Viewport className="p-1">
                                     {YEARS_FOR_DROPDOWN.map((year) => (
-                                      <Select.Item key={year} value={year} className="cursor-pointer select-none rounded-md px-3 py-2 text-sm leading-none outline-none text-gray-800 dark:text-gray-100 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white dark:data-[highlighted]:bg-blue-600">
-                                        {/* FIX: Wrapped text in <Select.ItemText> */}
-                                        <Select.ItemText>{year === 'ALL' ? 'All Years' : year}</Select.ItemText>
-                                      </Select.Item>
+                                      <Select.Item key={year} value={year} className="cursor-pointer select-none rounded-md px-3 py-2 text-sm leading-none outline-none text-gray-800 dark:text-gray-100 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white dark:data-[highlighted]:bg-blue-600"><Select.ItemText>{year === 'ALL' ? 'All Years' : year}</Select.ItemText></Select.Item>
                                     ))}
                                 </Select.Viewport>
                               </Select.Content>
@@ -147,7 +139,7 @@ export default function Home() {
 
         <div className="bg-white dark:bg-gray-800/50 border border-slate-200/80 dark:border-gray-700/60 rounded-2xl shadow-xl shadow-slate-900/5">
             <ScorigamiHeatmap
-              rows={rows as any}
+              rows={rows}
               isLoading={isLoading}
               error={error}
               scorigamiType={scorigamiType}

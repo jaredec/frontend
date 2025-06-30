@@ -46,7 +46,6 @@ const TEAM_NAMES: Record<string, string> = {
   TEX: "Texas Rangers", TOR: "Toronto Blue Jays", WAS: "Washington Nationals",
 };
 
-// --- Constants ---
 const MAX_DISPLAY_SCORE = 30;
 const GRID_DIMENSION = MAX_DISPLAY_SCORE + 1;
 const DESKTOP_CELL_SIZE = 22;
@@ -72,7 +71,8 @@ const HeatmapLegend = ({ isDarkMode }: { isDarkMode: boolean }) => {
 interface ScorigamiHeatmapProps {
   rows: ApiRow[] | undefined;
   isLoading: boolean;
-  error: any;
+  // FIX: Gave 'error' a more specific type than 'any'.
+  error: Error | undefined;
   scorigamiType: ScorigamiType;
   club: string;
 }
@@ -88,7 +88,6 @@ export default function ScorigamiHeatmap({ rows, isLoading, error, scorigamiType
   const [cellSize, setCellSize] = useState(DESKTOP_CELL_SIZE);
   const [headerCellSize, setHeaderCellSize] = useState(DESKTOP_HEADER_CELL_SIZE);
   const gridContainerRef = useRef<HTMLDivElement>(null);
-
   const yAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Losing Score' : club === 'ALL' ? 'Visitor Score' : 'Opponent Score', [scorigamiType, club]);
   const xAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Winning Score' : club === 'ALL' ? 'Home Score' : `${TEAM_NAMES[club] ?? club} Score`, [scorigamiType, club]);
 
@@ -128,7 +127,7 @@ export default function ScorigamiHeatmap({ rows, isLoading, error, scorigamiType
         const containerWidth = gridContainerRef.current.offsetWidth;
         const PADDING = window.innerWidth < 640 ? 32 : 48;
         const availableWidth = containerWidth - PADDING;
-        const totalUnits = GRID_DIMENSION + 1.2; // Allocate space for axis labels
+        const totalUnits = GRID_DIMENSION + 1.2;
         const dynamicCellSize = Math.floor(availableWidth / totalUnits);
         
         setCellSize(Math.max(6, Math.min(DESKTOP_CELL_SIZE, dynamicCellSize)));
@@ -188,7 +187,6 @@ export default function ScorigamiHeatmap({ rows, isLoading, error, scorigamiType
                 <div style={{ width: `${headerCellSize}px`}} className="flex-none flex items-center justify-center pr-2">
                     <div className="transform -rotate-90 whitespace-nowrap text-xs sm:text-base font-semibold text-slate-700 dark:text-slate-300 tracking-wide">{yAxisTextLabel}</div>
                 </div>
-                {/* --- GRID WITH AXES --- */}
                 <div className="relative border border-slate-300 dark:border-slate-700/80 rounded-sm overflow-hidden" style={{ width: `${headerCellSize + GRID_DIMENSION * cellSize}px`, height: `${headerCellSize + GRID_DIMENSION * cellSize}px`}}>
                   <div style={{ display: "grid", gridTemplateColumns: `${headerCellSize}px repeat(${GRID_DIMENSION}, ${cellSize}px)`, gridTemplateRows: `${headerCellSize}px repeat(${GRID_DIMENSION}, ${cellSize}px)`}}>
                     <div className="border-r border-b border-slate-200/80 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/30"></div>
