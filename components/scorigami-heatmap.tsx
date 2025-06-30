@@ -71,7 +71,6 @@ const HeatmapLegend = ({ isDarkMode }: { isDarkMode: boolean }) => {
 interface ScorigamiHeatmapProps {
   rows: ApiRow[] | undefined;
   isLoading: boolean;
-  // FIX: Gave 'error' a more specific type than 'any'.
   error: Error | undefined;
   scorigamiType: ScorigamiType;
   club: string;
@@ -88,6 +87,7 @@ export default function ScorigamiHeatmap({ rows, isLoading, error, scorigamiType
   const [cellSize, setCellSize] = useState(DESKTOP_CELL_SIZE);
   const [headerCellSize, setHeaderCellSize] = useState(DESKTOP_HEADER_CELL_SIZE);
   const gridContainerRef = useRef<HTMLDivElement>(null);
+
   const yAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Losing Score' : club === 'ALL' ? 'Visitor Score' : 'Opponent Score', [scorigamiType, club]);
   const xAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Winning Score' : club === 'ALL' ? 'Home Score' : `${TEAM_NAMES[club] ?? club} Score`, [scorigamiType, club]);
 
@@ -146,13 +146,23 @@ export default function ScorigamiHeatmap({ rows, isLoading, error, scorigamiType
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
   
-  if (error) return (
+  // ▼▼▼ IMPROVED ADAPTIVE LABEL INTERVAL LOGIC ▼▼▼
+  const labelInterval = useMemo(() => {
+    if (cellSize < 9) return 5;
+    if (cellSize < 12) return 3;
+    if (cellSize < 16) return 2;
+    return 1;
+  }, [cellSize]);
+
+  if (error) {
+      return (
       <div className="flex flex-col items-center justify-center p-6 bg-red-50 dark:bg-red-900/30 rounded-xl min-h-[450px] text-center">
           <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
           <h3 className="text-xl font-semibold text-red-700 dark:text-red-300">Data Load Error</h3>
           <p className="text-red-600 dark:text-red-400 mt-1 max-w-sm">An issue occurred while fetching data. Please try refreshing.</p>
       </div>
-  );
+      );
+  }
 
   return (
     <TooltipProvider delayDuration={100}>
@@ -190,41 +200,47 @@ export default function ScorigamiHeatmap({ rows, isLoading, error, scorigamiType
                 <div className="relative border border-slate-300 dark:border-slate-700/80 rounded-sm overflow-hidden" style={{ width: `${headerCellSize + GRID_DIMENSION * cellSize}px`, height: `${headerCellSize + GRID_DIMENSION * cellSize}px`}}>
                   <div style={{ display: "grid", gridTemplateColumns: `${headerCellSize}px repeat(${GRID_DIMENSION}, ${cellSize}px)`, gridTemplateRows: `${headerCellSize}px repeat(${GRID_DIMENSION}, ${cellSize}px)`}}>
                     <div className="border-r border-b border-slate-200/80 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/30"></div>
-                    {Array.from({ length: GRID_DIMENSION }).map((_, i) => (
-                       <div key={`col-header-${i}`} className={`flex items-center justify-center border-r border-b border-slate-200/80 dark:border-slate-700/60 text-[9px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${hoveredX === i ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{i}</div>
-                    ))}
-                    {Array.from({ length: GRID_DIMENSION }).map((_, score1_iterator) => (
-                      <React.Fragment key={`row-frag-${score1_iterator}`}>
-                         <div className={`flex items-center justify-center border-r border-b border-slate-200/80 dark:border-slate-700/60 text-[9px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${hoveredY === score1_iterator ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{score1_iterator}</div>
-                         {Array.from({ length: GRID_DIMENSION }).map((_, score2_iterator) => {
-                            const k = `${score1_iterator}-${score2_iterator}`;
-                            const rowData = data[k];
-                            const f = rowData?.occurrences ?? 0;
-                            return (
-                               <Tooltip key={k}>
-                                <TooltipTrigger asChild>
-                                  <div style={{ backgroundColor: getLogScaledColor(f, maxOccurrencesInView) }}
-                                    className={`border-r border-b cursor-pointer transition-colors duration-150 ease-in-out ${hover === k ? 'ring-2 ring-offset-0 ring-blue-500 dark:ring-blue-400 z-20 shadow-lg' : 'border-slate-200/50 dark:border-slate-700/50'}`}
-                                    onMouseEnter={() => setHover(k)} onMouseLeave={() => setHover(null)} />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <div className="flex flex-col items-start text-left">
-                                        <span className="text-lg font-bold text-slate-900 dark:text-white leading-tight">{`${score2_iterator} - ${score1_iterator}`}</span>
-                                        <span className="text-sm text-slate-500 dark:text-slate-400">{freqText(f)}</span>
-                                        {f > 0 && rowData?.last_date && (
-                                          <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 w-full text-xs space-y-0.5">
-                                            <div className="font-medium text-slate-600 dark:text-slate-300">Last Occurrence:</div>
-                                            <div className="text-slate-500 dark:text-slate-400">{formatDisplayDate(rowData.last_date)}</div>
-                                            <div className="text-slate-500 dark:text-slate-400">{rowData.last_home_team} vs {rowData.last_visitor_team}</div>
-                                          </div>
-                                        )}
-                                    </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            );
-                         })}
-                      </React.Fragment>
-                    ))}
+                    {Array.from({ length: GRID_DIMENSION }).map((_, i) => {
+                       const showLabel = i % labelInterval === 0;
+                       return (
+                         <div key={`col-header-${i}`} className={`flex items-center justify-center border-r border-b border-slate-200/80 dark:border-slate-700/60 text-[9px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${hoveredX === i ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{showLabel ? i : ''}</div>
+                       )
+                    })}
+                    {Array.from({ length: GRID_DIMENSION }).map((_, score1_iterator) => {
+                       const showLabel = score1_iterator % labelInterval === 0;
+                       return(
+                          <React.Fragment key={`row-frag-${score1_iterator}`}>
+                             <div className={`flex items-center justify-center border-r border-b border-slate-200/80 dark:border-slate-700/60 text-[9px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${hoveredY === score1_iterator ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{showLabel ? score1_iterator : ''}</div>
+                             {Array.from({ length: GRID_DIMENSION }).map((_, score2_iterator) => {
+                                const k = `${score1_iterator}-${score2_iterator}`;
+                                const rowData = data[k];
+                                const f = rowData?.occurrences ?? 0;
+                                return (
+                                   <Tooltip key={k}>
+                                    <TooltipTrigger asChild>
+                                      <div style={{ backgroundColor: getLogScaledColor(f, maxOccurrencesInView) }}
+                                        className={`border-r border-b cursor-pointer transition-colors duration-150 ease-in-out ${hover === k ? 'ring-2 ring-offset-0 ring-blue-500 dark:ring-blue-400 z-20 shadow-lg' : 'border-slate-200/50 dark:border-slate-700/50'}`}
+                                        onMouseEnter={() => setHover(k)} onMouseLeave={() => setHover(null)} />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <div className="flex flex-col items-start text-left">
+                                            <span className="text-lg font-bold text-slate-900 dark:text-white leading-tight">{`${score2_iterator} - ${score1_iterator}`}</span>
+                                            <span className="text-sm text-slate-500 dark:text-slate-400">{freqText(f)}</span>
+                                            {f > 0 && rowData?.last_date && (
+                                              <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 w-full text-xs space-y-0.5">
+                                                <div className="font-medium text-slate-600 dark:text-slate-300">Last Occurrence:</div>
+                                                <div className="text-slate-500 dark:text-slate-400">{formatDisplayDate(rowData.last_date)}</div>
+                                                <div className="text-slate-500 dark:text-slate-400">{rowData.last_home_team} vs {rowData.last_visitor_team}</div>
+                                              </div>
+                                            )}
+                                        </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                );
+                             })}
+                          </React.Fragment>
+                       );
+                    })}
                   </div>
                 </div>
               </div>

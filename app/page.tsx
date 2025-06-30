@@ -66,13 +66,13 @@ export default function Home() {
     <>
       <main className="min-h-screen container mx-auto px-4 py-8 sm:py-12">
         <header className="border-b border-slate-200 dark:border-slate-700 pb-6 mb-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                <div className="text-center md:text-left">
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                         MLB Scorigami
                     </h1>
                      {isLoading && (
-                         <p className="flex items-center text-sm text-slate-500 dark:text-slate-400 mt-2">
+                         <p className="flex items-center justify-center md:justify-start text-sm text-slate-500 dark:text-slate-400 mt-2">
                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                            <span>Loading...</span>
                          </p>
@@ -83,22 +83,22 @@ export default function Home() {
                          </p>
                      )}
                 </div>
-                <div className="flex flex-col sm:flex-row sm:items-end gap-x-4 gap-y-4">
-                    <div>
+                <div className="grid grid-cols-2 gap-4 md:flex md:items-end">
+                    <div className="col-span-2 md:col-span-1">
                         <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Type</label>
-                        <RadioGroup.Root value={scorigamiType} onValueChange={(v: ScorigamiType) => setScorigamiType(v)} className="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-gray-800 p-1">
-                          <RadioGroup.Item value="traditional" id="rg-trad-sm" className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md">
+                        <RadioGroup.Root value={scorigamiType} onValueChange={(v: ScorigamiType) => setScorigamiType(v)} className="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-gray-800 p-1 w-full">
+                          <RadioGroup.Item value="traditional" id="rg-trad-sm" className="w-full focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md">
                             <label htmlFor="rg-trad-sm" className={`block text-center rounded-md px-3 py-1 text-sm font-medium cursor-pointer transition-colors whitespace-nowrap ${scorigamiType === 'traditional' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-gray-700'}`}>Traditional</label>
                           </RadioGroup.Item>
-                          <RadioGroup.Item value="oriented" id="rg-ori-sm" className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md">
+                          <RadioGroup.Item value="oriented" id="rg-ori-sm" className="w-full focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md">
                             <label htmlFor="rg-ori-sm" className={`block text-center rounded-md px-3 py-1 text-sm font-medium cursor-pointer transition-colors whitespace-nowrap ${scorigamiType === 'oriented' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-gray-700'}`}>Oriented</label>
                           </RadioGroup.Item>
                         </RadioGroup.Root>
                     </div>
-                    <div>
+                    <div className="md:w-48">
                         <label htmlFor="team-select" className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Team</label>
                         <Select.Root value={club} onValueChange={(val: FranchiseCode | "ALL") => setClub(val)}>
-                          <Select.Trigger id="team-select" className="flex h-9 w-full sm:w-48 items-center justify-between rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-400 focus:ring-offset-2 dark:focus:ring-offset-slate-900">
+                          <Select.Trigger id="team-select" className="flex h-9 w-full items-center justify-between rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-400 focus:ring-offset-2 dark:focus:ring-offset-slate-900">
                             <Select.Value aria-label={club}>{club === "ALL" ? "All Teams" : TEAM_NAMES[club] ?? club}</Select.Value>
                             <Select.Icon><ChevronDown className="h-4 w-4" /></Select.Icon>
                           </Select.Trigger>
@@ -114,10 +114,10 @@ export default function Home() {
                           </Select.Portal>
                         </Select.Root>
                     </div>
-                    <div>
+                    <div className="md:w-32">
                         <label htmlFor="year-select" className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Year</label>
                         <Select.Root value={selectedYear} onValueChange={(val) => setSelectedYear(val as string)}>
-                            <Select.Trigger id="year-select" className="flex h-9 w-full sm:w-32 items-center justify-between rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-400 focus:ring-offset-2 dark:focus:ring-offset-slate-900">
+                            <Select.Trigger id="year-select" className="flex h-9 w-full items-center justify-between rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-400 focus:ring-offset-2 dark:focus:ring-offset-slate-900">
                               <Select.Value aria-label={selectedYear}>{selectedYear === "ALL" ? "All Years" : selectedYear}</Select.Value>
                               <Select.Icon><ChevronDown className="h-4 w-4" /></Select.Icon>
                             </Select.Trigger>
@@ -146,13 +146,14 @@ export default function Home() {
             />
         </div>
 
-        <section className="mt-16 grid md:grid-cols-2 gap-x-12 gap-y-8">
+        {/* ▼▼▼ IMPROVED RESPONSIVE LAYOUT FOR THIS SECTION ▼▼▼ */}
+        <section className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                     <HelpCircle className="w-5 h-5 text-blue-500"/> 
                     What is Scorigami?
                 </h3>
-                <div className="text-sm text-slate-600 dark:text-slate-400 space-y-3">
+                <div className="text-sm text-slate-600 dark:text-slate-400 space-y-3 leading-relaxed">
                     <p>
                         <strong className="text-slate-700 dark:text-slate-300">Scorigami</strong> tracks every unique final score in Major League Baseball history. When a game finishes with a score that has never happened before, a &quot;Scorigami&quot; is achieved.
                     </p>
