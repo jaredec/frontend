@@ -88,7 +88,6 @@ export default function Home() {
                         <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Type</label>
                         <RadioGroup.Root value={scorigamiType} onValueChange={(v: ScorigamiType) => setScorigamiType(v)} className="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-gray-800 p-1">
                           <RadioGroup.Item value="traditional" id="rg-trad-sm" className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md">
-                            {/* FIX: Changed "Trad." to "Traditional" */}
                             <label htmlFor="rg-trad-sm" className={`block text-center rounded-md px-3 py-1 text-sm font-medium cursor-pointer transition-colors whitespace-nowrap ${scorigamiType === 'traditional' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-gray-700'}`}>Traditional</label>
                           </RadioGroup.Item>
                           <RadioGroup.Item value="oriented" id="rg-ori-sm" className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md">
