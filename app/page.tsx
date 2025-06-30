@@ -1,6 +1,6 @@
 import ScorigamiHeatmap from "@/components/scorigami-heatmap";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Linkedin, X, Mail } from "lucide-react";
+import { Linkedin, Mail } from "lucide-react";
 
 export default function Home() {
   return (
@@ -21,7 +21,7 @@ export default function Home() {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">What is MLB Scorigami?</h3>
                 <div className="text-sm text-gray-600 dark:text-gray-400 space-y-3">
                     <p>
-                        MLB Scorigami tracks all final scores in Major League Baseball history. Many scores still haven't occurred. It's always exciting when a 'Scorigami' happens—a final score that's never been seen before.
+                        MLB Scorigami tracks all final scores in Major League Baseball history. Many scores still haven&apos;t occurred. It&apos;s always exciting when a &apos;Scorigami&apos; happens—a final score that&apos;s never been seen before.
                     </p>
                     <p>
                         This project not only captures the frequency of scores, but also celebrates those rare, brand new scores. It was inspired by the original <a href="https://nflscorigami.com/" target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 dark:text-blue-400 hover:underline">NFL Scorigami</a> by Jon Bois.
