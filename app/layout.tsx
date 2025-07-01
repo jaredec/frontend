@@ -10,7 +10,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   viewport: "width=device-width, initial-scale=1.0",
-  title: "MLB Scorigami - Visualizing Every Score in Baseball History",
+  title: "MLB Scorigami",
   description: "Explore the complete history of Major League Baseball final scores with an interactive heatmap. Discover which scores have never happened and when each unique score occurred.",
   // ... (keep the rest of your metadata)
 };
