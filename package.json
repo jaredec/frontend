@@ -16,6 +16,7 @@
     "@radix-ui/react-slot": "^1.2.0",
     "@radix-ui/react-tabs": "^1.1.9",
     "@radix-ui/react-tooltip": "^1.2.4",
+    "@supabase/supabase-js": "^2.50.3",
     "@types/papaparse": "^5.3.15",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -30,6 +31,7 @@
     "react-resize-detector": "^12.0.2",
     "swr": "^2.3.3",
     "tailwind-merge": "^3.2.0",
+    "twitter-api-v2": "^1.24.0",
     "zustand": "^5.0.4"
   },
   "devDependencies": {
