@@ -79,13 +79,19 @@ async function recordPost(game_id: number, post_type: string, details: string) {
 }
 
 async function postToX(text: string) {
-  const isTestMode = process.env.NODE_ENV !== 'production';
-  if (isTestMode) {
-    console.log("✅ [TEST MODE] WOULD TWEET:", `\n---\n${text}\n---`);
-    return true;
+  // This line checks for a specific "on/off" switch you control in Vercel.
+  const isProductionPosting = process.env.ENABLE_POSTING === 'true';
+
+  if (!isProductionPosting) {
+    // If the switch is OFF, it will only log to the console, even on Vercel.
+    console.log("✅ [POSTING DISABLED] WOULD TWEET:", `\n---\n${text}\n---`);
+    return true; // Pretends to succeed
   }
+
+  // This code ONLY runs if you have manually set ENABLE_POSTING to 'true' in Vercel.
   try {
     await twitterClient.v2.tweet(text);
+    console.log("🚀 Post sent to X successfully!");
     return true;
   } catch (error) {
     console.error("Failed to post to X:", error);
