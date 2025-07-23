@@ -1,7 +1,6 @@
-// /frontend/app/api/cron/check-games/route.ts (Final version for external cron service)
+// /frontend/app/api/cron/check-games/route.ts (Final version with Build Fix)
 
 import { createClient } from '@supabase/supabase-js';
-// UPDATED: Import NextRequest to handle incoming requests securely
 import { NextRequest, NextResponse } from 'next/server';
 import TwitterApi from 'twitter-api-v2';
 import { MLBGame } from '@/lib/types';
@@ -25,7 +24,28 @@ interface ScoreHistory {
   last_game_date: string;
 }
 
-// --- HELPER FUNCTIONS (No changes needed here) ---
+// --- NEW TYPES TO FIX BUILD ERROR ---
+// Defines the structure of the game data we expect from the MLB API
+interface MlbApiGame {
+    gamePk: number;
+    status: { detailedState: string };
+    teams: {
+        away: { team: { name: string; id: number; }; score?: number; };
+        home: { team: { name: string; id: number; }; score?: number; };
+    };
+    linescore?: {
+        currentInning?: number;
+        currentInningOrdinal?: string;
+        inningState?: string;
+    };
+}
+
+// Defines the structure of the date object from the MLB API
+interface MlbApiDate {
+    games: MlbApiGame[];
+}
+
+// --- HELPER FUNCTIONS ---
 
 function getOrdinal(n: number): string {
     if (n === 0) return "0";
@@ -34,6 +54,7 @@ function getOrdinal(n: number): string {
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
+// UPDATED: fetchLiveGames now uses the specific types instead of 'any'
 async function fetchLiveGames(): Promise<MLBGame[]> {
   try {
     const response = await fetch('https://statsapi.mlb.com/api/v1/schedule/games/?sportId=1', { cache: 'no-store' });
@@ -44,7 +65,8 @@ async function fetchLiveGames(): Promise<MLBGame[]> {
     const data = await response.json();
     if (!data.dates || data.dates.length === 0) return [];
 
-    return data.dates.flatMap((date: any) => date.games).map((g: any): MLBGame => ({
+    // FIXED: Using MlbApiDate and MlbApiGame types to avoid 'any'
+    return data.dates.flatMap((date: MlbApiDate) => date.games).map((g: MlbApiGame): MLBGame => ({
       game_id: g.gamePk,
       status: g.status.detailedState,
       away_name: g.teams.away.team.name,
@@ -131,16 +153,12 @@ async function getScoreHistory(s1: number, s2: number): Promise<ScoreHistory | n
     };
 }
 
-// --- MAIN API ROUTE HANDLER (UPDATED FOR SECURITY) ---
+// --- MAIN API ROUTE HANDLER ---
 export async function GET(request: NextRequest) {
-  // --- 🔒 CRITICAL SECURITY CHECK 🔒 ---
-  // This ensures only a service with the correct secret can run this job.
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    // If the secret is missing or wrong, deny access immediately.
     return new Response('Unauthorized', { status: 401 });
   }
-  // --- END SECURITY CHECK ---
 
   console.log('Cron job started by external trigger: Checking MLB games...');
   
