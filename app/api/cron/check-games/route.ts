@@ -1,22 +1,9 @@
-// /frontend/app/api/cron/check-games/route.ts (Final version with Build Fix)
+// /frontend/app/api/cron/check-games/route.ts (Final, Complete Version)
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import TwitterApi from 'twitter-api-v2';
 import { MLBGame } from '@/lib/types';
-
-// --- INITIALIZE CLIENTS ---
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-const twitterClient = new TwitterApi({
-  appKey: process.env.X_APP_KEY!,
-  appSecret: process.env.X_APP_SECRET!,
-  accessToken: process.env.X_ACCESS_TOKEN!,
-  accessSecret: process.env.X_ACCESS_SECRET!,
-});
 
 // --- TYPE DEFINITIONS ---
 interface ScoreHistory {
@@ -24,8 +11,6 @@ interface ScoreHistory {
   last_game_date: string;
 }
 
-// --- NEW TYPES TO FIX BUILD ERROR ---
-// Defines the structure of the game data we expect from the MLB API
 interface MlbApiGame {
     gamePk: number;
     status: { detailedState: string };
@@ -40,7 +25,6 @@ interface MlbApiGame {
     };
 }
 
-// Defines the structure of the date object from the MLB API
 interface MlbApiDate {
     games: MlbApiGame[];
 }
@@ -54,7 +38,6 @@ function getOrdinal(n: number): string {
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-// UPDATED: fetchLiveGames now uses the specific types instead of 'any'
 async function fetchLiveGames(): Promise<MLBGame[]> {
   try {
     const response = await fetch('https://statsapi.mlb.com/api/v1/schedule/games/?sportId=1', { cache: 'no-store' });
@@ -65,7 +48,6 @@ async function fetchLiveGames(): Promise<MLBGame[]> {
     const data = await response.json();
     if (!data.dates || data.dates.length === 0) return [];
 
-    // FIXED: Using MlbApiDate and MlbApiGame types to avoid 'any'
     return data.dates.flatMap((date: MlbApiDate) => date.games).map((g: MlbApiGame): MLBGame => ({
       game_id: g.gamePk,
       status: g.status.detailedState,
@@ -84,28 +66,24 @@ async function fetchLiveGames(): Promise<MLBGame[]> {
   }
 }
 
-async function checkIfPosted(game_id: number, details: string): Promise<boolean> {
+// NOTE: Helper functions now accept the 'supabase' or 'twitterClient' instance as a parameter.
+async function checkIfPosted(supabase: SupabaseClient, game_id: number, details: string): Promise<boolean> {
   const { data, error } = await supabase.from('posted_updates').select('id').eq('game_id', game_id).eq('details', details).limit(1);
-  if (error) {
-    console.error("Error checking if posted:", error);
-    return true;
-  }
+  if (error) { console.error("Error checking if posted:", error); return true; }
   return (data || []).length > 0;
 }
 
-async function recordPost(game_id: number, post_type: string, details: string) {
+async function recordPost(supabase: SupabaseClient, game_id: number, post_type: string, details: string) {
   const { error } = await supabase.from('posted_updates').insert({ game_id, post_type, details });
   if (error) console.error("Error recording post:", error);
 }
 
-async function postToX(text: string) {
+async function postToX(twitterClient: TwitterApi, text: string) {
   const isProductionPosting = process.env.ENABLE_POSTING === 'true';
-
   if (!isProductionPosting) {
     console.log("✅ [POSTING DISABLED] WOULD TWEET:", `\n---\n${text}\n---`);
     return true;
   }
-
   try {
     await twitterClient.v2.tweet(text);
     console.log("🚀 Post sent to X successfully!");
@@ -116,7 +94,7 @@ async function postToX(text: string) {
   }
 }
 
-async function checkTrueScorigami(s1: number, s2: number): Promise<{ isScorigami: true, newCount: number } | { isScorigami: false }> {
+async function checkTrueScorigami(supabase: SupabaseClient, s1: number, s2: number): Promise<{ isScorigami: true, newCount: number } | { isScorigami: false }> {
     const winningScore = Math.max(s1, s2);
     const losingScore = Math.min(s1, s2);
     const { data, error } = await supabase.from('scorigami_summary').select('first_game_id').eq('score1', winningScore).eq('score2', losingScore).limit(1);
@@ -127,7 +105,7 @@ async function checkTrueScorigami(s1: number, s2: number): Promise<{ isScorigami
     return { isScorigami: true, newCount: (count || 0) + 1 };
 }
 
-async function checkFranchiseScorigami(teamId: number, s1: number, s2: number): Promise<{ isFranchiseScorigami: true, newCount: number } | { isFranchiseScorigami: false }> {
+async function checkFranchiseScorigami(supabase: SupabaseClient, teamId: number, s1: number, s2: number): Promise<{ isFranchiseScorigami: true, newCount: number } | { isFranchiseScorigami: false }> {
     const winningScore = Math.max(s1, s2);
     const losingScore = Math.min(s1, s2);
     const { data, error } = await supabase.from('scorigami_summary').select('first_game_id').eq('team_id', teamId).eq('score1', winningScore).eq('score2', losingScore).limit(1);
@@ -138,7 +116,7 @@ async function checkFranchiseScorigami(teamId: number, s1: number, s2: number): 
     return { isFranchiseScorigami: true, newCount: (count || 0) + 1 };
 }
 
-async function getScoreHistory(s1: number, s2: number): Promise<ScoreHistory | null> {
+async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number): Promise<ScoreHistory | null> {
     const winningScore = Math.max(s1, s2);
     const losingScore = Math.min(s1, s2);
     const { data: summary, error: summaryError } = await supabase.from('scorigami_summary').select('occurrences, last_game_id').eq('score1', winningScore).eq('score2', losingScore);
@@ -155,10 +133,25 @@ async function getScoreHistory(s1: number, s2: number): Promise<ScoreHistory | n
 
 // --- MAIN API ROUTE HANDLER ---
 export async function GET(request: NextRequest) {
+  // --- 🔒 Security Check ---
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response('Unauthorized', { status: 401 });
   }
+
+  // --- ✨ INITIALIZE CLIENTS AT RUNTIME, NOT BUILD TIME ---
+  // This is the fix for the Vercel build error.
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+  const twitterClient = new TwitterApi({
+    appKey: process.env.X_APP_KEY!,
+    appSecret: process.env.X_APP_SECRET!,
+    accessToken: process.env.X_ACCESS_TOKEN!,
+    accessSecret: process.env.X_ACCESS_SECRET!,
+  });
+  // --- END INITIALIZATION ---
 
   console.log('Cron job started by external trigger: Checking MLB games...');
   
@@ -170,36 +163,32 @@ export async function GET(request: NextRequest) {
     const isFinal = FINAL_STATES.includes(game.status);
 
     if (isFinal) {
-        if (await checkIfPosted(game_id, 'Final')) continue;
+        if (await checkIfPosted(supabase, game_id, 'Final')) continue;
 
         let postText = "";
-        const trueScorigamiResult = await checkTrueScorigami(away_score, home_score);
+        const trueScorigamiResult = await checkTrueScorigami(supabase, away_score, home_score);
 
         if (trueScorigamiResult.isScorigami) {
             const newCountOrdinal = getOrdinal(trueScorigamiResult.newCount);
             postText = `${away_name} ${away_score} - ${home_score} ${home_name}\nFinal\n\nThat's a TRUE Scorigami! It's the ${newCountOrdinal} unique final score in MLB history.`;
         } else {
-            const awayFranchiseResult = await checkFranchiseScorigami(game.away_id, away_score, home_score);
-            const homeFranchiseResult = await checkFranchiseScorigami(game.home_id, away_score, home_score);
+            const awayFranchiseResult = await checkFranchiseScorigami(supabase, game.away_id, away_score, home_score);
+            const homeFranchiseResult = await checkFranchiseScorigami(supabase, game.home_id, away_score, home_score);
 
             if (awayFranchiseResult.isFranchiseScorigami) {
                 const teamName = away_name;
                 const newCount = awayFranchiseResult.newCount;
                 const newCountOrdinal = getOrdinal(newCount);
-                const history = await getScoreHistory(away_score, home_score);
-                
+                const history = await getScoreHistory(supabase, away_score, home_score);
                 postText = `${away_name} ${away_score} - ${home_score} ${home_name}\nFinal\n\nThat's a FRANCHISE Scorigami! It's the ${newCountOrdinal} unique final score in ${teamName} franchise history.\nThis game has happened ${history?.occurrences || 0} times in MLB history, most recently on ${history?.last_game_date || 'an unknown date'}.`;
-
             } else if (homeFranchiseResult.isFranchiseScorigami) {
                 const teamName = home_name;
                 const newCount = homeFranchiseResult.newCount;
                 const newCountOrdinal = getOrdinal(newCount);
-                const history = await getScoreHistory(away_score, home_score);
-
+                const history = await getScoreHistory(supabase, away_score, home_score);
                 postText = `${away_name} ${away_score} - ${home_score} ${home_name}\nFinal\n\nThat's a FRANCHISE Scorigami! It's the ${newCountOrdinal} unique final score in ${teamName} franchise history.\nThis game has happened ${history?.occurrences || 0} times in MLB history, most recently on ${history?.last_game_date || 'an unknown date'}.`;
-
             } else {
-                const history = await getScoreHistory(away_score, home_score);
+                const history = await getScoreHistory(supabase, away_score, home_score);
                 if (history) {
                     postText = `${away_name} ${away_score} - ${home_score} ${home_name}\nFinal\n\nNo Scorigami. That score has happened ${history.occurrences} times before in MLB history, most recently on ${history.last_game_date}.`;
                 }
@@ -207,11 +196,11 @@ export async function GET(request: NextRequest) {
         }
 
         if (postText) {
-            if (await postToX(postText)) {
-                await recordPost(game_id, 'Final', 'Final');
+            if (await postToX(twitterClient, postText)) {
+                await recordPost(supabase, game_id, 'Final', 'Final');
             }
         } else {
-            await recordPost(game_id, 'Processed_No_Post', 'Final');
+            await recordPost(supabase, game_id, 'Processed_No_Post', 'Final');
         }
     }
   }
