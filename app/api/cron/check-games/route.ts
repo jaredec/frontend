@@ -1,4 +1,4 @@
-// /frontend/app/api/cron/check-games/route.ts (Final, Complete Version)
+// /frontend/app/api/cron/check-games/route.ts (Final, Complete Version with ID Logging)
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
@@ -66,7 +66,6 @@ async function fetchLiveGames(): Promise<MLBGame[]> {
   }
 }
 
-// NOTE: Helper functions now accept the 'supabase' or 'twitterClient' instance as a parameter.
 async function checkIfPosted(supabase: SupabaseClient, game_id: number, details: string): Promise<boolean> {
   const { data, error } = await supabase.from('posted_updates').select('id').eq('game_id', game_id).eq('details', details).limit(1);
   if (error) { console.error("Error checking if posted:", error); return true; }
@@ -140,7 +139,6 @@ export async function GET(request: NextRequest) {
   }
 
   // --- ✨ INITIALIZE CLIENTS AT RUNTIME, NOT BUILD TIME ---
-  // This is the fix for the Vercel build error.
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -159,6 +157,9 @@ export async function GET(request: NextRequest) {
   const FINAL_STATES = ['Final', 'Game Over', 'Completed Early'];
 
   for (const game of games) {
+    // --- ADDED THIS LINE FOR DEBUGGING ---
+    console.log(`Processing Game: ${game.away_name} (API ID: ${game.away_id}) vs. ${game.home_name} (API ID: ${game.home_id})`);
+
     const { away_score, home_score, away_name, home_name, game_id } = game;
     const isFinal = FINAL_STATES.includes(game.status);
 
