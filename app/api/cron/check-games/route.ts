@@ -1,4 +1,4 @@
-// /frontend/app/api/cron/check-games/route.ts (Final, Corrected Version)
+// /frontend/app/api/cron/check-games/route.ts (Final, Corrected Version with Typo Fix)
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
@@ -131,30 +131,22 @@ async function checkFranchiseScorigami(supabase: SupabaseClient, teamId: number,
 async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number): Promise<ScoreHistory | null> {
     const winningScore = Math.max(s1, s2);
     const losingScore = Math.min(s1, s2);
-
     const { count, data, error } = await supabase
         .from('gamelogs')
         .select('date', { count: 'exact' })
         .or(`and(home_score.eq.${winningScore},visitor_score.eq.${losingScore}),and(home_score.eq.${losingScore},visitor_score.eq.${winningScore})`)
-        // --- THIS IS THE KEY TO THE FIX ---
-        // It explicitly sorts the results by the 'date' column.
         .order('date', { ascending: false })
-        // --- AND THEN TAKES THE VERY FIRST ROW ---
-        // This first row is guaranteed to be the one with the latest date.
         .limit(1);
-
     if (error || !data || data.length === 0) {
-        if (error) console.error("Error fetching score history:", error);
+        if (error) console.error("Error fetching score history from gamelogs:", error);
         return null;
     }
-
-    // data[0] is now the correct, most recent game, regardless of its game_id.
-    // count is the accurate total from the entire query.
     return {
         occurrences: count || 0,
         last_game_date: new Date(data[0].date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     };
 }
+
 
 // --- MAIN API ROUTE HANDLER ---
 export async function GET(request: NextRequest) {
@@ -187,7 +179,6 @@ export async function GET(request: NextRequest) {
     const isFinal = FINAL_STATES.includes(game.status);
 
     if (isFinal) {
-        // --- ✨ APPLY THE TRANSLATION ✨ ---
         const dbAwayId = API_ID_TO_DB_ID_MAP[game.away_id];
         const dbHomeId = API_ID_TO_DB_ID_MAP[game.home_id];
 
@@ -208,6 +199,7 @@ export async function GET(request: NextRequest) {
             const awayFranchiseResult = await checkFranchiseScorigami(supabase, dbAwayId, away_score, home_score);
             const homeFranchiseResult = await checkFranchiseScorigami(supabase, dbHomeId, away_score, home_score);
 
+            // --- THIS IS THE FIX ---
             if (awayFranchiseResult.isFranchiseScorigami) {
                 const teamName = away_name;
                 const newCount = awayFranchiseResult.newCount;
