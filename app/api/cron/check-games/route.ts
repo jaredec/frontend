@@ -131,19 +131,30 @@ async function checkFranchiseScorigami(supabase: SupabaseClient, teamId: number,
 async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number): Promise<ScoreHistory | null> {
     const winningScore = Math.max(s1, s2);
     const losingScore = Math.min(s1, s2);
-    const { data: summary, error: summaryError } = await supabase.from('scorigami_summary').select('occurrences, last_game_id').eq('score1', winningScore).eq('score2', losingScore);
-    if (summaryError || !summary || summary.length === 0) { if (summaryError) console.error("Error fetching score history summary:", summaryError); return null; }
-    const totalOccurrences = summary.reduce((acc, row) => acc + row.occurrences, 0);
-    const lastGameId = Math.max(...summary.map(row => row.last_game_id));
-    // --- THIS IS THE FIX ---
-    const { data: game, error: gameError } = await supabase.from('gamelogs').select('date').eq('game_id', lastGameId).single();
-    if (gameError || !game) { if (gameError) console.error("Error fetching last game date:", gameError); return null; }
+
+    const { count, data, error } = await supabase
+        .from('gamelogs')
+        .select('date', { count: 'exact' })
+        .or(`and(home_score.eq.${winningScore},visitor_score.eq.${losingScore}),and(home_score.eq.${losingScore},visitor_score.eq.${winningScore})`)
+        // --- THIS IS THE KEY TO THE FIX ---
+        // It explicitly sorts the results by the 'date' column.
+        .order('date', { ascending: false })
+        // --- AND THEN TAKES THE VERY FIRST ROW ---
+        // This first row is guaranteed to be the one with the latest date.
+        .limit(1);
+
+    if (error || !data || data.length === 0) {
+        if (error) console.error("Error fetching score history:", error);
+        return null;
+    }
+
+    // data[0] is now the correct, most recent game, regardless of its game_id.
+    // count is the accurate total from the entire query.
     return {
-        occurrences: totalOccurrences,
-        last_game_date: new Date(game.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+        occurrences: count || 0,
+        last_game_date: new Date(data[0].date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     };
 }
-
 
 // --- MAIN API ROUTE HANDLER ---
 export async function GET(request: NextRequest) {
