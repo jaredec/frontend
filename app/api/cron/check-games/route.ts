@@ -1,9 +1,46 @@
-// /frontend/app/api/cron/check-games/route.ts (Final, Complete Version with ID Logging)
+// /frontend/app/api/cron/check-games/route.ts (Final Version with ID Mapping)
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import TwitterApi from 'twitter-api-v2';
 import { MLBGame } from '@/lib/types';
+
+// --- ✨ TEAM ID MAPPING LAYER ✨ ---
+// This object translates the Official MLB API Team ID (the key)
+// into YOUR database's internal team_id (the value).
+const API_ID_TO_DB_ID_MAP: { [key: number]: number } = {
+  108: 8,   // ANA - Los Angeles Angels
+  109: 9,   // ARI - Arizona Diamondbacks
+  144: 21,  // ATL - Atlanta Braves
+  110: 23,  // BAL - Baltimore Orioles
+  111: 41,  // BOS - Boston Red Sox
+  145: 70,  // CHA - Chicago White Sox
+  112: 73,  // CHN - Chicago Cubs
+  113: 79,  // CIN - Cincinnati Reds
+  114: 86,  // CLE - Cleveland Guardians
+  115: 95,  // COL - Colorado Rockies
+  116: 114, // DET - Detroit Tigers
+  117: 131, // HOU - Houston Astros
+  118: 148, // KCA - Kansas City Royals
+  119: 157, // LAN - Los Angeles Dodgers
+  146: 165, // MIA - Miami Marlins
+  158: 167, // MIL - Milwaukee Brewers
+  142: 168, // MIN - Minnesota Twins
+  147: 199, // NYA - New York Yankees
+  121: 201, // NYN - New York Mets
+  133: 203, // OAK - Oakland Athletics
+  143: 214, // PHI - Philadelphia Phillies
+  134: 219, // PIT - Pittsburgh Pirates
+  135: 234, // SDN - San Diego Padres
+  136: 237, // SEA - Seattle Mariners
+  137: 238, // SFN - San Francisco Giants
+  138: 249, // SLN - St. Louis Cardinals
+  139: 259, // TBA - Tampa Bay Rays
+  140: 260, // TEX - Texas Rangers
+  141: 265, // TOR - Toronto Blue Jays
+  120: 271, // WAS - Washington Nationals
+};
+
 
 // --- TYPE DEFINITIONS ---
 interface ScoreHistory {
@@ -122,13 +159,14 @@ async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number)
     if (summaryError || !summary || summary.length === 0) { if (summaryError) console.error("Error fetching score history summary:", summaryError); return null; }
     const totalOccurrences = summary.reduce((acc, row) => acc + row.occurrences, 0);
     const lastGameId = Math.max(...summary.map(row => row.last_game_id));
-    const { data: game, error: gameError } = await supabase.from('gamelogs').select('date').eq('game_id', lastGameId).single();
+    const { data: game, error: gameError } = await supabase.from('gmelogs').select('date').eq('game_id', lastGameId).single();
     if (gameError || !game) { if (gameError) console.error("Error fetching last game date:", gameError); return null; }
     return {
         occurrences: totalOccurrences,
         last_game_date: new Date(game.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     };
 }
+
 
 // --- MAIN API ROUTE HANDLER ---
 export async function GET(request: NextRequest) {
@@ -157,24 +195,34 @@ export async function GET(request: NextRequest) {
   const FINAL_STATES = ['Final', 'Game Over', 'Completed Early'];
 
   for (const game of games) {
-    // --- ADDED THIS LINE FOR DEBUGGING ---
-    console.log(`Processing Game: ${game.away_name} (API ID: ${game.away_id}) vs. ${game.home_name} (API ID: ${game.home_id})`);
-
     const { away_score, home_score, away_name, home_name, game_id } = game;
     const isFinal = FINAL_STATES.includes(game.status);
 
     if (isFinal) {
+        // --- ✨ APPLY THE TRANSLATION ✨ ---
+        // Translate the live API IDs into your internal database IDs
+        const dbAwayId = API_ID_TO_DB_ID_MAP[game.away_id];
+        const dbHomeId = API_ID_TO_DB_ID_MAP[game.home_id];
+
+        // If a team isn't in our map, we can't check it. Skip to be safe.
+        if (!dbAwayId || !dbHomeId) {
+            console.warn(`Could not find a DB ID mapping for game between ${game.away_name} (API ID: ${game.away_id}) and ${game.home_name} (API ID: ${game.home_id}). Skipping.`);
+            continue;
+        }
+
         if (await checkIfPosted(supabase, game_id, 'Final')) continue;
 
         let postText = "";
+        // The check for a "True Scorigami" does not need a team ID, so it is unchanged.
         const trueScorigamiResult = await checkTrueScorigami(supabase, away_score, home_score);
 
         if (trueScorigamiResult.isScorigami) {
             const newCountOrdinal = getOrdinal(trueScorigamiResult.newCount);
             postText = `${away_name} ${away_score} - ${home_score} ${home_name}\nFinal\n\nThat's a TRUE Scorigami! It's the ${newCountOrdinal} unique final score in MLB history.`;
         } else {
-            const awayFranchiseResult = await checkFranchiseScorigami(supabase, game.away_id, away_score, home_score);
-            const homeFranchiseResult = await checkFranchiseScorigami(supabase, game.home_id, away_score, home_score);
+            // Pass the TRANSLATED database IDs to the checking function
+            const awayFranchiseResult = await checkFranchiseScorigami(supabase, dbAwayId, away_score, home_score);
+            const homeFranchiseResult = await checkFranchiseScorigami(supabase, dbHomeId, away_score, home_score);
 
             if (awayFranchiseResult.isFranchiseScorigami) {
                 const teamName = away_name;
