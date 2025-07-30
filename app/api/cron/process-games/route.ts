@@ -1,4 +1,4 @@
-// /frontend/app/api/cron/process-games/route.ts (PRODUCTION)
+// /frontend/app/api/cron/process-games/route.ts (PRODUCTION - FINAL VERIFIED CODE)
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
@@ -27,12 +27,13 @@ async function postToX(twitterClient: TwitterApi, text: string): Promise<PostRes
     await twitterClient.v2.tweet(text);
     console.log("🚀 [QUEUE] Post sent to X successfully!");
     return { success: true };
-  } catch (error: any) {
+  } catch (e) {
+    const error = e as { code?: number }; // Safely cast the error
     if (error.code === 429) {
       console.warn("🚫 [QUEUE] Rate limit still active. Tweet will remain in queue.");
       return { success: false, reason: 'rate-limit' };
     }
-    console.error("[QUEUE] Failed to post to X for a non-rate-limit reason:", error);
+    console.error("[QUEUE] Failed to post to X for a non-rate-limit reason:", e);
     return { success: false, reason: 'other-error' };
   }
 }
@@ -64,17 +65,14 @@ async function processTweetQueue(supabase: SupabaseClient, twitterClient: Twitte
   if (postResult.success) {
     console.log(`[QUEUE] Successfully posted queued tweet for game ${tweetToProcess.game_id}.`);
     
-    // IMPORTANT: First, record that the original post is now complete.
     if (tweetToProcess.game_id) {
-        // Assuming all queued items are 'Final' posts. Adjust if you queue 'In-Progress' posts.
+        // Assuming all queued items are 'Final' posts. Adjust if you queue other types.
         await recordPost(supabase, tweetToProcess.game_id, 'Final', 'Final');
     }
-    // THEN, delete it from the queue.
     await supabase.from('tweet_queue').delete().eq('id', tweetToProcess.id);
     return `Successfully posted queued tweet for game ${tweetToProcess.game_id}.`;
   } 
   
-  // If we are still rate-limited or another error occurred, update the attempt time and leave it.
   console.warn(`[QUEUE] Failed to post queued tweet. Reason: ${postResult.reason || 'Unknown'}. It remains in queue.`);
   await supabase
       .from('tweet_queue')

@@ -138,12 +138,13 @@ async function postToX(twitterClient: TwitterApi, text: string): Promise<PostRes
     await twitterClient.v2.tweet(text);
     console.log("🚀 Post sent to X successfully!");
     return { success: true };
-  } catch (error: any) {
+  } catch (e) {
+    const error = e as { code?: number }; // Safely cast the error
     if (error.code === 429) {
       console.warn("🚫 Rate limit hit. Handing off to the queue system.");
       return { success: false, reason: 'rate-limit' };
     }
-    console.error("Failed to post to X for a non-rate-limit reason:", error);
+    console.error("Failed to post to X for a non-rate-limit reason:", e);
     return { success: false, reason: 'other-error' };
   }
 }
