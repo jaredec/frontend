@@ -70,7 +70,12 @@ function getOrdinal(n: number): string {
     if (n === 0) return "0";
     const s = ["th", "st", "nd", "rd"];
     const v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    const suffix = s[(v - 20) % 10] || s[v] || s[0];
+    return formatNumberWithCommas(n) + suffix;
+}
+
+function formatNumberWithCommas(n: number): string {
+    return n.toLocaleString('en-US');
 }
 
 async function fetchLiveGames(): Promise<MLBGame[]> {
@@ -263,6 +268,7 @@ export async function GET(request: NextRequest) {
     accessSecret: process.env.X_ACCESS_SECRET!,
   });
 
+  // Reverted to live data fetching for production
   const games = await fetchLiveGames();
   
   const FINAL_STATES = ['Final', 'Game Over', 'Completed Early'];
@@ -270,6 +276,9 @@ export async function GET(request: NextRequest) {
   for (const game of games) {
     const { away_score, home_score, away_name, home_name, game_id } = game;
     const isFinal = FINAL_STATES.includes(game.status);
+    
+    const away_team_short_name = away_name.split(' ').pop() || away_name;
+    const home_team_short_name = home_name.split(' ').pop() || home_name;
     
     const dbAwayId = API_ID_TO_DB_ID_MAP[game.away_id];
     const dbHomeId = API_ID_TO_DB_ID_MAP[game.home_id];
@@ -285,7 +294,7 @@ export async function GET(request: NextRequest) {
         const trueScorigamiResult = await checkTrueScorigami(supabase, away_score, home_score);
         if (trueScorigamiResult.isScorigami) {
             const newCountOrdinal = getOrdinal(trueScorigamiResult.newCount);
-            postText = `${away_name} ${away_score} - ${home_score} ${home_name}\nFinal\n\nThat's a TRUE Scorigami! It's the ${newCountOrdinal} unique final score in MLB history.`;
+            postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nSCORIGAMI!!! It's the ${newCountOrdinal} unique final score in MLB history.`;
         } else {
             const isAwayScorigami = await isFranchiseScorigami(supabase, dbAwayId, away_score, home_score);
             const isHomeScorigami = await isFranchiseScorigami(supabase, dbHomeId, home_score, away_score);
@@ -296,11 +305,13 @@ export async function GET(request: NextRequest) {
                 const count = await getFranchiseScorigamiCount(supabase, scorigamiTeamId);
                 const newCountOrdinal = getOrdinal(count + 1);
                 const history = await getScoreHistory(supabase, away_score, home_score);
-                postText = `${away_name} ${away_score} - ${home_score} ${home_name}\nFinal\n\nThat's a FRANCHISE Scorigami! It's the ${newCountOrdinal} unique final score in ${scorigamiTeamName} franchise history.\nThis game has happened ${history?.occurrences || 0} times in MLB history, most recently on ${history?.last_game_date || 'an unknown date'}.`;
+                const occurrencesFormatted = formatNumberWithCommas(history?.occurrences || 0);
+                postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nFranchise Scorigami!! It's the ${newCountOrdinal} unique final score in ${scorigamiTeamName} franchise history.\nThis game has happened ${occurrencesFormatted} times in MLB history, most recently on ${history?.last_game_date || 'an unknown date'}.`;
             } else {
                  const history = await getScoreHistory(supabase, away_score, home_score);
                 if (history) {
-                    postText = `${away_name} ${away_score} - ${home_score} ${home_name}\nFinal\n\nNo Scorigami. That score has happened ${history.occurrences} times before in MLB history, most recently on ${history.last_game_date}.`;
+                    const occurrencesFormatted = formatNumberWithCommas(history.occurrences);
+                    postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nNo Scorigami. That score has happened ${occurrencesFormatted} times before in MLB history, most recently on ${history.last_game_date}.`;
                 }
             }
         }
@@ -318,7 +329,7 @@ export async function GET(request: NextRequest) {
         
         const probabilityResult = await calculateFranchiseScorigamiProbability(supabase, game, dbAwayId, dbHomeId);
         if (probabilityResult && probabilityResult.mostLikely) { 
-            let postText = `Score Update:\n${away_name} ${away_score} - ${home_score} ${home_name}\n${game.inning_state_raw}\n\n`;
+            let postText = `Score Update:\n${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\n${game.inning_state_raw}\n\n`;
             postText += `This game has a ${(probabilityResult.totalChance * 100).toFixed(2)}% chance of ending in a Franchise Scorigami.\n`;
             postText += `Most likely Franchise Scorigami: ${probabilityResult.mostLikely.score} for the ${probabilityResult.mostLikely.teamName} (${(probabilityResult.mostLikely.probability * 100).toFixed(2)}%)`;
             if (await postToX(twitterClient, postText)) {
