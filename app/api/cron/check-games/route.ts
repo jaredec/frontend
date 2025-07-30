@@ -39,6 +39,15 @@ const API_ID_TO_DB_ID_MAP: { [key: number]: number } = {
   120: 271, // WAS - Washington Nationals
 };
 
+// --- ✨ NEW: TEAM NAME SHORTENER MAP ✨ ---
+// Handles special cases for more robust team name shortening.
+const TEAM_NAME_SHORTENER_MAP: { [key: string]: string } = {
+  'Chicago White Sox': 'White Sox',
+  'Boston Red Sox': 'Red Sox',
+  'Toronto Blue Jays': 'Blue Jays',
+  'Arizona Diamondbacks': 'D-backs',
+};
+
 
 // --- TYPE DEFINITIONS ---
 interface ScoreHistory {
@@ -268,7 +277,6 @@ export async function GET(request: NextRequest) {
     accessSecret: process.env.X_ACCESS_SECRET!,
   });
 
-  // Reverted to live data fetching for production
   const games = await fetchLiveGames();
   
   const FINAL_STATES = ['Final', 'Game Over', 'Completed Early'];
@@ -277,8 +285,9 @@ export async function GET(request: NextRequest) {
     const { away_score, home_score, away_name, home_name, game_id } = game;
     const isFinal = FINAL_STATES.includes(game.status);
     
-    const away_team_short_name = away_name.split(' ').pop() || away_name;
-    const home_team_short_name = home_name.split(' ').pop() || home_name;
+    // ✨ CHANGED: Using the new map first, then falling back to the old method.
+    const away_team_short_name = TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop() || away_name;
+    const home_team_short_name = TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop() || home_name;
     
     const dbAwayId = API_ID_TO_DB_ID_MAP[game.away_id];
     const dbHomeId = API_ID_TO_DB_ID_MAP[game.home_id];
