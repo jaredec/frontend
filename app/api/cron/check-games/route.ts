@@ -1,4 +1,4 @@
-// /frontend/app/api/cron/check-games/route.ts (PRODUCTION)
+// /frontend/app/api/cron/check-games/route.ts (PRODUCTION - FINAL VERIFIED CODE)
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
@@ -40,7 +40,6 @@ const API_ID_TO_DB_ID_MAP: { [key: number]: number } = {
 };
 
 // --- ✨ NEW: TEAM NAME SHORTENER MAP ✨ ---
-// Handles special cases for more robust team name shortening.
 const TEAM_NAME_SHORTENER_MAP: { [key: string]: string } = {
   'Chicago White Sox': 'White Sox',
   'Boston Red Sox': 'Red Sox',
@@ -50,6 +49,10 @@ const TEAM_NAME_SHORTENER_MAP: { [key: string]: string } = {
 
 
 // --- TYPE DEFINITIONS ---
+interface PostResult {
+  success: boolean;
+  reason?: 'rate-limit' | 'other-error';
+}
 interface ScoreHistory {
   occurrences: number;
   last_game_date: string;
@@ -104,7 +107,7 @@ async function fetchLiveGames(): Promise<MLBGame[]> {
 
 async function checkIfPosted(supabase: SupabaseClient, game_id: number, details: string): Promise<boolean> {
   const { data, error } = await supabase.from('posted_updates').select('id').eq('game_id', game_id).eq('details', details).limit(1);
-  if (error) { console.error("Error checking if posted:", error); return true; }
+  if (error) { console.error("Error checking if posted:", error); return true; } // Fail safe to avoid double posts
   return (data || []).length > 0;
 }
 
@@ -113,19 +116,35 @@ async function recordPost(supabase: SupabaseClient, game_id: number, post_type: 
   if (error) console.error("Error recording post:", error);
 }
 
-async function postToX(twitterClient: TwitterApi, text: string) {
+async function queuePostForLater(supabase: SupabaseClient, postText: string, gameId: number) {
+  console.log(`[QUEUE] Adding post for game ${gameId} to the queue due to rate limit.`);
+  const { error } = await supabase.from('tweet_queue').insert({
+    post_text: postText,
+    game_id: gameId,
+    status: 'queued',
+  });
+  if (error) {
+    console.error("CRITICAL: Error saving post to queue:", error);
+  }
+}
+
+async function postToX(twitterClient: TwitterApi, text: string): Promise<PostResult> {
   const isProductionPosting = process.env.ENABLE_POSTING === 'true';
   if (!isProductionPosting) {
     console.log("✅ [POSTING DISABLED] WOULD TWEET:", `\n---\n${text}\n---`);
-    return true;
+    return { success: true };
   }
   try {
     await twitterClient.v2.tweet(text);
     console.log("🚀 Post sent to X successfully!");
-    return true;
-  } catch (error) {
-    console.error("Failed to post to X:", error);
-    return false;
+    return { success: true };
+  } catch (error: any) {
+    if (error.code === 429) {
+      console.warn("🚫 Rate limit hit. Handing off to the queue system.");
+      return { success: false, reason: 'rate-limit' };
+    }
+    console.error("Failed to post to X for a non-rate-limit reason:", error);
+    return { success: false, reason: 'other-error' };
   }
 }
 
@@ -285,7 +304,6 @@ export async function GET(request: NextRequest) {
     const { away_score, home_score, away_name, home_name, game_id } = game;
     const isFinal = FINAL_STATES.includes(game.status);
     
-    // ✨ CHANGED: Using the new map first, then falling back to the old method.
     const away_team_short_name = TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop() || away_name;
     const home_team_short_name = TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop() || home_name;
     
@@ -299,6 +317,7 @@ export async function GET(request: NextRequest) {
 
     if (isFinal) {
         if (await checkIfPosted(supabase, game_id, 'Final')) continue;
+        
         let postText = "";
         const trueScorigamiResult = await checkTrueScorigami(supabase, away_score, home_score);
         if (trueScorigamiResult.isScorigami) {
@@ -324,9 +343,14 @@ export async function GET(request: NextRequest) {
                 }
             }
         }
+
         if (postText) {
-            if (await postToX(twitterClient, postText)) {
-                await recordPost(supabase, game_id, 'Final', 'Final');
+            const postResult = await postToX(twitterClient, postText);
+            
+            if (postResult.success) {
+                await recordPost(supabase, game.game_id, 'Final', 'Final');
+            } else if (postResult.reason === 'rate-limit') {
+                await queuePostForLater(supabase, postText, game.game_id);
             }
         } else {
             await recordPost(supabase, game_id, 'Processed_No_Post', 'Final');
@@ -334,15 +358,20 @@ export async function GET(request: NextRequest) {
     } 
     else if (game.inning >= 6 && (game.away_score >= 13 || game.home_score >= 13)) {
         const postDetail = 'In-Progress Scorigami Watch'; 
-        if (await checkIfPosted(supabase, game_id, postDetail)) continue;
+        if (await checkIfPosted(supabase, game.game_id, postDetail)) continue;
         
         const probabilityResult = await calculateFranchiseScorigamiProbability(supabase, game, dbAwayId, dbHomeId);
         if (probabilityResult && probabilityResult.mostLikely) { 
             let postText = `Score Update:\n${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\n${game.inning_state_raw}\n\n`;
             postText += `This game has a ${(probabilityResult.totalChance * 100).toFixed(2)}% chance of ending in a Franchise Scorigami.\n`;
             postText += `Most likely Franchise Scorigami: ${probabilityResult.mostLikely.score} for the ${probabilityResult.mostLikely.teamName} (${(probabilityResult.mostLikely.probability * 100).toFixed(2)}%)`;
-            if (await postToX(twitterClient, postText)) {
+            
+            const postResult = await postToX(twitterClient, postText);
+
+            if (postResult.success) {
                 await recordPost(supabase, game.game_id, 'In_Progress_Update', postDetail);
+            } else if (postResult.reason === 'rate-limit') {
+                await queuePostForLater(supabase, postText, game.game_id);
             }
         }
     }
