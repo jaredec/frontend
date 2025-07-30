@@ -337,13 +337,11 @@ export async function GET(request: NextRequest) {
                 const occurrencesFormatted = formatNumberWithCommas(history?.occurrences || 0);
                 postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nFranchise Scorigami!! It's the ${newCountOrdinal} unique final score in ${scorigamiTeamName} franchise history.\nThis game has happened ${occurrencesFormatted} times in MLB history, most recently on ${history?.last_game_date || 'an unknown date'}.`;
             } else {
-                /* --- DISABLED "NO SCORIGAMI" POST ---
                  const history = await getScoreHistory(supabase, away_score, home_score);
                 if (history) {
                     const occurrencesFormatted = formatNumberWithCommas(history.occurrences);
                     postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nNo Scorigami. That score has happened ${occurrencesFormatted} times before in MLB history, most recently on ${history.last_game_date}.`;
                 }
-                */
             }
         }
 
