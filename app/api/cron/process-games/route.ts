@@ -24,11 +24,18 @@ async function postToX(twitterClient: TwitterApi, text: string): Promise<PostRes
     return { success: true };
   }
   try {
-    await twitterClient.v2.tweet(text);
+    const result = await twitterClient.v2.post('tweets', { text });
     console.log("🚀 [QUEUE] Post sent to X successfully!");
+
+    if (result.rateLimit) {
+      const { limit, remaining, reset } = result.rateLimit;
+      const resetTime = new Date(reset * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' });
+      console.log(`📊 [QUEUE] Rate Limit Status: ${remaining}/${limit} posts remaining. Resets at: ${resetTime}`);
+    }
+
     return { success: true };
   } catch (e) {
-    const error = e as { code?: number }; // Safely cast the error
+    const error = e as { code?: number };
     if (error.code === 429) {
       console.warn("🚫 [QUEUE] Rate limit still active. Tweet will remain in queue.");
       return { success: false, reason: 'rate-limit' };
@@ -66,7 +73,6 @@ async function processTweetQueue(supabase: SupabaseClient, twitterClient: Twitte
     console.log(`[QUEUE] Successfully posted queued tweet for game ${tweetToProcess.game_id}.`);
     
     if (tweetToProcess.game_id) {
-        // Assuming all queued items are 'Final' posts. Adjust if you queue other types.
         await recordPost(supabase, tweetToProcess.game_id, 'Final', 'Final');
     }
     await supabase.from('tweet_queue').delete().eq('id', tweetToProcess.id);
