@@ -135,18 +135,11 @@ async function postToX(twitterClient: TwitterApi, text: string): Promise<PostRes
     return { success: true };
   }
   try {
-    const result = await twitterClient.v2.post('tweets', { text });
+    await twitterClient.v2.tweet(text);
     console.log("🚀 Post sent to X successfully!");
-
-    if (result.rateLimit) {
-      const { limit, remaining, reset } = result.rateLimit;
-      const resetTime = new Date(reset * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' });
-      console.log(`📊 Rate Limit Status: ${remaining}/${limit} posts remaining. Resets at: ${resetTime}`);
-    }
-
     return { success: true };
   } catch (e) {
-    const error = e as { code?: number };
+    const error = e as { code?: number }; // Safely cast the error
     if (error.code === 429) {
       console.warn("🚫 Rate limit hit. Handing off to the queue system.");
       return { success: false, reason: 'rate-limit' };
@@ -343,6 +336,12 @@ export async function GET(request: NextRequest) {
                 const history = await getScoreHistory(supabase, away_score, home_score);
                 const occurrencesFormatted = formatNumberWithCommas(history?.occurrences || 0);
                 postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nFranchise Scorigami!! It's the ${newCountOrdinal} unique final score in ${scorigamiTeamName} franchise history.\nThis game has happened ${occurrencesFormatted} times in MLB history, most recently on ${history?.last_game_date || 'an unknown date'}.`;
+            } else {
+                 const history = await getScoreHistory(supabase, away_score, home_score);
+                if (history) {
+                    const occurrencesFormatted = formatNumberWithCommas(history.occurrences);
+                    postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nNo Scorigami. That score has happened ${occurrencesFormatted} times before in MLB history, most recently on ${history.last_game_date}.`;
+                }
             }
         }
 
