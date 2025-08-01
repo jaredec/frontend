@@ -1,5 +1,3 @@
-// app/page.tsx
-
 "use client";
 
 import React, { useState, useMemo } from "react";
@@ -7,7 +5,7 @@ import useSWR from "swr";
 import ScorigamiHeatmap from "@/components/scorigami-heatmap";
 import * as Select from "@radix-ui/react-select";
 import * as RadioGroup from "@radix-ui/react-radio-group";
-import { Mail, Twitter, ChevronDown, HelpCircle, Loader2 } from "lucide-react";
+import { Mail, ChevronDown, HelpCircle, Loader2 } from "lucide-react";
 
 // --- Helpers & Data ---
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
@@ -40,6 +38,19 @@ const YEARS_FOR_DROPDOWN: string[] = ["ALL"];
 for (let y = CURRENT_YEAR; y >= EARLIEST_MLB_YEAR; y--) {
   YEARS_FOR_DROPDOWN.push(y.toString());
 }
+
+// --- SVG Icon Component for the X Logo ---
+const XLogoIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 1200 1227"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    fill="currentColor"
+    aria-hidden="true"
+  >
+    <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.163 519.284ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.828Z" />
+  </svg>
+);
 
 export default function Home() {
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>('traditional');
@@ -146,7 +157,6 @@ export default function Home() {
             />
         </div>
 
-        {/* ▼▼▼ IMPROVED RESPONSIVE LAYOUT FOR THIS SECTION ▼▼▼ */}
         <section className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
@@ -155,7 +165,7 @@ export default function Home() {
                 </h3>
                 <div className="text-sm text-slate-600 dark:text-slate-400 space-y-3 leading-relaxed">
                     <p>
-                        <strong className="text-slate-700 dark:text-slate-300">Scorigami</strong> tracks every unique final score in Major League Baseball history. When a game finishes with a score that has never happened before, a &quot;Scorigami&quot; is achieved.
+                        <strong className="text-slate-700 dark:text-slate-300">Scorigami</strong> tracks every unique final score in Major League Baseball history. When a game finishes with a score that has never happened before, a "Scorigami" is achieved.
                     </p>
                     <p>
                         This project was inspired by the original <a href="https://nflscorigami.com/" target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 dark:text-blue-400 hover:underline">NFL Scorigami</a> by Jon Bois.
@@ -180,8 +190,14 @@ export default function Home() {
                   <p>Created by <a href="https://www.linkedin.com/in/jared-connolly/" target="_blank" rel="noopener noreferrer" className="font-medium hover:underline text-blue-600 dark:text-blue-400">Jared Connolly</a></p>
                   <div className="h-4 w-px bg-slate-300 dark:bg-gray-600 hidden sm:block"></div>
                   <div className="flex items-center gap-4">
-                     <a href="https://x.com/MLB_Scorigami_" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"><Twitter className="w-4 h-4" /><span>@MLB_Scorigami_</span></a>
-                     <a href="mailto:jaredconnolly5@gmail.com" className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"><Mail className="w-4 h-4" /><span>Contact</span></a>
+                     <a href="https://x.com/MLB_Scorigami_" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                        <XLogoIcon className="w-3.5 h-3.5" />
+                        <span>@MLB_Scorigami_</span>
+                     </a>
+                     <a href="mailto:scorigami.mlb@gmail.com" className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                        <Mail className="w-4 h-4" />
+                        <span>Contact</span>
+                     </a>
                   </div>
               </div>
           </div>
