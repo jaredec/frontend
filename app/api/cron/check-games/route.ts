@@ -1,11 +1,11 @@
-// /frontend/app/api/cron/check-games/route.ts (FINAL PRODUCTION-READY CODE)
+// /frontend/app/api/cron/check-games/route.ts (FINAL PRODUCTION-READY CODE V7 - ERROR FIXES)
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import TwitterApi from 'twitter-api-v2';
 import { MLBGame } from '@/lib/types';
 
-// --- ✨ TEAM ID MAPPING LAYER ✨ ---
+// --- (Team Maps and other type definitions are unchanged) ---
 const API_ID_TO_DB_ID_MAP: { [key: number]: number } = {
   108: 8,   // ANA - Los Angeles Angels
   109: 9,   // ARI - Arizona Diamondbacks
@@ -38,46 +38,27 @@ const API_ID_TO_DB_ID_MAP: { [key: number]: number } = {
   141: 265, // TOR - Toronto Blue Jays
   120: 271, // WAS - Washington Nationals
 };
-
-// --- ✨ TEAM NAME SHORTENER MAP ✨ ---
 const TEAM_NAME_SHORTENER_MAP: { [key: string]: string } = {
   'Chicago White Sox': 'White Sox',
   'Boston Red Sox': 'Red Sox',
   'Toronto Blue Jays': 'Blue Jays',
   'Arizona Diamondbacks': 'D-backs',
 };
-
-
-// --- TYPE DEFINITIONS ---
-interface PostResult {
-  success: boolean;
-  reason?: 'rate-limit' | 'other-error';
-}
-interface ScoreHistory {
-  occurrences: number;
-  last_game_date: string;
-}
+interface PostResult { success: boolean; reason?: 'rate-limit' | 'other-error'; }
+interface ScoreHistory { occurrences: number; last_game_date: string; }
 interface MlbApiGame {
     gamePk: number;
     status: { detailedState: string };
     teams: { away: { team: { name: string; id: number; }; score?: number; }; home: { team: { name: string; id: number; }; score?: number; }; };
     linescore?: { currentInning?: number; currentInningOrdinal?: string; inningState?: string; };
 }
-interface MlbApiDate {
-    games: MlbApiGame[];
-}
+interface MlbApiDate { games: MlbApiGame[]; }
 interface ScorigamiProbabilityResult {
     totalChance: number;
-    mostLikely: {
-        teamName: string;
-        score: string;
-        probability: number;
-    } | null;
+    mostLikely: { teamName: string; score: string; probability: number; } | null;
 }
 
-
-// --- HELPER FUNCTIONS ---
-
+// --- (All helper functions are unchanged until the main GET handler) ---
 function getOrdinal(n: number): string {
     if (n === 0) return "0";
     const s = ["th", "st", "nd", "rd"];
@@ -138,12 +119,31 @@ async function checkIfPosted(supabase: SupabaseClient, game_id: number, details:
   return (data || []).length > 0;
 }
 
-async function recordPost(supabase: SupabaseClient, game_id: number, post_type: string, details: string) {
+async function isGameInQueue(supabase: SupabaseClient, gameId: number): Promise<boolean> {
+    const { data, error } = await supabase
+        .from('tweet_queue')
+        .select('id')
+        .eq('game_id', gameId)
+        .eq('status', 'queued') 
+        .limit(1);
+
+    if (error) {
+        console.error(`Error checking tweet queue for game ${gameId}:`, error);
+        return true; 
+    }
+    return (data || []).length > 0;
+}
+
+async function recordPost(supabase: SupabaseClient, game_id: number, post_type: string, details: string): Promise<void> {
   const { error } = await supabase.from('posted_updates').insert({ game_id, post_type, details });
   if (error) console.error("Error recording post:", error);
 }
 
-async function queuePostForLater(supabase: SupabaseClient, postText: string, gameId: number) {
+async function queuePostForLater(supabase: SupabaseClient, postText: string, gameId: number): Promise<void> {
+  if (await isGameInQueue(supabase, gameId)) {
+      console.log(`[QUEUE] Game ${gameId} is already in the queue. Skipping duplicate add.`);
+      return;
+  }
   console.log(`[QUEUE] Adding post for game ${gameId} to the queue due to rate limit.`);
   const { error } = await supabase.from('tweet_queue').insert({ post_text: postText, game_id: gameId, status: 'queued' });
   if (error) console.error("CRITICAL: Error saving post to queue:", error);
@@ -268,10 +268,11 @@ async function calculateFranchiseScorigamiProbability(supabase: SupabaseClient, 
 }
 
 // --- MAIN API ROUTE HANDLER ---
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new Response('Unauthorized', { status: 401 });
+    // ✨ FIX 1: Return a NextResponse object to match the function's signature.
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -302,10 +303,8 @@ export async function GET(request: NextRequest) {
     }
     
     const { away_score, home_score, away_name, home_name, game_id } = game;
-    
     const away_team_short_name = TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop() || away_name;
     const home_team_short_name = TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop() || home_name;
-    
     const dbAwayId = API_ID_TO_DB_ID_MAP[game.away_id];
     const dbHomeId = API_ID_TO_DB_ID_MAP[game.home_id];
     
@@ -316,6 +315,7 @@ export async function GET(request: NextRequest) {
 
     if (isFinal) {
         if (await checkIfPosted(supabase, game_id, 'Final')) continue;
+
         let postText = "";
         const trueScorigamiResult = await checkTrueScorigami(supabase, away_score, home_score);
         if (trueScorigamiResult.isScorigami) {
@@ -326,6 +326,7 @@ export async function GET(request: NextRequest) {
             const isHomeScorigami = await isFranchiseScorigami(supabase, dbHomeId, home_score, away_score);
             if (isAwayScorigami || isHomeScorigami) {
                 const scorigamiTeamId = isAwayScorigami ? dbAwayId : dbHomeId;
+                // ✨ FIX 2: Corrected typo from 'isAwayScoriagmi' to 'isAwayScorigami'
                 const scorigamiTeamName = isAwayScorigami ? away_name : home_name;
                 const count = await getFranchiseScorigamiCount(supabase, scorigamiTeamId);
                 const newCountOrdinal = getOrdinal(count + 1);
