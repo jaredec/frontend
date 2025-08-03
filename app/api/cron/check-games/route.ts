@@ -1,4 +1,4 @@
-// /frontend/app/api/cron/check-games/route.ts (FINAL PRODUCTION-READY CODE V7 - ERROR FIXES)
+// /frontend/app/api/cron/check-games/route.ts (FINAL PRODUCTION-READY CODE V9 - SHORT NAME FIX)
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
@@ -58,7 +58,7 @@ interface ScorigamiProbabilityResult {
     mostLikely: { teamName: string; score: string; probability: number; } | null;
 }
 
-// --- (All helper functions are unchanged until the main GET handler) ---
+// --- (All helper functions are unchanged) ---
 function getOrdinal(n: number): string {
     if (n === 0) return "0";
     const s = ["th", "st", "nd", "rd"];
@@ -271,7 +271,6 @@ async function calculateFranchiseScorigamiProbability(supabase: SupabaseClient, 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    // ✨ FIX 1: Return a NextResponse object to match the function's signature.
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -320,19 +319,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const trueScorigamiResult = await checkTrueScorigami(supabase, away_score, home_score);
         if (trueScorigamiResult.isScorigami) {
             const newCountOrdinal = getOrdinal(trueScorigamiResult.newCount);
-            postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nSCORIGAMI!!! It's the ${newCountOrdinal} unique final score in MLB history.`;
+            postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nSCORIGAMI!!!\n\nIt's the ${newCountOrdinal} unique final score in MLB history.`;
         } else {
             const isAwayScorigami = await isFranchiseScorigami(supabase, dbAwayId, away_score, home_score);
             const isHomeScorigami = await isFranchiseScorigami(supabase, dbHomeId, home_score, away_score);
             if (isAwayScorigami || isHomeScorigami) {
                 const scorigamiTeamId = isAwayScorigami ? dbAwayId : dbHomeId;
-                // ✨ FIX 2: Corrected typo from 'isAwayScoriagmi' to 'isAwayScorigami'
-                const scorigamiTeamName = isAwayScorigami ? away_name : home_name;
+                // ✨ FIX IMPLEMENTED: Use the correct short name based on which team hit the scorigami
+                const scorigamiTeamShortName = isAwayScorigami ? away_team_short_name : home_team_short_name;
                 const count = await getFranchiseScorigamiCount(supabase, scorigamiTeamId);
                 const newCountOrdinal = getOrdinal(count + 1);
                 const history = await getScoreHistory(supabase, away_score, home_score);
                 const occurrencesFormatted = formatNumberWithCommas(history?.occurrences || 0);
-                postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nFranchise Scorigami! It's the ${newCountOrdinal} unique final score in ${scorigamiTeamName} history. This game has happened ${occurrencesFormatted} times in MLB history, most recently on ${history?.last_game_date || 'an unknown date'}.`;
+                
+                postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nFranchise Scorigami!\n\nA franchise first for the ${scorigamiTeamShortName}! It's their ${newCountOrdinal} unique final score. That score has appeared ${occurrencesFormatted} times in MLB history, last seen on ${history?.last_game_date || 'an unknown date'}.`;
+
             } else {
                 const history = await getScoreHistory(supabase, away_score, home_score);
                 if (history) {
