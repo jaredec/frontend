@@ -1,4 +1,4 @@
-// /frontend/app/api/cron/check-games/route.ts (FINAL PRODUCTION-READY CODE V9 - SHORT NAME FIX)
+// /frontend/app/api/cron/check-games/route.ts (FINAL PRODUCTION-READY CODE V12 - TEXT STANDARDIZATION)
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
@@ -58,7 +58,7 @@ interface ScorigamiProbabilityResult {
     mostLikely: { teamName: string; score: string; probability: number; } | null;
 }
 
-// --- (All helper functions are unchanged) ---
+// --- (Helper functions section) ---
 function getOrdinal(n: number): string {
     if (n === 0) return "0";
     const s = ["th", "st", "nd", "rd"];
@@ -69,6 +69,15 @@ function getOrdinal(n: number): string {
 
 function formatNumberWithCommas(n: number): string {
     return n.toLocaleString('en-US');
+}
+
+function formatInningState(rawState: string, inning: number): string {
+    const lowerState = rawState.toLowerCase();
+    if (lowerState.startsWith('top')) return `TOP ${inning}`;
+    if (lowerState.startsWith('bot')) return `BOT ${inning}`;
+    if (lowerState.startsWith('mid')) return `MID ${inning}`;
+    if (lowerState.startsWith('end')) return `END ${inning}`;
+    return `Inning ${inning}`;
 }
 
 async function fetchGameSchedule(): Promise<MLBGame[]> {
@@ -185,17 +194,6 @@ async function isFranchiseScorigami(supabase: SupabaseClient, teamId: number, s1
     const { data, error } = await supabase.from('gamelogs').select('game_id').or(`and(home_team_id.eq.${teamId},home_score.eq.${s1},visitor_score.eq.${s2}),and(visitor_team_id.eq.${teamId},visitor_score.eq.${s1},home_score.eq.${s2}),and(home_team_id.eq.${teamId},home_score.eq.${s2},visitor_score.eq.${s1}),and(visitor_team_id.eq.${teamId},visitor_score.eq.${s2},home_score.eq.${s1})`).limit(1);
     if (error) { console.error("Error checking franchise scorigami in gamelogs:", error); return false; }
     return data.length === 0;
-}
-
-async function getFranchiseScorigamiCount(supabase: SupabaseClient, teamId: number): Promise<number> {
-    const { data, error } = await supabase.from('gamelogs').select('home_team_id, visitor_team_id, home_score, visitor_score').or(`home_team_id.eq.${teamId},visitor_team_id.eq.${teamId}`);
-    if (error) { return 0; }
-    const uniqueScores = new Set();
-    data.forEach(game => {
-        const score = game.home_team_id === teamId ? `${game.home_score}-${game.visitor_score}` : `${game.visitor_score}-${game.home_score}`;
-        uniqueScores.add(score);
-    });
-    return uniqueScores.size;
 }
 
 async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number): Promise<ScoreHistory | null> {
@@ -316,29 +314,39 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         if (await checkIfPosted(supabase, game_id, 'Final')) continue;
 
         let postText = "";
+        const finalScoreHeader = `FINAL: ${away_team_short_name} ${away_score}, ${home_team_short_name} ${home_score}`;
+
         const trueScorigamiResult = await checkTrueScorigami(supabase, away_score, home_score);
         if (trueScorigamiResult.isScorigami) {
             const newCountOrdinal = getOrdinal(trueScorigamiResult.newCount);
-            postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nSCORIGAMI!!!\n\nIt's the ${newCountOrdinal} unique final score in MLB history.`;
+            postText = `${finalScoreHeader}\n\nSCORIGAMI!!!\n\nIt's the ${newCountOrdinal} unique final score in MLB history.`;
         } else {
             const isAwayScorigami = await isFranchiseScorigami(supabase, dbAwayId, away_score, home_score);
             const isHomeScorigami = await isFranchiseScorigami(supabase, dbHomeId, home_score, away_score);
+            const history = await getScoreHistory(supabase, away_score, home_score);
+
             if (isAwayScorigami || isHomeScorigami) {
-                const scorigamiTeamId = isAwayScorigami ? dbAwayId : dbHomeId;
-                // ✨ FIX IMPLEMENTED: Use the correct short name based on which team hit the scorigami
-                const scorigamiTeamShortName = isAwayScorigami ? away_team_short_name : home_team_short_name;
-                const count = await getFranchiseScorigamiCount(supabase, scorigamiTeamId);
-                const newCountOrdinal = getOrdinal(count + 1);
-                const history = await getScoreHistory(supabase, away_score, home_score);
-                const occurrencesFormatted = formatNumberWithCommas(history?.occurrences || 0);
+                // ✨ CHANGE: "across" changed to "before in"
+                const footer = history 
+                    ? `Seen ${formatNumberWithCommas(history.occurrences)} times before in MLB history, last on ${history.last_game_date}.`
+                    : `This score has not been seen before in MLB history.`;
+
+                let scorigamiLine = "";
+                if (isAwayScorigami && isHomeScorigami) {
+                    scorigamiLine = `A first-ever score for both the ${away_team_short_name} and ${home_team_short_name}!`;
+                } else if (isAwayScorigami) {
+                    scorigamiLine = `A first-ever score for the ${away_team_short_name}!`;
+                } else { // isHomeScorigami
+                    scorigamiLine = `A first-ever score for the ${home_team_short_name}!`;
+                }
                 
-                postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nFranchise Scorigami!\n\nA franchise first for the ${scorigamiTeamShortName}! It's their ${newCountOrdinal} unique final score. That score has appeared ${occurrencesFormatted} times in MLB history, last seen on ${history?.last_game_date || 'an unknown date'}.`;
+                postText = `${finalScoreHeader}\n\nFRANCHISE SCORIGAMI!\n\n${scorigamiLine}\n${footer}`;
 
             } else {
-                const history = await getScoreHistory(supabase, away_score, home_score);
                 if (history) {
+                    // ✨ CHANGE: "No Scorigami" text reformatted to match the other scenarios.
                     const occurrencesFormatted = formatNumberWithCommas(history.occurrences);
-                    postText = `${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\nFinal\n\nNo Scorigami. That score has happened ${occurrencesFormatted} times before in MLB history, most recently on ${history.last_game_date}.`;
+                    postText = `${finalScoreHeader}\n\nNo Scorigami. Seen ${occurrencesFormatted} times before in MLB history, last on ${history.last_game_date}.`;
                 }
             }
         }
@@ -354,14 +362,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         
         const probabilityResult = await calculateFranchiseScorigamiProbability(supabase, game, dbAwayId, dbHomeId);
         if (probabilityResult && probabilityResult.mostLikely) {
-            const { mostLikely } = probabilityResult;
+            const { mostLikely, totalChance } = probabilityResult;
             
-            const fullTeamName = mostLikely.teamName;
-            const mostLikelyTeamShortName = TEAM_NAME_SHORTENER_MAP[fullTeamName] || fullTeamName.split(' ').pop() || fullTeamName;
+            const formattedInning = formatInningState(game.inning_state_raw, game.inning);
+            const scoreLine = `${formattedInning}: ${away_team_short_name} ${away_score}, ${home_team_short_name} ${home_score}`;
 
-            let postText = `Score Update:\n${away_team_short_name} ${away_score} - ${home_score} ${home_team_short_name}\n${game.inning_state_raw}\n\n`;
-            postText += `This game has a ${(probabilityResult.totalChance * 100).toFixed(2)}% chance of ending in Franchise Scorigami.\n`;
-            postText += `Most likely scenario: ${mostLikely.score} for the ${mostLikelyTeamShortName} (a franchise first with a ${(mostLikely.probability * 100).toFixed(2)}% chance).`;
+            const chanceLine = `${(totalChance * 100).toFixed(2)}% chance of Franchise Scorigami`;
+            const mostLikelyLine = `Most likely: ${mostLikely.score} (${(mostLikely.probability * 100).toFixed(2)}%).`;
+
+            const postText = `Score Update:\n${scoreLine}\n\n${chanceLine}\n${mostLikelyLine}`;
             
             const postResult = await postToX(twitterClient, postText);
             if (postResult.success) { await recordPost(supabase, game.game_id, 'In_Progress_Update', postDetail); }
