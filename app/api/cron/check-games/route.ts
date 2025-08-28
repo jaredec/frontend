@@ -1,4 +1,4 @@
-// /frontend/app/api/cron/check-games/route.ts (FINAL PRODUCTION-READY CODE V12 - TEXT STANDARDIZATION)
+// /frontend/app/api/cron/check-games/route.ts
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
@@ -71,6 +71,11 @@ function formatNumberWithCommas(n: number): string {
     return n.toLocaleString('en-US');
 }
 
+function formatOccurrences(count: number): string {
+    const formattedCount = formatNumberWithCommas(count);
+    return count === 1 ? `${formattedCount} time` : `${formattedCount} times`;
+}
+
 function formatInningState(rawState: string, inning: number): string {
     const lowerState = rawState.toLowerCase();
     if (lowerState.startsWith('top')) return `TOP ${inning}`;
@@ -133,12 +138,12 @@ async function isGameInQueue(supabase: SupabaseClient, gameId: number): Promise<
         .from('tweet_queue')
         .select('id')
         .eq('game_id', gameId)
-        .eq('status', 'queued') 
+        .eq('status', 'queued')
         .limit(1);
 
     if (error) {
         console.error(`Error checking tweet queue for game ${gameId}:`, error);
-        return true; 
+        return true;
     }
     return (data || []).length > 0;
 }
@@ -210,6 +215,20 @@ async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number)
     };
 }
 
+async function getFranchiseScoreHistory(supabase: SupabaseClient, teamId: number, teamScore: number, opponentScore: number): Promise<number> {
+    const { count, error } = await supabase
+        .from('gamelogs')
+        .select('game_id', { count: 'exact' })
+        .or(`and(home_team_id.eq.${teamId},home_score.eq.${teamScore},visitor_score.eq.${opponentScore}),and(visitor_team_id.eq.${teamId},visitor_score.eq.${teamScore},home_score.eq.${opponentScore})`);
+
+    if (error) {
+        console.error(`Error fetching franchise score history for team ${teamId}:`, error);
+        return 0;
+    }
+    return count || 0;
+}
+
+
 const FACTORIALS: number[] = [1];
 function factorial(n: number): number {
     if (n < 0) return NaN;
@@ -279,7 +298,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   });
 
   const scheduleGames = await fetchGameSchedule();
-  
+
   const FINAL_STATES = ['Final', 'Game Over', 'Completed Early'];
   const IN_PROGRESS_STATES = ['In Progress', 'Live'];
 
@@ -291,20 +310,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       console.log(`[DATA] Game ${game.game_id} is In Progress. Fetching detailed feed...`);
       const detailedGameData = await fetchDetailedGameData(game.game_id);
       if (detailedGameData) {
-        game = detailedGameData; 
+        game = detailedGameData;
         console.log(`[DATA] Fresh data for ${game.game_id}: Inning ${game.inning}, Score ${game.away_score}-${game.home_score}`);
       } else {
         console.warn(`[DATA] Could not fetch detailed data for live game ${game.game_id}. Skipping for this run.`);
         continue;
       }
     }
-    
+
     const { away_score, home_score, away_name, home_name, game_id } = game;
     const away_team_short_name = TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop() || away_name;
     const home_team_short_name = TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop() || home_name;
     const dbAwayId = API_ID_TO_DB_ID_MAP[game.away_id];
     const dbHomeId = API_ID_TO_DB_ID_MAP[game.home_id];
-    
+
     if (!dbAwayId || !dbHomeId) {
         console.warn(`Could not find a DB ID mapping for game ${game_id}. Skipping.`);
         continue;
@@ -312,6 +331,29 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (isFinal) {
         if (await checkIfPosted(supabase, game_id, 'Final')) continue;
+
+        const isTie = away_score === home_score;
+
+        // ✨ NEW LOGIC: Handle ties as a special case that always gets posted.
+        if (isTie) {
+            console.log(`[PROCESS] Game ${game_id} is a tie. Posting as an exception.`);
+            const tiePostText = `FINAL/TIE: ${away_team_short_name} ${away_score}, ${home_team_short_name} ${home_score}\n\nA rare tie in MLB!`;
+            const postResult = await postToX(twitterClient, tiePostText);
+            if (postResult.success) {
+                await recordPost(supabase, game.game_id, 'Final_Tie', 'Final');
+            } else if (postResult.reason === 'rate-limit') {
+                await queuePostForLater(supabase, tiePostText, game.game_id);
+            }
+            continue; // Skip to the next game after handling the tie
+        }
+
+        const totalRuns = away_score + home_score;
+        // ✨ UPDATED RULE: For non-tie games, only post if total runs are 8 or more.
+        if (totalRuns < 8) {
+            console.log(`[FILTER] Skipping game ${game_id} (${away_score}-${home_score}) because total runs (${totalRuns}) is < 8.`);
+            await recordPost(supabase, game_id, 'Processed_Low_Score', 'Final');
+            continue;
+        }
 
         let postText = "";
         const finalScoreHeader = `FINAL: ${away_team_short_name} ${away_score}, ${home_team_short_name} ${home_score}`;
@@ -326,27 +368,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             const history = await getScoreHistory(supabase, away_score, home_score);
 
             if (isAwayScorigami || isHomeScorigami) {
-                // ✨ CHANGE: "across" changed to "before in"
-                const footer = history 
-                    ? `Seen ${formatNumberWithCommas(history.occurrences)} times before in MLB history, last on ${history.last_game_date}.`
+                const footer = history
+                    ? `Seen ${formatOccurrences(history.occurrences)} before in MLB history, last on ${history.last_game_date}.`
                     : `This score has not been seen before in MLB history.`;
 
                 let scorigamiLine = "";
                 if (isAwayScorigami && isHomeScorigami) {
                     scorigamiLine = `A first-ever score for both the ${away_team_short_name} and ${home_team_short_name}!`;
                 } else if (isAwayScorigami) {
-                    scorigamiLine = `A first-ever score for the ${away_team_short_name}!`;
+                    // Away team got scorigami, get history for home team
+                    const homeHistoryCount = await getFranchiseScoreHistory(supabase, dbHomeId, home_score, away_score);
+                    const homeHistoryText = formatOccurrences(homeHistoryCount);
+                    scorigamiLine = `A first-ever score for the ${away_team_short_name}! The ${home_team_short_name} have seen this score ${homeHistoryText} before.`;
                 } else { // isHomeScorigami
-                    scorigamiLine = `A first-ever score for the ${home_team_short_name}!`;
+                    // Home team got scorigami, get history for away team
+                    const awayHistoryCount = await getFranchiseScoreHistory(supabase, dbAwayId, away_score, home_score);
+                    const awayHistoryText = formatOccurrences(awayHistoryCount);
+                    scorigamiLine = `A first-ever score for the ${home_team_short_name}! The ${away_team_short_name} have seen this score ${awayHistoryText} before.`;
                 }
-                
+
                 postText = `${finalScoreHeader}\n\nFRANCHISE SCORIGAMI!\n\n${scorigamiLine}\n${footer}`;
 
             } else {
                 if (history) {
-                    // ✨ CHANGE: "No Scorigami" text reformatted to match the other scenarios.
-                    const occurrencesFormatted = formatNumberWithCommas(history.occurrences);
-                    postText = `${finalScoreHeader}\n\nNo Scorigami. Seen ${occurrencesFormatted} times before in MLB history, last on ${history.last_game_date}.`;
+                    const occurrencesFormatted = formatOccurrences(history.occurrences);
+                    postText = `${finalScoreHeader}\n\nNo Scorigami. Seen ${occurrencesFormatted} before in MLB history, last on ${history.last_game_date}.`;
                 }
             }
         }
@@ -355,15 +401,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             if (postResult.success) { await recordPost(supabase, game.game_id, 'Final', 'Final'); }
             else if (postResult.reason === 'rate-limit') { await queuePostForLater(supabase, postText, game.game_id); }
         } else { await recordPost(supabase, game_id, 'Processed_No_Post', 'Final'); }
-    } 
+    }
     else if (game.inning >= 6 && (game.away_score >= 13 || game.home_score >= 13)) {
-        const postDetail = 'In-Progress Scorigami Watch'; 
+        const postDetail = 'In-Progress Scorigami Watch';
         if (await checkIfPosted(supabase, game.game_id, postDetail)) continue;
-        
+
         const probabilityResult = await calculateFranchiseScorigamiProbability(supabase, game, dbAwayId, dbHomeId);
         if (probabilityResult && probabilityResult.mostLikely) {
             const { mostLikely, totalChance } = probabilityResult;
-            
+
             const formattedInning = formatInningState(game.inning_state_raw, game.inning);
             const scoreLine = `${formattedInning}: ${away_team_short_name} ${away_score}, ${home_team_short_name} ${home_score}`;
 
@@ -371,7 +417,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             const mostLikelyLine = `Most likely: ${mostLikely.score} (${(mostLikely.probability * 100).toFixed(2)}%).`;
 
             const postText = `Score Update:\n${scoreLine}\n\n${chanceLine}\n${mostLikelyLine}`;
-            
+
             const postResult = await postToX(twitterClient, postText);
             if (postResult.success) { await recordPost(supabase, game.game_id, 'In_Progress_Update', postDetail); }
             else if (postResult.reason === 'rate-limit') { await queuePostForLater(supabase, postText, game.game_id); }
