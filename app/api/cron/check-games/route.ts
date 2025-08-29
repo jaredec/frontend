@@ -57,6 +57,8 @@ interface ScorigamiProbabilityResult {
 }
 
 // --- (Helper functions section) ---
+const franchiseIdCache: { [key: number]: number[] } = {};
+
 function getOrdinal(n: number): string {
     if (n === 0) return "0";
     const s = ["th", "st", "nd", "rd"];
@@ -178,6 +180,43 @@ async function fetchLastScoreSnapshot(supabase: SupabaseClient, game_id: number)
   return data[0].score_snapshot;
 }
 
+// ✨ CORRECTED LOGIC to use the franchise abbreviation (e.g., 'ATL')
+async function getFranchiseTeamIds(supabase: SupabaseClient, teamId: number): Promise<number[]> {
+    if (franchiseIdCache[teamId]) {
+        return franchiseIdCache[teamId];
+    }
+
+    // Step 1: Find the franchise abbreviation from the current teamId
+    const { data: franchiseData, error: franchiseError } = await supabase
+        .from('teams')
+        .select('franchise')
+        .eq('team_id', teamId)
+        .single();
+
+    if (franchiseError || !franchiseData) {
+        console.error(`Could not find franchise for teamId ${teamId}:`, franchiseError);
+        return [teamId]; // Fallback to just the current ID
+    }
+
+    const franchiseAbbr = franchiseData.franchise;
+
+    // Step 2: Find all team_ids for that franchise abbreviation
+    const { data: teamIdsData, error: teamIdsError } = await supabase
+        .from('teams')
+        .select('team_id')
+        .eq('franchise', franchiseAbbr);
+
+    if (teamIdsError || !teamIdsData) {
+        console.error(`Could not find team IDs for franchise ${franchiseAbbr}:`, teamIdsError);
+        return [teamId]; // Fallback
+    }
+
+    const ids = teamIdsData.map(t => t.team_id);
+    franchiseIdCache[teamId] = ids; // Store in cache for future use
+    return ids;
+}
+
+
 async function queuePostForLater(supabase: SupabaseClient, postText: string, gameId: number): Promise<void> {
   if (await isGameInQueue(supabase, gameId)) {
       console.log(`[QUEUE] Game ${gameId} is already in the queue. Skipping duplicate add.`);
@@ -220,11 +259,24 @@ async function checkTrueScorigami(supabase: SupabaseClient, s1: number, s2: numb
     return { isScorigami: true, newCount: (count || 0) + 1 };
 }
 
-async function isFranchiseScorigami(supabase: SupabaseClient, teamId: number, s1: number, s2: number): Promise<boolean> {
-    const { data, error } = await supabase.from('gamelogs').select('game_id').or(`and(home_team_id.eq.${teamId},home_score.eq.${s1},visitor_score.eq.${s2}),and(visitor_team_id.eq.${teamId},visitor_score.eq.${s1},home_score.eq.${s2}),and(home_team_id.eq.${teamId},home_score.eq.${s2},visitor_score.eq.${s1}),and(visitor_team_id.eq.${teamId},visitor_score.eq.${s2},home_score.eq.${s1})`).limit(1);
-    if (error) { console.error("Error checking franchise scorigami in gamelogs:", error); return false; }
+async function isFranchiseScorigami(supabase: SupabaseClient, franchiseIds: number[], teamScore: number, opponentScore: number): Promise<boolean> {
+    const ids = `(${franchiseIds.join(',')})`;
+    const { data, error } = await supabase.from('gamelogs').select('game_id')
+      .or(
+        `and(home_team_id.in.${ids},home_score.eq.${teamScore},visitor_score.eq.${opponentScore}),` +
+        `and(visitor_team_id.in.${ids},visitor_score.eq.${teamScore},home_score.eq.${opponentScore}),` +
+        `and(home_team_id.in.${ids},home_score.eq.${opponentScore},visitor_score.eq.${teamScore}),` +
+        `and(visitor_team_id.in.${ids},visitor_score.eq.${opponentScore},home_score.eq.${teamScore})`
+      )
+      .limit(1);
+
+    if (error) { 
+        console.error("Error checking franchise scorigami in gamelogs:", error); 
+        return false; 
+    }
     return data.length === 0;
 }
+
 
 async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number): Promise<ScoreHistory | null> {
     const winningScore = Math.max(s1, s2);
@@ -240,14 +292,18 @@ async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number)
     };
 }
 
-async function getFranchiseScoreHistory(supabase: SupabaseClient, teamId: number, teamScore: number, opponentScore: number): Promise<number> {
+async function getFranchiseScoreHistory(supabase: SupabaseClient, franchiseIds: number[], teamScore: number, opponentScore: number): Promise<number> {
+    const ids = `(${franchiseIds.join(',')})`;
     const { count, error } = await supabase
         .from('gamelogs')
         .select('game_id', { count: 'exact' })
-        .or(`and(home_team_id.eq.${teamId},home_score.eq.${teamScore},visitor_score.eq.${opponentScore}),and(visitor_team_id.eq.${teamId},visitor_score.eq.${teamScore},home_score.eq.${opponentScore})`);
+        .or(
+          `and(home_team_id.in.${ids},home_score.eq.${teamScore},visitor_score.eq.${opponentScore}),`+
+          `and(visitor_team_id.in.${ids},visitor_score.eq.${teamScore},home_score.eq.${opponentScore})`
+        );
 
     if (error) {
-        console.error(`Error fetching franchise score history for team ${teamId}:`, error);
+        console.error(`Error fetching franchise score history for team IDs ${franchiseIds}:`, error);
         return 0;
     }
     return count || 0;
@@ -271,6 +327,9 @@ function poissonProbability(lambda: number, k: number): number {
 }
 
 async function calculateFranchiseScorigamiProbability(supabase: SupabaseClient, game: MLBGame, dbAwayId: number, dbHomeId: number): Promise<ScorigamiProbabilityResult | null> {
+    const awayFranchiseIds = await getFranchiseTeamIds(supabase, dbAwayId);
+    const homeFranchiseIds = await getFranchiseTeamIds(supabase, dbHomeId);
+
     const AVG_RUNS_PER_INNING_PER_TEAM = 0.5;
     const MAX_ADDITIONAL_RUNS_TO_CHECK = 20;
     const inningsRemaining = 9 - game.inning;
@@ -288,7 +347,7 @@ async function calculateFranchiseScorigamiProbability(supabase: SupabaseClient, 
             const finalHomeScore = game.home_score + homeRuns;
             const individualScoreProbability = probOfKMoreRuns / (k + 1);
             const homeKey = `h-${finalHomeScore}-${finalAwayScore}`;
-            if (scorigamiCheckCache[homeKey] === undefined) { scorigamiCheckCache[homeKey] = await isFranchiseScorigami(supabase, dbHomeId, finalHomeScore, finalAwayScore); }
+            if (scorigamiCheckCache[homeKey] === undefined) { scorigamiCheckCache[homeKey] = await isFranchiseScorigami(supabase, homeFranchiseIds, finalHomeScore, finalAwayScore); }
             if (scorigamiCheckCache[homeKey]) {
                 totalScorigamiChance += individualScoreProbability;
                 if (individualScoreProbability > mostLikelyScorigami.probability) {
@@ -296,7 +355,7 @@ async function calculateFranchiseScorigamiProbability(supabase: SupabaseClient, 
                 }
             }
             const awayKey = `a-${finalAwayScore}-${finalHomeScore}`;
-            if (scorigamiCheckCache[awayKey] === undefined) { scorigamiCheckCache[awayKey] = await isFranchiseScorigami(supabase, dbAwayId, finalAwayScore, finalHomeScore); }
+            if (scorigamiCheckCache[awayKey] === undefined) { scorigamiCheckCache[awayKey] = await isFranchiseScorigami(supabase, awayFranchiseIds, finalAwayScore, finalHomeScore); }
             if (scorigamiCheckCache[awayKey]) {
                 totalScorigamiChance += individualScoreProbability;
                 if (individualScoreProbability > mostLikelyScorigami.probability) {
@@ -344,7 +403,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const { away_score, home_score, away_name, home_name, game_id } = game;
-    // ✨ DEFINE scoreSnapshot once for each game
     const scoreSnapshot = `${away_score}-${home_score}`;
     const away_team_short_name = TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop() || away_name;
     const home_team_short_name = TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop() || home_name;
@@ -359,6 +417,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (isFinal) {
         if (await checkIfPosted(supabase, game_id, 'Final')) continue;
 
+        const awayFranchiseIds = await getFranchiseTeamIds(supabase, dbAwayId);
+        const homeFranchiseIds = await getFranchiseTeamIds(supabase, dbHomeId);
+
         const isTie = away_score === home_score;
 
         if (isTie) {
@@ -366,7 +427,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             const tiePostText = `FINAL/TIE: ${away_team_short_name} ${away_score}, ${home_team_short_name} ${home_score}\n\nA rare tie in MLB!`;
             const postResult = await postToX(twitterClient, tiePostText);
             if (postResult.success) {
-                // ✨ ADD snapshot to the record
                 await recordPost(supabase, game.game_id, 'Final_Tie', 'Final', scoreSnapshot);
             } else if (postResult.reason === 'rate-limit') {
                 await queuePostForLater(supabase, tiePostText, game.game_id);
@@ -377,7 +437,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const totalRuns = away_score + home_score;
         if (totalRuns < 8) {
             console.log(`[FILTER] Skipping game ${game_id} (${scoreSnapshot}) because total runs (${totalRuns}) is < 8.`);
-            // ✨ ADD snapshot to the record
             await recordPost(supabase, game_id, 'Processed_Low_Score', 'Final', scoreSnapshot);
             continue;
         }
@@ -390,8 +449,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             const newCountOrdinal = getOrdinal(trueScorigamiResult.newCount);
             postText = `${finalScoreHeader}\n\nSCORIGAMI!!!\n\nIt's the ${newCountOrdinal} unique final score in MLB history.`;
         } else {
-            const isAwayScorigami = await isFranchiseScorigami(supabase, dbAwayId, away_score, home_score);
-            const isHomeScorigami = await isFranchiseScorigami(supabase, dbHomeId, home_score, away_score);
+            const isAwayScorigami = await isFranchiseScorigami(supabase, awayFranchiseIds, away_score, home_score);
+            const isHomeScorigami = await isFranchiseScorigami(supabase, homeFranchiseIds, home_score, away_score);
             const history = await getScoreHistory(supabase, away_score, home_score);
 
             if (isAwayScorigami || isHomeScorigami) {
@@ -403,11 +462,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 if (isAwayScorigami && isHomeScorigami) {
                     scorigamiLine = `A first-ever score for both the ${away_team_short_name} and ${home_team_short_name}!`;
                 } else if (isAwayScorigami) {
-                    const homeHistoryCount = await getFranchiseScoreHistory(supabase, dbHomeId, home_score, away_score);
+                    const homeHistoryCount = await getFranchiseScoreHistory(supabase, homeFranchiseIds, home_score, away_score);
                     const homeHistoryText = formatOccurrences(homeHistoryCount);
                     scorigamiLine = `A first-ever score for the ${away_team_short_name}! The ${home_team_short_name} have seen this score ${homeHistoryText} before.`;
                 } else { // isHomeScorigami
-                    const awayHistoryCount = await getFranchiseScoreHistory(supabase, dbAwayId, away_score, home_score);
+                    const awayHistoryCount = await getFranchiseScoreHistory(supabase, awayFranchiseIds, away_score, home_score);
                     const awayHistoryText = formatOccurrences(awayHistoryCount);
                     scorigamiLine = `A first-ever score for the ${home_team_short_name}! The ${away_team_short_name} have seen this score ${awayHistoryText} before.`;
                 }
@@ -423,28 +482,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         }
         if (postText) {
             const postResult = await postToX(twitterClient, postText);
-            // ✨ ADD snapshot to the record
             if (postResult.success) { await recordPost(supabase, game.game_id, 'Final', 'Final', scoreSnapshot); }
             else if (postResult.reason === 'rate-limit') { await queuePostForLater(supabase, postText, game.game_id); }
         } else { 
-            // ✨ ADD snapshot to the record
             await recordPost(supabase, game_id, 'Processed_No_Post', 'Final', scoreSnapshot); 
         }
     }
     else if (game.inning >= 6 && game.inning < 9 && (game.away_score >= 13 || game.home_score >= 13)) {
         
-        // 1. Check if the score itself has changed
         const lastScoreSnapshot = await fetchLastScoreSnapshot(supabase, game.game_id);
         if (lastScoreSnapshot === scoreSnapshot) {
             console.log(`[FILTER] Skipping update for game ${game.game_id}, score is unchanged.`);
             continue;
         }
 
-        // 2. Check if we've already posted for this specific inning
         const postDetail = `In-Progress Update - Inning ${game.inning}`;
         if (await checkIfPosted(supabase, game.game_id, postDetail)) continue;
 
-        // 3. If checks pass, generate the post text and send it
         const probabilityResult = await calculateFranchiseScorigamiProbability(supabase, game, dbAwayId, dbHomeId);
         if (!probabilityResult || !probabilityResult.mostLikely) continue;
 
@@ -457,7 +511,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         const postResult = await postToX(twitterClient, postText);
         if (postResult.success) { 
-            // 4. Record the update with the current score snapshot
             await recordPost(supabase, game.game_id, 'In_Progress_Update', postDetail, scoreSnapshot); 
         } else if (postResult.reason === 'rate-limit') { 
             await queuePostForLater(supabase, postText, game.game_id); 
