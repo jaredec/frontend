@@ -1,5 +1,3 @@
-// /frontend/app/api/cron/check-games/route.ts
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import TwitterApi from 'twitter-api-v2';
@@ -148,9 +146,27 @@ async function isGameInQueue(supabase: SupabaseClient, gameId: number): Promise<
     return (data || []).length > 0;
 }
 
-async function recordPost(supabase: SupabaseClient, game_id: number, post_type: string, details: string): Promise<void> {
-  const { error } = await supabase.from('posted_updates').insert({ game_id, post_type, details });
+// ✨ MODIFIED to accept and store post_text, with null as default
+async function recordPost(supabase: SupabaseClient, game_id: number, post_type: string, details: string, post_text: string | null = null): Promise<void> {
+  const { error } = await supabase.from('posted_updates').insert({ game_id, post_type, details, post_text });
   if (error) console.error("Error recording post:", error);
+}
+
+// ✨ NEW HELPER FUNCTION to get the text of the last update
+async function fetchLastUpdateText(supabase: SupabaseClient, game_id: number): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('posted_updates')
+    .select('post_text')
+    .eq('game_id', game_id)
+    .eq('post_type', 'In_Progress_Update')
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (error || !data || !data[0]) {
+    if (error) console.error("Error fetching last update text:", error);
+    return null;
+  }
+  return data[0].post_text;
 }
 
 async function queuePostForLater(supabase: SupabaseClient, postText: string, gameId: number): Promise<void> {
@@ -334,7 +350,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         const isTie = away_score === home_score;
 
-        // ✨ NEW LOGIC: Handle ties as a special case that always gets posted.
         if (isTie) {
             console.log(`[PROCESS] Game ${game_id} is a tie. Posting as an exception.`);
             const tiePostText = `FINAL/TIE: ${away_team_short_name} ${away_score}, ${home_team_short_name} ${home_score}\n\nA rare tie in MLB!`;
@@ -344,11 +359,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             } else if (postResult.reason === 'rate-limit') {
                 await queuePostForLater(supabase, tiePostText, game.game_id);
             }
-            continue; // Skip to the next game after handling the tie
+            continue;
         }
 
         const totalRuns = away_score + home_score;
-        // ✨ UPDATED RULE: For non-tie games, only post if total runs are 8 or more.
         if (totalRuns < 8) {
             console.log(`[FILTER] Skipping game ${game_id} (${away_score}-${home_score}) because total runs (${totalRuns}) is < 8.`);
             await recordPost(supabase, game_id, 'Processed_Low_Score', 'Final');
@@ -376,12 +390,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 if (isAwayScorigami && isHomeScorigami) {
                     scorigamiLine = `A first-ever score for both the ${away_team_short_name} and ${home_team_short_name}!`;
                 } else if (isAwayScorigami) {
-                    // Away team got scorigami, get history for home team
                     const homeHistoryCount = await getFranchiseScoreHistory(supabase, dbHomeId, home_score, away_score);
                     const homeHistoryText = formatOccurrences(homeHistoryCount);
                     scorigamiLine = `A first-ever score for the ${away_team_short_name}! The ${home_team_short_name} have seen this score ${homeHistoryText} before.`;
                 } else { // isHomeScorigami
-                    // Home team got scorigami, get history for away team
                     const awayHistoryCount = await getFranchiseScoreHistory(supabase, dbAwayId, away_score, home_score);
                     const awayHistoryText = formatOccurrences(awayHistoryCount);
                     scorigamiLine = `A first-ever score for the ${home_team_short_name}! The ${away_team_short_name} have seen this score ${awayHistoryText} before.`;
@@ -402,25 +414,38 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             else if (postResult.reason === 'rate-limit') { await queuePostForLater(supabase, postText, game.game_id); }
         } else { await recordPost(supabase, game_id, 'Processed_No_Post', 'Final'); }
     }
-    else if (game.inning >= 6 && (game.away_score >= 13 || game.home_score >= 13)) {
-        const postDetail = 'In-Progress Scorigami Watch';
+    // ✨ MODIFIED LOGIC BLOCK for smarter in-progress updates
+    else if (game.inning >= 6 && game.inning < 9 && (game.away_score >= 13 || game.home_score >= 13)) {
+        
+        // First, calculate probabilities and generate the potential post text
+        const probabilityResult = await calculateFranchiseScorigamiProbability(supabase, game, dbAwayId, dbHomeId);
+        if (!probabilityResult || !probabilityResult.mostLikely) continue; // Skip if no scorigami chance
+
+        const { mostLikely, totalChance } = probabilityResult;
+        const formattedInning = formatInningState(game.inning_state_raw, game.inning);
+        const scoreLine = `${formattedInning}: ${away_team_short_name} ${away_score}, ${home_team_short_name} ${home_score}`;
+        const chanceLine = `${(totalChance * 100).toFixed(2)}% chance of Franchise Scorigami`;
+        const mostLikelyLine = `Most likely: ${mostLikely.score} (${(mostLikely.probability * 100).toFixed(2)}%).`;
+        const potentialPostText = `Score Update:\n${scoreLine}\n\n${chanceLine}\n${mostLikelyLine}`;
+
+        // Check against the last post to avoid duplicate content
+        const lastPostText = await fetchLastUpdateText(supabase, game.game_id);
+        if (lastPostText === potentialPostText) {
+            console.log(`[FILTER] Skipping update for game ${game.game_id}, content is unchanged.`);
+            continue;
+        }
+
+        // Now, check if we've already posted for this specific inning
+        const postDetail = `In-Progress Update - Inning ${game.inning}`;
         if (await checkIfPosted(supabase, game.game_id, postDetail)) continue;
 
-        const probabilityResult = await calculateFranchiseScorigamiProbability(supabase, game, dbAwayId, dbHomeId);
-        if (probabilityResult && probabilityResult.mostLikely) {
-            const { mostLikely, totalChance } = probabilityResult;
-
-            const formattedInning = formatInningState(game.inning_state_raw, game.inning);
-            const scoreLine = `${formattedInning}: ${away_team_short_name} ${away_score}, ${home_team_short_name} ${home_score}`;
-
-            const chanceLine = `${(totalChance * 100).toFixed(2)}% chance of Franchise Scorigami`;
-            const mostLikelyLine = `Most likely: ${mostLikely.score} (${(mostLikely.probability * 100).toFixed(2)}%).`;
-
-            const postText = `Score Update:\n${scoreLine}\n\n${chanceLine}\n${mostLikelyLine}`;
-
-            const postResult = await postToX(twitterClient, postText);
-            if (postResult.success) { await recordPost(supabase, game.game_id, 'In_Progress_Update', postDetail); }
-            else if (postResult.reason === 'rate-limit') { await queuePostForLater(supabase, postText, game.game_id); }
+        // If all checks pass, post it!
+        const postResult = await postToX(twitterClient, potentialPostText);
+        if (postResult.success) { 
+            // Save the post and its text to the database
+            await recordPost(supabase, game.game_id, 'In_Progress_Update', postDetail, potentialPostText); 
+        } else if (postResult.reason === 'rate-limit') { 
+            await queuePostForLater(supabase, potentialPostText, game.game_id); 
         }
     }
   }
