@@ -56,7 +56,7 @@ interface ScorigamiProbabilityResult {
     mostLikely: { teamName: string; score: string; probability: number; } | null;
 }
 
-// --- (Helper functions section is unchanged) ---
+// --- (Helper functions section) ---
 const franchiseIdCache: { [key: number]: number[] } = {};
 
 function getOrdinal(n: number): string {
@@ -149,16 +149,16 @@ async function isGameInQueue(supabase: SupabaseClient, gameId: number): Promise<
 }
 
 async function recordPost(
-    supabase: SupabaseClient, 
-    game_id: number, 
-    post_type: string, 
-    details: string, 
-    score_snapshot: string | null = null 
+    supabase: SupabaseClient,
+    game_id: number,
+    post_type: string,
+    details: string,
+    score_snapshot: string | null = null
 ): Promise<void> {
-  const { error } = await supabase.from('posted_updates').insert({ 
-      game_id, 
-      post_type, 
-      details, 
+  const { error } = await supabase.from('posted_updates').insert({
+      game_id,
+      post_type,
+      details,
       score_snapshot
   });
   if (error) console.error("Error recording post:", error);
@@ -267,9 +267,9 @@ async function isFranchiseScorigami(supabase: SupabaseClient, franchiseIds: numb
       )
       .limit(1);
 
-    if (error) { 
-        console.error("Error checking franchise scorigami in gamelogs:", error); 
-        return false; 
+    if (error) {
+        console.error("Error checking franchise scorigami in gamelogs:", error);
+        return false;
     }
     return data.length === 0;
 }
@@ -288,24 +288,6 @@ async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number)
         last_game_date: new Date(data[0].date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     };
 }
-
-async function getFranchiseScoreHistory(supabase: SupabaseClient, franchiseIds: number[], teamScore: number, opponentScore: number): Promise<number> {
-    const ids = `(${franchiseIds.join(',')})`;
-    const { count, error } = await supabase
-        .from('gamelogs')
-        .select('game_id', { count: 'exact' })
-        .or(
-          `and(home_team_id.in.${ids},home_score.eq.${teamScore},visitor_score.eq.${opponentScore}),`+
-          `and(visitor_team_id.in.${ids},visitor_score.eq.${teamScore},home_score.eq.${opponentScore})`
-        );
-
-    if (error) {
-        console.error(`Error fetching franchise score history for team IDs ${franchiseIds}:`, error);
-        return 0;
-    }
-    return count || 0;
-}
-
 
 const FACTORIALS: number[] = [1];
 function factorial(n: number): number {
@@ -430,7 +412,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             }
             continue;
         }
-        
+
         const totalRuns = away_score + home_score;
         if (totalRuns < 8) {
             console.log(`[FILTER] Skipping game ${game_id} (${scoreSnapshot}) because total runs (${totalRuns}) is < 8.`);
@@ -438,10 +420,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             continue;
         }
 
-        // ▼▼▼ START OF UPDATED CODE ▼▼▼
-
         let postText = "";
-        
+
         // Define winner/loser to use for consistent formatting
         const winnerName = away_score > home_score ? away_team_short_name : home_team_short_name;
         const loserName = away_score < home_score ? away_team_short_name : home_team_short_name;
@@ -458,13 +438,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         } else {
             const isAwayScorigami = await isFranchiseScorigami(supabase, awayFranchiseIds, away_score, home_score);
             const isHomeScorigami = await isFranchiseScorigami(supabase, homeFranchiseIds, home_score, away_score);
-            
+
             if (isAwayScorigami || isHomeScorigami) {
                 const history = await getScoreHistory(supabase, away_score, home_score);
                 const historyLine = history
                     ? `This score combination has occurred ${formatOccurrences(history.occurrences)} in MLB history, last on ${history.last_game_date}.`
                     : `This score combination has not occurred before in MLB history.`;
-                
+
                 let scorigamiLine = "";
                 if (isAwayScorigami && isHomeScorigami) {
                     // Case: Both teams get Franchise Scorigami
@@ -480,7 +460,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                         scorigamiLine = `It's the first ${loserScore}-${winnerScore} final in ${loserName} history.`;
                     }
                 }
-                
+
                 postText = `${finalScoreHeader}\n\nFRANCHISE SCORIGAMI!\n${scorigamiLine}\n\n${historyLine}`;
 
             } else {
@@ -491,19 +471,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 }
             }
         }
-        
-        // ▲▲▲ END OF UPDATED CODE ▲▲▲
 
         if (postText) {
             const postResult = await postToX(twitterClient, postText);
             if (postResult.success) { await recordPost(supabase, game.game_id, 'Final', 'Final', scoreSnapshot); }
             else if (postResult.reason === 'rate-limit') { await queuePostForLater(supabase, postText, game.game_id); }
-        } else { 
-            await recordPost(supabase, game_id, 'Processed_No_Post', 'Final', scoreSnapshot); 
+        } else {
+            await recordPost(supabase, game_id, 'Processed_No_Post', 'Final', scoreSnapshot);
         }
     }
     else if (game.inning >= 6 && game.inning < 9 && (game.away_score >= 13 || game.home_score >= 13)) {
-        
+
         const lastScoreSnapshot = await fetchLastScoreSnapshot(supabase, game.game_id);
         if (lastScoreSnapshot === scoreSnapshot) {
             console.log(`[FILTER] Skipping update for game ${game.game_id}, score is unchanged.`);
@@ -524,10 +502,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const postText = `Score Update:\n${scoreLine}\n\n${chanceLine}\n${mostLikelyLine}`;
 
         const postResult = await postToX(twitterClient, postText);
-        if (postResult.success) { 
-            await recordPost(supabase, game.game_id, 'In_Progress_Update', postDetail, scoreSnapshot); 
-        } else if (postResult.reason === 'rate-limit') { 
-            await queuePostForLater(supabase, postText, game.game_id); 
+        if (postResult.success) {
+            await recordPost(supabase, game.game_id, 'In_Progress_Update', postDetail, scoreSnapshot);
+        } else if (postResult.reason === 'rate-limit') {
+            await queuePostForLater(supabase, postText, game.game_id);
         }
     }
   }
