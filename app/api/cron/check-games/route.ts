@@ -56,7 +56,7 @@ interface ScorigamiProbabilityResult {
     mostLikely: { teamName: string; score: string; probability: number; } | null;
 }
 
-// --- (Helper functions section) ---
+// --- (Helper functions section is unchanged) ---
 const franchiseIdCache: { [key: number]: number[] } = {};
 
 function getOrdinal(n: number): string {
@@ -180,13 +180,11 @@ async function fetchLastScoreSnapshot(supabase: SupabaseClient, game_id: number)
   return data[0].score_snapshot;
 }
 
-// ✨ CORRECTED LOGIC to use the franchise abbreviation (e.g., 'ATL')
 async function getFranchiseTeamIds(supabase: SupabaseClient, teamId: number): Promise<number[]> {
     if (franchiseIdCache[teamId]) {
         return franchiseIdCache[teamId];
     }
 
-    // Step 1: Find the franchise abbreviation from the current teamId
     const { data: franchiseData, error: franchiseError } = await supabase
         .from('teams')
         .select('franchise')
@@ -195,12 +193,11 @@ async function getFranchiseTeamIds(supabase: SupabaseClient, teamId: number): Pr
 
     if (franchiseError || !franchiseData) {
         console.error(`Could not find franchise for teamId ${teamId}:`, franchiseError);
-        return [teamId]; // Fallback to just the current ID
+        return [teamId];
     }
 
     const franchiseAbbr = franchiseData.franchise;
 
-    // Step 2: Find all team_ids for that franchise abbreviation
     const { data: teamIdsData, error: teamIdsError } = await supabase
         .from('teams')
         .select('team_id')
@@ -208,11 +205,11 @@ async function getFranchiseTeamIds(supabase: SupabaseClient, teamId: number): Pr
 
     if (teamIdsError || !teamIdsData) {
         console.error(`Could not find team IDs for franchise ${franchiseAbbr}:`, teamIdsError);
-        return [teamId]; // Fallback
+        return [teamId];
     }
 
     const ids = teamIdsData.map(t => t.team_id);
-    franchiseIdCache[teamId] = ids; // Store in cache for future use
+    franchiseIdCache[teamId] = ids;
     return ids;
 }
 
@@ -433,7 +430,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             }
             continue;
         }
-
+        
         const totalRuns = away_score + home_score;
         if (totalRuns < 8) {
             console.log(`[FILTER] Skipping game ${game_id} (${scoreSnapshot}) because total runs (${totalRuns}) is < 8.`);
@@ -441,8 +438,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             continue;
         }
 
+        // ▼▼▼ START OF UPDATED CODE ▼▼▼
+
         let postText = "";
-        const finalScoreHeader = `FINAL: ${away_team_short_name} ${away_score}, ${home_team_short_name} ${home_score}`;
+        
+        // Define winner/loser to use for consistent formatting
+        const winnerName = away_score > home_score ? away_team_short_name : home_team_short_name;
+        const loserName = away_score < home_score ? away_team_short_name : home_team_short_name;
+        const winnerScore = Math.max(away_score, home_score);
+        const loserScore = Math.min(away_score, home_score);
+
+        // Always format header with winner first
+        const finalScoreHeader = `FINAL: ${winnerName} ${winnerScore}, ${loserName} ${loserScore}`;
 
         const trueScorigamiResult = await checkTrueScorigami(supabase, away_score, home_score);
         if (trueScorigamiResult.isScorigami) {
@@ -451,35 +458,42 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         } else {
             const isAwayScorigami = await isFranchiseScorigami(supabase, awayFranchiseIds, away_score, home_score);
             const isHomeScorigami = await isFranchiseScorigami(supabase, homeFranchiseIds, home_score, away_score);
-            const history = await getScoreHistory(supabase, away_score, home_score);
-
+            
             if (isAwayScorigami || isHomeScorigami) {
-                const footer = history
-                    ? `Seen ${formatOccurrences(history.occurrences)} before in MLB history, last on ${history.last_game_date}.`
-                    : `This score has not been seen before in MLB history.`;
-
+                const history = await getScoreHistory(supabase, away_score, home_score);
+                const historyLine = history
+                    ? `This score combination has occurred ${formatOccurrences(history.occurrences)} in MLB history, last on ${history.last_game_date}.`
+                    : `This score combination has not occurred before in MLB history.`;
+                
                 let scorigamiLine = "";
                 if (isAwayScorigami && isHomeScorigami) {
-                    scorigamiLine = `A first-ever score for both the ${away_team_short_name} and ${home_team_short_name}!`;
-                } else if (isAwayScorigami) {
-                    const homeHistoryCount = await getFranchiseScoreHistory(supabase, homeFranchiseIds, home_score, away_score);
-                    const homeHistoryText = formatOccurrences(homeHistoryCount);
-                    scorigamiLine = `A first-ever score for the ${away_team_short_name}! The ${home_team_short_name} have seen this score ${homeHistoryText} before.`;
-                } else { // isHomeScorigami
-                    const awayHistoryCount = await getFranchiseScoreHistory(supabase, awayFranchiseIds, away_score, home_score);
-                    const awayHistoryText = formatOccurrences(awayHistoryCount);
-                    scorigamiLine = `A first-ever score for the ${home_team_short_name}! The ${away_team_short_name} have seen this score ${awayHistoryText} before.`;
+                    // Case: Both teams get Franchise Scorigami
+                    scorigamiLine = `A first-ever ${winnerScore}-${loserScore} final for both the ${winnerName} and the ${loserName}!`;
+                } else {
+                    // Case: Only one team gets it
+                    const scorigamiTeamIsWinner = (isHomeScorigami && home_score > away_score) || (isAwayScorigami && away_score > home_score);
+                    if (scorigamiTeamIsWinner) {
+                        // Winning team gets it
+                        scorigamiLine = `A first-ever ${winnerScore}-${loserScore} final in ${winnerName} history!`;
+                    } else {
+                        // Losing team gets it
+                        scorigamiLine = `It's the first ${loserScore}-${winnerScore} final in ${loserName} history.`;
+                    }
                 }
-
-                postText = `${finalScoreHeader}\n\nFRANCHISE SCORIGAMI!\n\n${scorigamiLine}\n${footer}`;
+                
+                postText = `${finalScoreHeader}\n\nFRANCHISE SCORIGAMI!\n${scorigamiLine}\n\n${historyLine}`;
 
             } else {
+                const history = await getScoreHistory(supabase, away_score, home_score);
                 if (history) {
                     const occurrencesFormatted = formatOccurrences(history.occurrences);
                     postText = `${finalScoreHeader}\n\nNo Scorigami. Seen ${occurrencesFormatted} before in MLB history, last on ${history.last_game_date}.`;
                 }
             }
         }
+        
+        // ▲▲▲ END OF UPDATED CODE ▲▲▲
+
         if (postText) {
             const postResult = await postToX(twitterClient, postText);
             if (postResult.success) { await recordPost(supabase, game.game_id, 'Final', 'Final', scoreSnapshot); }
