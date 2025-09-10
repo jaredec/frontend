@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import useSWR from "swr";
-import { HelpCircle } from "lucide-react";
+import { AlertTriangle, HelpCircle } from "lucide-react";
 
 // Component Imports
 import PageHeader from "@/components/page-header";
@@ -30,9 +30,10 @@ export default function Home() {
   );
   
   const totalGamesDisplayed = useMemo(() => {
-    if (!rows) return 0;
-    return rows.reduce((sum: number, row: { occurrences: number; }) => sum + Number(row.occurrences), 0);
-  }, [rows]);
+    if (!rows || error) return 0;
+    // Ensure rows is an array before calling reduce
+    return Array.isArray(rows) ? rows.reduce((sum: number, row: { occurrences: number; }) => sum + Number(row.occurrences), 0) : 0;
+  }, [rows, error]);
 
   const sortedTeamsForDropdown = useMemo(() => {
     return CURRENT_FRANCHISE_CODES
@@ -56,13 +57,20 @@ export default function Home() {
         />
 
         <div className="bg-white dark:bg-gray-800/50 border border-slate-200/80 dark:border-gray-700/60 rounded-2xl shadow-xl shadow-slate-900/5">
-          <ScorigamiHeatmap
-            rows={rows}
-            isLoading={isLoading}
-            error={error}
-            scorigamiType={scorigamiType}
-            club={club}
-          />
+          {error ? (
+            <div className="flex flex-col items-center justify-center p-6 bg-red-50 dark:bg-red-900/30 rounded-xl min-h-[450px] text-center">
+              <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
+              <h3 className="text-xl font-semibold text-red-700 dark:text-red-300">Data Load Error</h3>
+              <p className="text-red-600 dark:text-red-400 mt-1 max-w-sm">An issue occurred while fetching data from the API. Please try refreshing.</p>
+            </div>
+          ) : (
+            <ScorigamiHeatmap
+              rows={rows}
+              isLoading={isLoading}
+              scorigamiType={scorigamiType}
+              club={club}
+            />
+          )}
         </div>
 
         <section className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8">

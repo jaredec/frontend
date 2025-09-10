@@ -54,16 +54,7 @@ const HeatmapLegend = ({ isDarkMode }: { isDarkMode: boolean }) => {
 };
 
 // A new component for loading/empty/error states for clarity
-const StatusIndicator = ({ type, error }: { type: 'loading' | 'empty' | 'error', error?: Error }) => {
-    if (type === 'error') {
-        return (
-            <div className="flex flex-col items-center justify-center p-6 text-center">
-                <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-                <h3 className="text-xl font-semibold text-red-700 dark:text-red-300">Data Load Error</h3>
-                <p className="text-red-600 dark:text-red-400 mt-1 max-w-sm">An issue occurred while fetching data. Please try refreshing.</p>
-            </div>
-        );
-    }
+const StatusIndicator = ({ type }: { type: 'loading' | 'empty' }) => {
     if (type === 'empty') {
         return (
             <div className="flex flex-col items-center justify-center p-6 text-center">
@@ -86,12 +77,11 @@ const StatusIndicator = ({ type, error }: { type: 'loading' | 'empty' | 'error',
 interface ScorigamiHeatmapProps {
   rows: ApiRow[] | undefined;
   isLoading: boolean;
-  error: Error | undefined;
   scorigamiType: ScorigamiType;
   club: string;
 }
 
-export default function ScorigamiHeatmap({ rows, isLoading, error, scorigamiType, club }: ScorigamiHeatmapProps) {
+export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club }: ScorigamiHeatmapProps) {
   const hasData = useMemo(() => !!rows && rows.length > 0, [rows]);
 
   const [data, setData] = useState<Record<string, ApiRow | undefined>>({});
@@ -101,8 +91,8 @@ export default function ScorigamiHeatmap({ rows, isLoading, error, scorigamiType
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [activeCellKey, setActiveCellKey] = useState<string | null>(null);
 
-  const yAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Losing Score' : club === 'ALL' ? 'Visitor Score' : 'Opponent Score', [scorigamiType, club]);
-  const xAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Winning Score' : club === 'ALL' ? 'Home Score' : `${TEAM_NAMES[club] ?? club} Score`, [scorigamiType, club]);
+  const yAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Winning Score' : club === 'ALL' ? 'Home Score' : `${TEAM_NAMES[club] ?? club} Score`, [scorigamiType, club]);
+  const xAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Losing Score' : club === 'ALL' ? 'Visitor Score' : 'Opponent Score', [scorigamiType, club]);
   const maxOccurrencesInView = useMemo(() => {
     if (!rows || rows.length === 0) return 1;
     const maxOcc = Math.max(...rows.map(row => Number(row.occurrences)));
@@ -161,9 +151,6 @@ export default function ScorigamiHeatmap({ rows, isLoading, error, scorigamiType
   }, []);
   
   // Decisive Rendering Logic
-  if (error) {
-    return <div className="flex min-h-[450px] w-full items-center justify-center"><StatusIndicator type="error" error={error} /></div>;
-  }
   if (isLoading) {
     return <div className="flex min-h-[450px] w-full items-center justify-center"><StatusIndicator type="loading" /></div>;
   }
@@ -189,10 +176,10 @@ export default function ScorigamiHeatmap({ rows, isLoading, error, scorigamiType
                         {Array.from({ length: GRID_DIMENSION }).map((_, i) => (
                         <div key={`col-header-${i}`} className={`flex items-center justify-center border-r border-b border-slate-200/80 dark:border-slate-700/60 text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${activeX === i ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{i}</div>
                         ))}
-                        {Array.from({ length: GRID_DIMENSION }).map((_, score1_iterator) => (
-                        <React.Fragment key={`row-frag-${score1_iterator}`}>
-                            <div className={`flex items-center justify-center border-r border-b border-slate-200/80 dark:border-slate-700/60 text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${activeY === score1_iterator ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{score1_iterator}</div>
-                            {Array.from({ length: GRID_DIMENSION }).map((_, score2_iterator) => {
+                        {Array.from({ length: GRID_DIMENSION }).map((_, score2_iterator) => (
+                        <React.Fragment key={`row-frag-${score2_iterator}`}>
+                            <div className={`flex items-center justify-center border-r border-b border-slate-200/80 dark:border-slate-700/60 text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${activeY === score2_iterator ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{score2_iterator}</div>
+                            {Array.from({ length: GRID_DIMENSION }).map((_, score1_iterator) => {
                                 const k = `${score1_iterator}-${score2_iterator}`;
                                 const rowData = data[k];
                                 const f = rowData?.occurrences ?? 0;
