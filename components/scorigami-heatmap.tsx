@@ -53,7 +53,6 @@ const HeatmapLegend = ({ isDarkMode }: { isDarkMode: boolean }) => {
     );
 };
 
-// A new component for loading/empty/error states for clarity
 const StatusIndicator = ({ type }: { type: 'loading' | 'empty' }) => {
     if (type === 'empty') {
         return (
@@ -73,7 +72,6 @@ const StatusIndicator = ({ type }: { type: 'loading' | 'empty' }) => {
     );
 };
 
-
 interface ScorigamiHeatmapProps {
   rows: ApiRow[] | undefined;
   isLoading: boolean;
@@ -91,8 +89,10 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [activeCellKey, setActiveCellKey] = useState<string | null>(null);
 
-  const yAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Winning Score' : club === 'ALL' ? 'Home Score' : `${TEAM_NAMES[club] ?? club} Score`, [scorigamiType, club]);
-  const xAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Losing Score' : club === 'ALL' ? 'Visitor Score' : 'Opponent Score', [scorigamiType, club]);
+  // ▼▼▼ CORRECTED AXIS LABELS ▼▼▼
+  const yAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Losing Score' : club === 'ALL' ? 'Visitor Score' : 'Opponent Score', [scorigamiType, club]);
+  const xAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Winning Score' : club === 'ALL' ? 'Home Score' : `${TEAM_NAMES[club] ?? club} Score`, [scorigamiType, club]);
+
   const maxOccurrencesInView = useMemo(() => {
     if (!rows || rows.length === 0) return 1;
     const maxOcc = Math.max(...rows.map(row => Number(row.occurrences)));
@@ -150,7 +150,6 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
   
-  // Decisive Rendering Logic
   if (isLoading) {
     return <div className="flex min-h-[450px] w-full items-center justify-center"><StatusIndicator type="loading" /></div>;
   }
@@ -158,7 +157,6 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
     return <div className="flex min-h-[450px] w-full items-center justify-center"><StatusIndicator type="empty" /></div>;
   }
 
-  // Render the heatmap only when we have data
   return (
     <TooltipProvider delayDuration={150}>
       <div ref={gridContainerRef} className="p-4 sm:p-6 flex flex-col items-center justify-center">
@@ -198,7 +196,7 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
                                     <TooltipContent>
                                         <div className="flex flex-col items-start text-left">
                                             <div className="flex justify-between items-center w-full">
-                                            <span className="text-lg font-bold text-slate-900 dark:text-white leading-tight">{`${score2_iterator} - ${score1_iterator}`}</span>
+                                            <span className="text-lg font-bold text-slate-900 dark:text-white leading-tight">{`${score1_iterator} - ${score2_iterator}`}</span>
                                             {'ontouchstart' in window && (
                                                 <button onClick={() => setActiveCellKey(null)} className="p-1 -mr-1 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                                                     <X className="w-4 h-4"/>
