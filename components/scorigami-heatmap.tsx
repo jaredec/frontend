@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { Tooltip, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { X, Loader2, FilterX, AlertTriangle } from "lucide-react";
+import { X, Loader2, FilterX } from "lucide-react";
 import { TEAM_NAMES } from "@/lib/mlb-data";
 
 // --- Types & Helpers ---
