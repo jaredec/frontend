@@ -1,17 +1,10 @@
-// components/scorigami-heatmap.tsx
-
 "use client";
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import {
-  Tooltip,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-// ▼▼▼ FIX: TooltipContent is no longer imported from here ▼▼▼
+import { Tooltip, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"; 
-import { X } from "lucide-react";
-import { Loader2, FilterX, AlertTriangle } from "lucide-react";
+import { X, Loader2, FilterX, AlertTriangle } from "lucide-react";
+import { TEAM_NAMES } from "@/lib/mlb-data"; // Import from your new constants file
 
 // --- Types & Helpers ---
 type ScorigamiType = "oriented" | "traditional";
@@ -26,31 +19,19 @@ interface ApiRow {
 const formatDisplayDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 const freqText = (f: number) => f === 1 ? "1 Game" : `${f.toLocaleString()} Games`;
 
-// ▼▼▼ FIX: Re-defining our custom styled TooltipContent component ▼▼▼
+// ▼▼▼ THIS IS THE FIX FOR THE MOBILE TOOLTIP ▼▼▼
 const TooltipContent = ({ className = "", ...props }: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>) => (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content
-        side="right" sideOffset={10}
+        sideOffset={8}
+        collisionPadding={10} // This prevents the tooltip from going off-screen
         className={"z-50 w-auto rounded-md bg-white dark:bg-gray-900 shadow-xl ring-1 ring-gray-200 dark:ring-gray-800 p-3 " + className}
         {...props}
       />
     </TooltipPrimitive.Portal>
 );
 
-
-const TEAM_NAMES: Record<string, string> = {
-  ANA: "Los Angeles Angels", ARI: "Arizona Diamondbacks", ATL: "Atlanta Braves",
-  BAL: "Baltimore Orioles", BOS: "Boston Red Sox", CHA: "Chicago White Sox",
-  CHN: "Chicago Cubs", CIN: "Cincinnati Reds", CLE: "Cleveland Guardians",
-  COL: "Colorado Rockies", DET: "Detroit Tigers", HOU: "Houston Astros",
-  KCA: "Kansas City Royals", LAN: "Los Angeles Dodgers", MIA: "Miami Marlins",
-  MIL: "Milwaukee Brewers", MIN: "Minnesota Twins", NYA: "New York Yankees",
-  NYN: "New York Mets", OAK: "Oakland Athletics", PHI: "Philadelphia Phillies",
-  PIT: "Pittsburgh Pirates", SDN: "San Diego Padres", SEA: "Seattle Mariners",
-  SFN: "San Francisco Giants", SLN: "St. Louis Cardinals", TBA: "Tampa Bay Rays",
-  TEX: "Texas Rangers", TOR: "Toronto Blue Jays", WAS: "Washington Nationals",
-};
-
+// Constants
 const MAX_DISPLAY_SCORE = 30;
 const GRID_DIMENSION = MAX_DISPLAY_SCORE + 1;
 const DESKTOP_CELL_SIZE = 22;
@@ -217,7 +198,6 @@ export default function ScorigamiHeatmap({ rows, isLoading, error, scorigamiType
                                     onClick={() => setActiveCellKey(isActive ? null : k)}
                                   />
                                 </TooltipTrigger>
-                                {/* ▼▼▼ FIX: Using our custom TooltipContent component again ▼▼▼ */}
                                 <TooltipContent>
                                     <div className="flex flex-col items-start text-left">
                                         <div className="flex justify-between items-center w-full">
