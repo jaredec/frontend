@@ -106,7 +106,7 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
     setData(map);
   }, [rows]);
 
-  const [activeY, activeX] = useMemo(() => activeCellKey ? activeCellKey.split('-').map(Number) : [null, null], [activeCellKey]);
+  const [activeX, activeY] = useMemo(() => activeCellKey ? activeCellKey.split('-').map(Number) : [null, null], [activeCellKey]);
   
   const getLogScaledColor = (currentOccurrences: number, maxInView: number) => {
     const currentHex = isDarkMode ? darkHex : hex;
