@@ -292,7 +292,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 if (history) {
                     const historyLine = `This score has occurred ${formatOccurrences(history.occurrences)} in MLB history, last on ${history.last_game_date}.`;
                     // --- UPDATED ---
-                    postText = `${finalScoreHeader}\n${hashtagLine}\n\nNot a Scorigami. ${historyLine}`.trim();
+                    postText = `${finalScoreHeader}\n${hashtagLine}\n\nNo Scorigami. ${historyLine}`.trim();
                 }
             }
         }
