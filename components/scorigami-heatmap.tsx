@@ -35,23 +35,29 @@ const MAX_DISPLAY_SCORE = 30;
 const GRID_DIMENSION = MAX_DISPLAY_SCORE + 1;
 const DESKTOP_CELL_SIZE = 22;
 const DESKTOP_HEADER_CELL_SIZE = 36;
-const hex = ["#f3f4f6", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8"];
-const darkHex = ["#374151", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8"];
 
-const HeatmapLegend = ({ isDarkMode }: { isDarkMode: boolean }) => {
-    const colors = (isDarkMode ? darkHex : hex).slice(1);
-    return (
-        <div className="flex items-center justify-center space-x-2 mt-4">
-            <span className="text-xs text-slate-500 dark:text-slate-400">Fewer</span>
-            <div className="flex">
-                {colors.map((color, i) => (
-                    <div key={i} className="h-3 sm:h-4 w-4 sm:w-6 rounded-sm" style={{ backgroundColor: color }} />
-                ))}
-            </div>
-            <span className="text-xs text-slate-500 dark:text-slate-400">More</span>
-        </div>
-    );
-};
+// --- 10-STEP "HAPPY MEDIUM" SCALE ---
+// Blues: "Royal Blue" - Richer than steel, but less neon than electric blue.
+// Reds: "Coral to Crimson" - Vibrant but not black-red.
+const COLOR_SCALE = [
+  // --- Blues (Rare) ---
+  "#3468cc", // 1. Deep Royal Blue (Rare) - Strong but not harsh
+  "#4a7ad6", // 2. Medium Royal
+  "#638de0", // 3. Soft Royal
+  "#81a4eb", // 4. Light Blue
+  "#a3bff5", // 5. Pale Blue
+  
+  // --- Reds (Common) ---
+  "#fecaca", // 6. Pale Red
+  "#fa9696", // 7. Soft Red
+  "#f56262", // 8. Medium Red
+  "#e33b3b", // 9. Bright Red
+  "#cc2121"  // 10. Crimson (Common)
+];
+
+// Empty Colors (Matches your original gray/slate tone)
+const EMPTY_COLOR_LIGHT = "#f3f4f6"; 
+const EMPTY_COLOR_DARK = "#374151";
 
 const StatusIndicator = ({ type }: { type: 'loading' | 'empty' }) => {
     if (type === 'empty') {
@@ -89,7 +95,6 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [activeCellKey, setActiveCellKey] = useState<string | null>(null);
 
-  // ▼▼▼ CORRECTED AXIS LABELS ▼▼▼
   const yAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Losing Score' : club === 'ALL' ? 'Visitor Score' : 'Opponent Score', [scorigamiType, club]);
   const xAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Winning Score' : club === 'ALL' ? 'Home Score' : `${TEAM_NAMES[club] ?? club} Score`, [scorigamiType, club]);
 
@@ -109,17 +114,24 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
   const [activeX, activeY] = useMemo(() => activeCellKey ? activeCellKey.split('-').map(Number) : [null, null], [activeCellKey]);
   
   const getLogScaledColor = (currentOccurrences: number, maxInView: number) => {
-    const currentHex = isDarkMode ? darkHex : hex;
-    if (currentOccurrences === 0) return currentHex[0];
-    const colorsForOccurrences = currentHex.slice(1);
-    const numColors = colorsForOccurrences.length;
+    if (currentOccurrences === 0) {
+        return isDarkMode ? EMPTY_COLOR_DARK : EMPTY_COLOR_LIGHT;
+    }
+
+    const numColors = COLOR_SCALE.length;
+    
+    // Log scale calculation
     const logOccurrences = Math.log1p(currentOccurrences);
     const maxLogOccurrences = Math.log1p(maxInView);
-    if (maxLogOccurrences > 0 && maxLogOccurrences === logOccurrences) return colorsForOccurrences[numColors - 1];
+    
+    // Ratio 0 to 1
     const ratio = maxLogOccurrences > 0 ? logOccurrences / maxLogOccurrences : 0;
+    
+    // Map to index
     let colorIndex = Math.floor(ratio * numColors);
-    colorIndex = Math.min(colorIndex, numColors - 1);
-    return colorsForOccurrences[colorIndex];
+    colorIndex = Math.min(colorIndex, numColors - 1); // Clamp to max index
+    
+    return COLOR_SCALE[colorIndex];
   };
 
   useEffect(() => {
@@ -222,7 +234,6 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
                 </div>
             </div>
         </div>
-        <HeatmapLegend isDarkMode={isDarkMode} />
       </div>
     </TooltipProvider>
   );

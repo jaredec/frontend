@@ -14,9 +14,9 @@ export default function PageFooter() {
             <p>Created by <a href="https://www.linkedin.com/in/jared-connolly/" target="_blank" rel="noopener noreferrer" className="font-medium hover:underline text-blue-600 dark:text-blue-400">Jared Connolly</a></p>
             <div className="h-4 w-px bg-slate-300 dark:bg-gray-600 hidden sm:block"></div>
             <div className="flex items-center gap-4">
-                <a href="https://x.com/MLB_Scorigami_" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                <a href="https://x.com/MLBgami" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                     <XLogoIcon className="w-3.5 h-3.5" />
-                    <span>@MLB_Scorigami_</span>
+                    <span>@MLBgami</span>
                 </a>
                 <a href="mailto:scorigami.mlb@gmail.com" className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                     <Mail className="w-4 h-4" />
