@@ -41,18 +41,18 @@ const DESKTOP_HEADER_CELL_SIZE = 36;
 // Reds: "Coral to Crimson" - Vibrant but not black-red.
 const COLOR_SCALE = [
   // --- Blues (Rare) ---
-  "#3468cc", // 1. Deep Royal Blue (Rare) - Strong but not harsh
-  "#4a7ad6", // 2. Medium Royal
+  "#a3bff5", // 1. Pale Blue
+  "#81a4eb", // 2. Light Blue
   "#638de0", // 3. Soft Royal
-  "#81a4eb", // 4. Light Blue
-  "#a3bff5", // 5. Pale Blue
-  
+  "#4a7ad6", // 4. Medium Royal
+  "#3468cc", // 5. Deep Royal Blue (Rare) - Strong but not harsh
+
   // --- Reds (Common) ---
-  "#fecaca", // 6. Pale Red
-  "#fa9696", // 7. Soft Red
-  "#f56262", // 8. Medium Red
-  "#e33b3b", // 9. Bright Red
-  "#cc2121"  // 10. Crimson (Common)
+  "#090088", // 6. Pale Red
+  "#02006c", // 7. Soft Red
+  "#010057", // 8. Medium Red
+  "#010048", // 9. Bright Red
+  "#03002e"  // 10. Crimson (Common)
 ];
 
 // Empty Colors (Matches your original gray/slate tone)
