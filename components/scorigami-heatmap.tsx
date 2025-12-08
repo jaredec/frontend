@@ -36,23 +36,19 @@ const GRID_DIMENSION = MAX_DISPLAY_SCORE + 1;
 const DESKTOP_CELL_SIZE = 22;
 const DESKTOP_HEADER_CELL_SIZE = 36;
 
-// --- 10-STEP "HAPPY MEDIUM" SCALE ---
-// Blues: "Royal Blue" - Richer than steel, but less neon than electric blue.
-// Reds: "Coral to Crimson" - Vibrant but not black-red.
-const COLOR_SCALE = [
-  // --- Blues (Rare) ---
-  "#a3bff5", // 1. Pale Blue
-  "#81a4eb", // 2. Light Blue
-  "#638de0", // 3. Soft Royal
-  "#4a7ad6", // 4. Medium Royal
-  "#3468cc", // 5. Deep Royal Blue (Rare) - Strong but not harsh
+// --- COLOR SCALE ---
 
-  // --- Reds (Common) ---
-  "#090088", // 6. Pale Red
-  "#02006c", // 7. Soft Red
-  "#010057", // 8. Medium Red
-  "#010048", // 9. Bright Red
-  "#03002e"  // 10. Crimson (Common)
+const COLOR_SCALE = [
+  // --- Tailwind Blue Scale Extended (Faint Light to Deepest Indigo) ---
+  "#f3f4f6", // 1. Very Light Gray/Off-White (Faint Start)
+  "#dbeafe", // 2. Pale Blue
+  "#bfdbfe", // 3. Soft Blue
+  "#93c5fd", // 4. Sky Blue
+  "#60a5fa", // 5. Medium Blue
+  "#3b82f6", // 6. True Blue
+  "#2563eb", // 7. Royal Blue
+  "#1d4ed8", // 8. Deep Indigo/Navy (Original Darkest)
+  "#1435a6", // 9. Darker Navy (New Step)
 ];
 
 // Empty Colors (Matches your original gray/slate tone)
