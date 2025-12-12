@@ -84,7 +84,7 @@ export default function Home() {
                         <strong className="text-slate-700 dark:text-slate-300">Scorigami</strong> tracks every unique final score in Major League Baseball history. When a game finishes with a score that has never happened before, a &quot;Scorigami&quot; is achieved.
                     </p>
                     <p>
-                        This project was inspired by the original <a href="https://nflscorigami.com/" target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 dark:text-blue-400 hover:underline">NFL Scorigami</a> by Jon Bois.
+                        This project was inspired by the original <a href="https://nflscorigami.com/" target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 dark:text-blue-400 hover:underline">NFL Scorigami</a>.
                     </p>
                 </div>
             </div>

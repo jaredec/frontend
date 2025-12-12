@@ -11,7 +11,18 @@ export default function PageFooter() {
     <footer className="w-full mt-8 pb-8">
       <div className="container mx-auto px-4 text-center text-slate-500 dark:text-slate-400 text-sm">
         <div className="border-t border-slate-200 dark:border-gray-700 pt-8 flex flex-col sm:flex-row justify-center items-center gap-x-6 gap-y-4">
-            <p>Created by <a href="https://www.linkedin.com/in/jared-connolly/" target="_blank" rel="noopener noreferrer" className="font-medium hover:underline text-blue-600 dark:text-blue-400">Jared Connolly</a></p>
+            <p>
+                Created by 
+                {/* ⭐ FINAL FIX APPLIED: Removed font-medium and hover:underline to match the social links. */}
+                <a 
+                    href="https://www.linkedin.com/in/jared-connolly/" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-1"
+                >
+                    Jared Connolly
+                </a>
+            </p>
             <div className="h-4 w-px bg-slate-300 dark:bg-gray-600 hidden sm:block"></div>
             <div className="flex items-center gap-4">
                 <a href="https://x.com/MLBgami" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
