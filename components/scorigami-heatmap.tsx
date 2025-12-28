@@ -37,23 +37,24 @@ const DESKTOP_CELL_SIZE = 22;
 const DESKTOP_HEADER_CELL_SIZE = 36;
 
 // --- COLOR SCALE ---
-
-const COLOR_SCALE = [
-  // --- Tailwind Blue Scale Extended (Faint Light to Deepest Indigo) ---
-  "#f3f4f6", // 1. Very Light Gray/Off-White (Faint Start)
-  "#dbeafe", // 2. Pale Blue
-  "#bfdbfe", // 3. Soft Blue
-  "#93c5fd", // 4. Sky Blue
-  "#60a5fa", // 5. Medium Blue
-  "#3b82f6", // 6. True Blue
-  "#2563eb", // 7. Royal Blue
-  "#1d4ed8", // 8. Deep Indigo/Navy (Original Darkest)
-  "#1435a6", // 9. Darker Navy (New Step)
+// [0] = Empty, [1] = Score 1, [2-8] = Progression, [9] = Ultra-Common Peak
+const hex = [
+  "#f3f4f6", // 0. Empty (Light Mode)
+  "#dbeafe", // 1. Score 1 (Very Light Blue)
+  "#bfdbfe", // 2. Very Rare (Added for granularity)
+  "#93c5fd", // 3. Rare
+  "#60a5fa", // 4. Uncommon
+  "#3b82f6", // 5. Average
+  "#2563eb", // 6. Common
+  "#1d4ed8", // 7. High Frequency
+  "#153bc0", // 8. Very High Frequency (Rich Cobalt)
+  "#0c248d"  // 9. Peak: Ultra-Common (Deep Rich Ultramarine - Now the darkest)
 ];
 
-// Empty Colors (Matches your original gray/slate tone)
-const EMPTY_COLOR_LIGHT = "#f3f4f6"; 
-const EMPTY_COLOR_DARK = "#374151";
+const darkHex = [
+  "#374151", // 0. Empty (Dark Mode)
+  "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#153bc0", "#0c248d"
+];
 
 const StatusIndicator = ({ type }: { type: 'loading' | 'empty' }) => {
     if (type === 'empty') {
@@ -65,7 +66,6 @@ const StatusIndicator = ({ type }: { type: 'loading' | 'empty' }) => {
             </div>
         );
     }
-    // Loading state
     return (
         <div className="flex flex-col items-center justify-center p-6 text-center">
             <Loader2 className="w-12 h-12 text-blue-500 mb-4 animate-spin" />
@@ -110,24 +110,27 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
   const [activeX, activeY] = useMemo(() => activeCellKey ? activeCellKey.split('-').map(Number) : [null, null], [activeCellKey]);
   
   const getLogScaledColor = (currentOccurrences: number, maxInView: number) => {
-    if (currentOccurrences === 0) {
-        return isDarkMode ? EMPTY_COLOR_DARK : EMPTY_COLOR_LIGHT;
-    }
-
-    const numColors = COLOR_SCALE.length;
+    const currentHexSet = isDarkMode ? darkHex : hex;
     
-    // Log scale calculation
+    if (currentOccurrences === 0) return currentHexSet[0];
+    if (currentOccurrences === 1) return currentHexSet[1];
+
+    const dataColors = currentHexSet.slice(1);
+    const numColors = dataColors.length;
+
     const logOccurrences = Math.log1p(currentOccurrences);
     const maxLogOccurrences = Math.log1p(maxInView);
     
-    // Ratio 0 to 1
-    const ratio = maxLogOccurrences > 0 ? logOccurrences / maxLogOccurrences : 0;
+    let ratio = maxLogOccurrences > 0 ? logOccurrences / maxLogOccurrences : 0;
     
-    // Map to index
-    let colorIndex = Math.floor(ratio * numColors);
-    colorIndex = Math.min(colorIndex, numColors - 1); // Clamp to max index
+    // Power Curve (1.7): Stretches the scale to make common scores stand out.
+    // High numbers are required to "reach" the darkest Cobalt/Ultramarine.
+    ratio = Math.pow(ratio, 1.7);
     
-    return COLOR_SCALE[colorIndex];
+    let colorIndex = Math.floor(ratio * (numColors - 1)) + 1;
+    colorIndex = Math.min(colorIndex, numColors - 1);
+    
+    return dataColors[colorIndex];
   };
 
   useEffect(() => {
