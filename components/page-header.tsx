@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import * as Select from "@radix-ui/react-select";
 import * as RadioGroup from "@radix-ui/react-radio-group";
 import { ChevronDown, Loader2 } from "lucide-react";
@@ -20,11 +21,21 @@ interface PageHeaderProps {
 
 // Component to hold the logo image
 const LogoImage = () => (
-  // ⭐ LOGO SIZE RE-FIX: Restored responsive sizing (h-16 for mobile, md:h-24 for desktop) 
-  <img 
+  <Image 
     src="/logo3.svg" 
     alt="MLB Scorigami Logo" 
-    className="h-12 md:h-14 mr-3 md:mr-4" 
+    // 1. Give it "base" dimensions. Since it's taller than wide, 
+    // we use a 3:4 ratio (48x64). This prevents the "tiny" look.
+    width={48} 
+    height={64} 
+    // 2. priority is essential to stop the Vercel/LCP warning.
+    priority
+    // 3. style={{ width: 'auto' }} is the ONLY way to stop the console 
+    // aspect-ratio warning when using height classes like h-12.
+    style={{ width: 'auto' }}
+    // 4. h-12 (48px) and md:h-14 (56px) are your original exact sizes.
+    // w-auto ensures it doesn't stretch or cover the whole page.
+    className="h-12 md:h-14 w-auto mr-3 md:mr-4 flex-shrink-0" 
   />
 );
     
@@ -38,21 +49,18 @@ export default function PageHeader({
 }: PageHeaderProps) {
   return (
     <header className="border-b border-slate-200 dark:border-slate-700 pb-6 mb-8">
-      {/* Container ensures proper spacing and alignment */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between md:gap-6">
         
-        {/* LEFT SECTION: Logo and Text Block (Title + Status) */}
+        {/* LEFT SECTION: Logo and Text Block */}
         <div className="flex items-center justify-center md:justify-start mb-4 md:mb-0 flex-shrink-0">
             
             <LogoImage />
 
-            {/* Text Block: Title and Status Stacked */}
             <div className="flex flex-col text-center md:text-left">
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                     MLB Scorigami
                 </h1>
                 
-                {/* Status/Game Count */}
                 {isLoading && (
                     <p className="flex items-center justify-center md:justify-start text-sm text-slate-500 dark:text-slate-400">
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -68,12 +76,8 @@ export default function PageHeader({
         </div>
         
         {/* RIGHT SECTION: Filters */}
-        {/* ⭐ SCROLL FIX: Changed to flex-col on mobile, using gap-4 for vertical spacing. 
-           Only switches to horizontal flex on md: screens. This avoids overflow issues from grid/gap on tiny screens. */}
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:gap-4 w-full md:w-auto">
             
-            {/* Type Filter */}
-            {/* Now takes full width on mobile due to flex-col parent */}
             <div className="md:col-span-1">
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Type</label>
                 <RadioGroup.Root value={scorigamiType} onValueChange={(v: ScorigamiType) => setScorigamiType(v)} className="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-gray-800 p-1 w-full">
@@ -86,10 +90,7 @@ export default function PageHeader({
                 </RadioGroup.Root>
             </div>
 
-            {/* Team and Year Filters are now placed inside a nested flex container on mobile 
-               to keep them side-by-side, but still contained within the overall flow. */}
             <div className="flex gap-4">
-                {/* Team Filter */}
                 <div className="w-full md:w-48"> 
                     <label htmlFor="team-select" className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Team</label>
                     <Select.Root value={club} onValueChange={(val: FranchiseCode | "ALL") => setClub(val)}>
@@ -110,7 +111,6 @@ export default function PageHeader({
                     </Select.Root>
                 </div>
 
-                {/* Year Filter */}
                 <div className="w-full md:w-32">
                     <label htmlFor="year-select" className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Year</label>
                     <Select.Root value={selectedYear} onValueChange={(val) => setSelectedYear(val as string)}>

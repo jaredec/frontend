@@ -30,31 +30,13 @@ const TooltipContent = ({ className = "", ...props }: React.ComponentPropsWithou
     </TooltipPrimitive.Portal>
 );
 
-// Constants
 const MAX_DISPLAY_SCORE = 30;
 const GRID_DIMENSION = MAX_DISPLAY_SCORE + 1;
 const DESKTOP_CELL_SIZE = 22;
 const DESKTOP_HEADER_CELL_SIZE = 36;
 
-// --- COLOR SCALE ---
-// [0] = Empty, [1] = Score 1, [2-8] = Progression, [9] = Ultra-Common Peak
-const hex = [
-  "#f3f4f6", // 0. Empty (Light Mode)
-  "#dbeafe", // 1. Score 1 (Very Light Blue)
-  "#bfdbfe", // 2. Very Rare (Added for granularity)
-  "#93c5fd", // 3. Rare
-  "#60a5fa", // 4. Uncommon
-  "#3b82f6", // 5. Average
-  "#2563eb", // 6. Common
-  "#1d4ed8", // 7. High Frequency
-  "#153bc0", // 8. Very High Frequency (Rich Cobalt)
-  "#0c248d"  // 9. Peak: Ultra-Common (Deep Rich Ultramarine - Now the darkest)
-];
-
-const darkHex = [
-  "#374151", // 0. Empty (Dark Mode)
-  "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#153bc0", "#0c248d"
-];
+const hex = ["#f3f4f6", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#153bc0", "#0c248d"];
+const darkHex = ["#374151", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#153bc0", "#0c248d"];
 
 const StatusIndicator = ({ type }: { type: 'loading' | 'empty' }) => {
     if (type === 'empty') {
@@ -84,7 +66,24 @@ interface ScorigamiHeatmapProps {
 export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club }: ScorigamiHeatmapProps) {
   const hasData = useMemo(() => !!rows && rows.length > 0, [rows]);
 
-  const [data, setData] = useState<Record<string, ApiRow | undefined>>({});
+  // Patch 1: Updated detection
+  // isMobile controls the "X" button visibility.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkSize = () => setIsMobile(window.innerWidth < 768);
+    checkSize();
+    window.addEventListener('resize', checkSize);
+    return () => window.removeEventListener('resize', checkSize);
+  }, []);
+
+  // Patch 2: useMemo for data mapping
+  const data = useMemo(() => {
+    if (!rows || rows.length === 0) return {};
+    const map: Record<string, ApiRow> = {};
+    rows.forEach((r) => (map[`${r.score1}-${r.score2}`] = r));
+    return map;
+  }, [rows]);
+
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [cellSize, setCellSize] = useState(DESKTOP_CELL_SIZE);
   const [headerCellSize, setHeaderCellSize] = useState(DESKTOP_HEADER_CELL_SIZE);
@@ -100,36 +99,20 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
     return maxOcc === 0 ? 1 : maxOcc;
   }, [rows]);
 
-  useEffect(() => {
-    if (!rows || rows.length === 0) { setData({}); return; }
-    const map: Record<string, ApiRow> = {};
-    rows.forEach((r) => (map[`${r.score1}-${r.score2}`] = r));
-    setData(map);
-  }, [rows]);
-
   const [activeX, activeY] = useMemo(() => activeCellKey ? activeCellKey.split('-').map(Number) : [null, null], [activeCellKey]);
   
   const getLogScaledColor = (currentOccurrences: number, maxInView: number) => {
     const currentHexSet = isDarkMode ? darkHex : hex;
-    
     if (currentOccurrences === 0) return currentHexSet[0];
     if (currentOccurrences === 1) return currentHexSet[1];
-
     const dataColors = currentHexSet.slice(1);
     const numColors = dataColors.length;
-
     const logOccurrences = Math.log1p(currentOccurrences);
     const maxLogOccurrences = Math.log1p(maxInView);
-    
     let ratio = maxLogOccurrences > 0 ? logOccurrences / maxLogOccurrences : 0;
-    
-    // Power Curve (1.7): Stretches the scale to make common scores stand out.
-    // High numbers are required to "reach" the darkest Cobalt/Ultramarine.
     ratio = Math.pow(ratio, 1.7);
-    
     let colorIndex = Math.floor(ratio * (numColors - 1)) + 1;
     colorIndex = Math.min(colorIndex, numColors - 1);
-    
     return dataColors[colorIndex];
   };
 
@@ -141,11 +124,9 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
         const availableWidth = containerWidth - PADDING;
         const totalUnits = GRID_DIMENSION + 1.2;
         const dynamicCellSize = Math.floor(availableWidth / totalUnits);
-        
         setCellSize(Math.max(6, Math.min(DESKTOP_CELL_SIZE, dynamicCellSize)));
         setHeaderCellSize(Math.max(12, Math.min(DESKTOP_HEADER_CELL_SIZE, dynamicCellSize * 1.2)));
     };
-
     if (hasData) {
         calculateSize();
         window.addEventListener('resize', calculateSize);
@@ -161,12 +142,8 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
   
-  if (isLoading) {
-    return <div className="flex min-h-[450px] w-full items-center justify-center"><StatusIndicator type="loading" /></div>;
-  }
-  if (!hasData) {
-    return <div className="flex min-h-[450px] w-full items-center justify-center"><StatusIndicator type="empty" /></div>;
-  }
+  if (isLoading) return <div className="flex min-h-[450px] w-full items-center justify-center"><StatusIndicator type="loading" /></div>;
+  if (!hasData) return <div className="flex min-h-[450px] w-full items-center justify-center"><StatusIndicator type="empty" /></div>;
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -193,39 +170,50 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
                                 const rowData = data[k];
                                 const f = rowData?.occurrences ?? 0;
                                 const isActive = activeCellKey === k;
-                                return (
-                                <Tooltip key={k} open={isActive} onOpenChange={(isOpen) => setActiveCellKey(isOpen ? k : null)}>
-                                    <TooltipTrigger asChild>
-                                    <div
-                                        style={{ backgroundColor: getLogScaledColor(f, maxOccurrencesInView) }}
-                                        className={`border-r border-b cursor-pointer transition-all duration-150 ease-in-out ${isActive ? 'ring-2 ring-offset-0 ring-blue-500 dark:ring-blue-400 z-20 shadow-lg' : 'border-slate-200/50 dark:border-slate-700/50'}`}
-                                        onMouseEnter={() => { if ('ontouchstart' in window === false) setActiveCellKey(k) }}
-                                        onMouseLeave={() => { if ('ontouchstart' in window === false) setActiveCellKey(null) }}
-                                        onClick={() => setActiveCellKey(isActive ? null : k)}
-                                    />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <div className="flex flex-col items-start text-left">
-                                            <div className="flex justify-between items-center w-full">
-                                            <span className="text-lg font-bold text-slate-900 dark:text-white leading-tight">{`${score1_iterator} - ${score2_iterator}`}</span>
-                                            {'ontouchstart' in window && (
-                                                <button onClick={() => setActiveCellKey(null)} className="p-1 -mr-1 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
-                                                    <X className="w-4 h-4"/>
-                                                </button>
-                                            )}
-                                            </div>
-                                            <span className="text-sm text-slate-500 dark:text-slate-400">{freqText(f)}</span>
-                                            {f > 0 && rowData?.last_date && (
-                                            <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 w-full text-xs space-y-0.5">
-                                                <div className="font-medium text-slate-600 dark:text-slate-300">Last Occurrence:</div>
-                                                <div className="text-slate-500 dark:text-slate-400">{formatDisplayDate(rowData.last_date)}</div>
-                                                <div className="text-slate-500 dark:text-slate-400">{rowData.last_home_team} vs {rowData.last_visitor_team}</div>
-                                            </div>
-                                            )}
-                                        </div>
-                                    </TooltipContent>
-                                </Tooltip>
+
+                                const CellBase = (
+                                  <div
+                                    style={{ backgroundColor: getLogScaledColor(f, maxOccurrencesInView) }}
+                                    className={`border-r border-b cursor-pointer transition-all duration-150 ease-in-out ${isActive ? 'ring-2 ring-offset-0 ring-blue-500 dark:ring-blue-400 z-20 shadow-lg' : 'border-slate-200/50 dark:border-slate-700/50'}`}
+                                    // Hover Logic: We always allow hover on mouse-enabled devices.
+                                    onMouseEnter={() => { setActiveCellKey(k) }}
+                                    onMouseLeave={() => { setActiveCellKey(null) }}
+                                    onClick={() => setActiveCellKey(isActive ? null : k)}
+                                  />
                                 );
+
+                                if (isActive) {
+                                  return (
+                                    <Tooltip key={k} open={true} onOpenChange={(open) => !open && setActiveCellKey(null)}>
+                                      <TooltipTrigger asChild>{CellBase}</TooltipTrigger>
+                                      <TooltipContent>
+                                          <div className="flex flex-col items-start text-left min-w-[140px]">
+                                              <div className="flex justify-between items-center w-full mb-1">
+                                                <span className="text-lg font-bold text-slate-900 dark:text-white leading-tight">{`${score1_iterator} - ${score2_iterator}`}</span>
+                                                {/* Button only shows on actual Mobile screens */}
+                                                {isMobile && (
+                                                    <button 
+                                                      onClick={(e) => { e.stopPropagation(); setActiveCellKey(null); }} 
+                                                      className="ml-4 p-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 hover:text-slate-900 dark:hover:text-slate-100 border border-slate-200 dark:border-slate-700"
+                                                    >
+                                                        <X className="w-3.5 h-3.5"/>
+                                                    </button>
+                                                )}
+                                              </div>
+                                              <span className="text-sm text-slate-500 dark:text-slate-400">{freqText(f)}</span>
+                                              {f > 0 && rowData?.last_date && (
+                                              <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 w-full text-xs space-y-0.5">
+                                                  <div className="font-medium text-slate-600 dark:text-slate-300">Last Occurrence:</div>
+                                                  <div className="text-slate-500 dark:text-slate-400">{formatDisplayDate(rowData.last_date)}</div>
+                                                  <div className="text-slate-500 dark:text-slate-400">{rowData.last_home_team} vs {rowData.last_visitor_team}</div>
+                                              </div>
+                                              )}
+                                          </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  );
+                                }
+                                return <React.Fragment key={k}>{CellBase}</React.Fragment>;
                             })}
                         </React.Fragment>
                         ))}
