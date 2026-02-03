@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo } from "react";
 import useSWR from "swr";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, HelpCircle } from "lucide-react";
+
 import PageHeader from "@/components/page-header";
 import ScorigamiHeatmap from "@/components/scorigami-heatmap";
 import PageFooter from "@/components/page-footer";
@@ -54,33 +55,52 @@ export default function Home() {
           setSelectedYear={setSelectedYear}
           sortedTeamsForDropdown={sortedTeamsForDropdown}
           totalGamesDisplayed={totalGamesDisplayed}
-          isLoading={isLoading && !rows}
+          // The header will never show a spinner after the initial load
+          isLoading={isLoading && !rows} 
         />
 
         <div className="relative bg-white dark:bg-gray-800/50 border border-slate-200/80 dark:border-gray-700/60 rounded-2xl shadow-xl overflow-hidden min-h-[500px]">
           
-          {/* High-Precision 1px Loading Bar */}
-          <div className={`absolute top-0 left-0 right-0 h-[1.5px] bg-blue-500/10 z-50 transition-opacity duration-300 ${isValidating ? 'opacity-100' : 'opacity-0'}`}>
-            <div className="h-full bg-blue-600 animate-loading-bar w-full origin-left" />
-          </div>
+          {/* Subtle Top Loading Line (1.5px) */}
+          {isValidating && (
+            <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-blue-500/10 z-50">
+              <div className="h-full bg-blue-600 animate-loading-bar w-full origin-left" />
+            </div>
+          )}
 
           {error ? (
             <div className="flex flex-col items-center justify-center p-6 min-h-[450px] text-center">
               <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-              <h3 className="text-xl font-semibold text-red-700">Data Load Error</h3>
-              <p className="text-red-600 mt-1 max-w-sm">Please refresh the page.</p>
+              <h3 className="text-xl font-semibold text-red-700">Data Offline</h3>
+              <p className="text-red-600">The connection to Supabase was interrupted.</p>
             </div>
           ) : (
-            <div className="transition-opacity duration-200">
-              <ScorigamiHeatmap
-                rows={rows}
-                isLoading={isLoading && !rows}
-                scorigamiType={scorigamiType}
-                club={club}
-              />
-            </div>
+            /* No transitions or scale changes = Perfect Smoothness */
+            <ScorigamiHeatmap
+              rows={rows}
+              isLoading={isLoading && !rows} 
+              scorigamiType={scorigamiType}
+              club={club}
+            />
           )}
         </div>
+
+        <section className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
+                    <HelpCircle className="w-5 h-5 text-blue-500"/> What is Scorigami?
+                </h3>
+                <div className="text-sm text-slate-600 dark:text-slate-400 space-y-3 leading-relaxed">
+                    <p>Scorigami tracks every unique final score in MLB history. When a game finishes with a score that has never happened before, a Scorigami is achieved.</p>
+                </div>
+            </div>
+            <div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">Data Attribution</h3>
+                <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-gray-800/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <p>Modern stats via MLB API. Historical ties and 1871-1900 records verified via Retrosheet.</p>
+                </div>
+            </div>
+        </section>
       </main>
       <PageFooter />
 
@@ -92,7 +112,7 @@ export default function Home() {
           100% { transform: scaleX(1); opacity: 0; }
         }
         .animate-loading-bar {
-          animation: loading-bar 0.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+          animation: loading-bar 0.7s cubic-bezier(0.65, 0, 0.35, 1) infinite;
         }
       `}</style>
     </>
