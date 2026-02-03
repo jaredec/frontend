@@ -2,14 +2,10 @@
 
 import React, { useState, useMemo } from "react";
 import useSWR from "swr";
-import { AlertTriangle, HelpCircle } from "lucide-react";
-
-// Component Imports
+import { AlertTriangle } from "lucide-react";
 import PageHeader from "@/components/page-header";
 import ScorigamiHeatmap from "@/components/scorigami-heatmap";
 import PageFooter from "@/components/page-footer";
-
-// Data & Type Imports
 import { 
   TEAM_NAMES, 
   CURRENT_FRANCHISE_CODES, 
@@ -31,13 +27,13 @@ export default function Home() {
         revalidateOnFocus: false,
         revalidateIfStale: false,
         dedupingInterval: 3600000, 
-        keepPreviousData: true // Keep the grid visible while loading new data
+        keepPreviousData: true 
     }
   );
   
   const totalGamesDisplayed = useMemo(() => {
-    if (!rows || error) return 0;
-    return Array.isArray(rows) ? rows.reduce((sum: number, row: { occurrences: number; }) => sum + Number(row.occurrences), 0) : 0;
+    if (!rows || error || !Array.isArray(rows)) return 0;
+    return rows.reduce((sum: number, row: { occurrences: number; }) => sum + Number(row.occurrences), 0);
   }, [rows, error]);
 
   const sortedTeamsForDropdown = useMemo(() => {
@@ -58,45 +54,49 @@ export default function Home() {
           setSelectedYear={setSelectedYear}
           sortedTeamsForDropdown={sortedTeamsForDropdown}
           totalGamesDisplayed={totalGamesDisplayed}
-          isLoading={isLoading && !rows} // Only show spinner if we have NO data yet
+          isLoading={isLoading && !rows}
         />
 
-        <div className={`transition-opacity duration-200 ${isValidating ? 'opacity-70' : 'opacity-100'} bg-white dark:bg-gray-800/50 border border-slate-200/80 dark:border-gray-700/60 rounded-2xl shadow-xl`}>
+        <div className="relative bg-white dark:bg-gray-800/50 border border-slate-200/80 dark:border-gray-700/60 rounded-2xl shadow-xl overflow-hidden min-h-[500px]">
+          
+          {/* Subtle 1px Top Progress Bar */}
+          {isValidating && rows && (
+            <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-blue-500/20 z-50">
+              <div className="h-full bg-blue-600/80 animate-loading-bar w-full origin-left" />
+            </div>
+          )}
+
           {error ? (
-            <div className="flex flex-col items-center justify-center p-6 bg-red-50 dark:bg-red-900/30 rounded-xl min-h-[450px] text-center">
+            <div className="flex flex-col items-center justify-center p-6 min-h-[450px] text-center">
               <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-              <h3 className="text-xl font-semibold text-red-700 dark:text-red-300">Data Load Error</h3>
-              <p className="text-red-600 dark:text-red-400 mt-1 max-w-sm">An issue occurred. Please try refreshing.</p>
+              <h3 className="text-xl font-semibold text-red-700">Database Offline</h3>
+              <p className="text-red-600 mt-1 max-w-sm">Unable to connect to Scorigami data.</p>
             </div>
           ) : (
-            <ScorigamiHeatmap
-              rows={rows}
-              isLoading={isLoading && !rows} // Improved loading logic
-              scorigamiType={scorigamiType}
-              club={club}
-            />
+            /* Very subtle opacity shift instead of scaling/brightness */
+            <div className={`transition-opacity duration-300 ${isValidating ? 'opacity-90' : 'opacity-100'}`}>
+              <ScorigamiHeatmap
+                rows={rows}
+                isLoading={isLoading && !rows}
+                scorigamiType={scorigamiType}
+                club={club}
+              />
+            </div>
           )}
         </div>
-
-        {/* Informational Sections */}
-        <section className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-                    <HelpCircle className="w-5 h-5 text-blue-500"/> What is Scorigami?
-                </h3>
-                <div className="text-sm text-slate-600 dark:text-slate-400 space-y-3">
-                    <p>Scorigami tracks every unique final score in MLB history. When a game finishes with a score that has never happened before, a Scorigami is achieved.</p>
-                </div>
-            </div>
-            <div>
-                 <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">Data & Attribution</h3>
-                <div className="text-xs text-slate-500 bg-slate-100 dark:bg-gray-800/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <p>Historical data sourced from Retrosheet. Modern data via MLB Stats API.</p>
-                </div>
-            </div>
-        </section>
       </main>
       <PageFooter />
+
+      <style jsx global>{`
+        @keyframes loading-bar {
+          0% { transform: scaleX(0); opacity: 0; }
+          20% { opacity: 1; }
+          100% { transform: scaleX(1); opacity: 0; }
+        }
+        .animate-loading-bar {
+          animation: loading-bar 0.8s ease-in-out infinite;
+        }
+      `}</style>
     </>
   );
 }

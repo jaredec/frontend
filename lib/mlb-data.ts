@@ -11,7 +11,6 @@ export const TEAM_NAMES: Record<string, string> = {
   TEX: "Texas Rangers", TOR: "Toronto Blue Jays", WSH: "Washington Nationals",
 };
 
-// EXPLICIT EXPORTS FOR VERCEL BUILD
 export const CURRENT_FRANCHISE_CODES = Object.keys(TEAM_NAMES) as Array<keyof typeof TEAM_NAMES>;
 export type FranchiseCode = keyof typeof TEAM_NAMES;
 export type ScorigamiType = "oriented" | "traditional";

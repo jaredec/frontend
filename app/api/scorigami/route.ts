@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
-const FRANCHISE_CODE_TO_ID_MAP: { [key: string]: number } = {
+const FRANCHISE_CODE_TO_ID_MAP: Record<string, number> = {
     "LAA": 108, "ARI": 109, "ATL": 144, "BAL": 110, "BOS": 111,
     "CWS": 145, "CHC": 112, "CIN": 113, "CLE": 114, "COL": 115,
     "DET": 116, "HOU": 117, "KC":  118, "LAD": 119, "MIA": 146,
@@ -18,10 +18,7 @@ export async function GET(request: NextRequest) {
 
   const teamId = team === 'ALL' ? 0 : (FRANCHISE_CODE_TO_ID_MAP[team] || 0);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
   const { data, error } = await supabase.rpc('get_scorigami_data', {
     p_year: year,
