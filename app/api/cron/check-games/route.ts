@@ -1,17 +1,18 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import TwitterApi from 'twitter-api-v2';
-import { MLBGame } from '@/lib/types';
 import { TEAM_HASHTAG_MAP } from '@/lib/mlb-data';
 
 const TEAM_NAME_SHORTENER_MAP: { [key: string]: string } = {
-  'Chicago White Sox': 'White Sox', 'Boston Red Sox': 'Red Sox', 'Toronto Blue Jays': 'Blue Jays', 'Arizona Diamondbacks': 'D-backs',
+  'Chicago White Sox': 'White Sox', 
+  'Boston Red Sox': 'Red Sox', 
+  'Toronto Blue Jays': 'Blue Jays', 
+  'Arizona Diamondbacks': 'D-backs',
 };
 
 // --- DATABASE HELPERS ---
 
 async function getFranchiseTeamIds(supabase: SupabaseClient, teamId: number): Promise<number[]> {
-    // Queries the live 'teams' table
     const { data: franchiseData } = await supabase.from('teams').select('franchise').eq('team_id', teamId).single();
     if (!franchiseData || !franchiseData.franchise) return [teamId];
 
@@ -23,7 +24,6 @@ async function checkTrueScorigami(supabase: SupabaseClient, s1: number, s2: numb
     const win = Math.max(s1, s2);
     const lose = Math.min(s1, s2);
     
-    // Checks the live 'gamelogs' table
     const { data } = await supabase.from('gamelogs')
         .select('game_id')
         .or(`and(home_score.eq.${win},visitor_score.eq.${lose}),and(home_score.eq.${lose},visitor_score.eq.${win})`)
@@ -32,7 +32,6 @@ async function checkTrueScorigami(supabase: SupabaseClient, s1: number, s2: numb
 
     if (data && data.length > 0) return { isScorigami: false, newCount: 0 };
 
-    // Get the new total count from the live 'scorigami_summary'
     const { count } = await supabase.from('scorigami_summary')
         .select('*', { count: 'exact', head: true })
         .eq('team_id', 0);
@@ -70,7 +69,8 @@ async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number)
 }
 
 function getOrdinal(n: number): string {
-    const s = ["th", "st", "nd", "rd"]; const v = n % 100;
+    const s = ["th", "st", "nd", "rd"]; 
+    const v = n % 100;
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
@@ -92,7 +92,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const scheduleGames = scheduleData.dates[0].games;
 
-  for (let g of scheduleGames) {
+  // FIX: Used 'const' instead of 'let' to satisfy ESLint prefer-const
+  for (const g of scheduleGames) {
     if (g.status.codedGameState !== 'F' && g.status.codedGameState !== 'O') continue;
 
     const game_id = g.gamePk;
@@ -113,8 +114,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     
     let postText = "";
     const winnerIsAway = away_score > home_score;
+    
+    // Shorten names
     const winnerName = winnerIsAway ? (TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop()) : (TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop());
     const loserName = winnerIsAway ? (TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop()) : (TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop());
+    
     const winnerHashtag = TEAM_HASHTAG_MAP[winnerIsAway ? away_name : home_name] || "";
     const loserHashtag = TEAM_HASHTAG_MAP[winnerIsAway ? home_name : away_name] || "";
 
@@ -141,7 +145,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         console.log("WOULD TWEET:", postText);
     }
     
-    await supabase.from('posted_updates').insert({ game_id, post_type: 'Final', details: 'Final Score', score_snapshot: `${away_score}-${home_score}` });
+    await supabase.from('posted_updates').insert({ 
+      game_id, 
+      post_type: 'Final', 
+      details: 'Final Score', 
+      score_snapshot: `${away_score}-${home_score}` 
+    });
   }
 
   return NextResponse.json({ success: true });
