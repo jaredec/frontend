@@ -14,9 +14,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const team = searchParams.get('team') || 'ALL';
   const year = searchParams.get('year') || 'ALL';
-  const type = searchParams.get('type') || 'traditional';
+  const type = searchParams.get('type') || 'traditional'; // 'oriented' or 'traditional'
 
-  const teamId = team === 'ALL' ? 0 : (FRANCHISE_CODE_TO_ID_MAP[team] || null);
+  const teamId = team === 'ALL' ? 0 : (FRANCHISE_CODE_TO_ID_MAP[team] || 0);
 
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
