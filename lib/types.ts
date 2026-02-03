@@ -4,55 +4,52 @@
 // API and Bot Specific Types
 // ===================================================================
 
-// Shape of the data we care about from the MLB Stats API
+// Shape of the data returned by the MLB Stats API
 export interface MLBGame {
   game_id: number;
   status: string;
   inning: number;
-  inning_state_raw: string; // e.g., "Top", "Bottom"
+  inning_state_raw: string; 
   away_name: string;
   home_name: string;
   away_score: number;
   home_score: number;
-  away_id: number; // This is the team_id from the MLB API
-  home_id: number; // This is the team_id from the MLB API
+  away_id: number;
+  home_id: number;
 }
 
-
-// ===================================================================
-// Database Table Types (Matching your Supabase Schema)
-// ===================================================================
-
-// Correctly matches your `gamelogs` table
+// Full record from the gamelogs_staging table
 export interface GameLog {
-  game_id: number; // bigint in DB, number in TS
-  visitor_team: string; // text in DB, string in TS
-  home_team: string; // text in DB, string in TS
-  visitor_score: number; // bigint in DB, number in TS
-  home_score: number; // bigint in DB, number in TS
-  date: string; // date in DB, string in TS (e.g., '2023-10-27')
-  visitor_team_id: number | null; // bigint in DB, number or null in TS
-  home_team_id: number | null; // bigint in DB, number or null in TS
+  game_id: number;
+  date: string;
+  game_type: string;
+  visitor_team: string;
+  home_team: string;
+  visitor_score: number;
+  home_score: number;
+  innings: number | null;
+  visitor_team_id: number | null;
+  home_team_id: number | null;
+  is_negro_league: boolean;
+  source: string;
 }
 
-// Matches your `teams` table
+// Master Team Record
 export interface Team {
   team_id: number;
   team: string;
-  league: string | null;
-  city: string | null;
-  nickname: string | null;
-  first: number | null;
-  last: string | null;
+  abbreviation: string | null;
   franchise: string | null;
+  is_negro_league: boolean;
+  source: string;
 }
 
-// Matches your `scorigami_summary` table
+// Data returned by the Supabase RPC function (get_scorigami_data)
 export interface ScorigamiSummary {
-  team_id: number;
   score1: number;
   score2: number;
   occurrences: number;
-  first_game_id: number;
-  last_game_id: number;
+  last_date: string;
+  last_home_team: string;
+  last_visitor_team: string;
 }

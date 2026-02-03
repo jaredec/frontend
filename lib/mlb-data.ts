@@ -1,29 +1,29 @@
-export const CURRENT_FRANCHISE_CODES = [
-    "ANA", "ARI", "ATL", "BAL", "BOS", "CHA", "CHN", "CIN", "CLE", "COL",
-    "DET", "HOU", "KCA", "LAN", "MIA", "MIL", "MIN", "NYA", "NYN",
-    "OAK", "PHI", "PIT", "SDN", "SEA", "SFN", "SLN", "TBA", "TEX", "TOR", "WAS",
-] as const;
-
-export type FranchiseCode = typeof CURRENT_FRANCHISE_CODES[number];
-export type ScorigamiType = "oriented" | "traditional";
-
 export const TEAM_NAMES: Record<string, string> = {
-  ANA: "Los Angeles Angels", ARI: "Arizona Diamondbacks", ATL: "Atlanta Braves",
-  BAL: "Baltimore Orioles", BOS: "Boston Red Sox", CHA: "Chicago White Sox",
-  CHN: "Chicago Cubs", CIN: "Cincinnati Reds", CLE: "Cleveland Guardians",
+  LAA: "Los Angeles Angels", ARI: "Arizona Diamondbacks", ATL: "Atlanta Braves",
+  BAL: "Baltimore Orioles", BOS: "Boston Red Sox", CWS: "Chicago White Sox",
+  CHC: "Chicago Cubs", CIN: "Cincinnati Reds", CLE: "Cleveland Guardians",
   COL: "Colorado Rockies", DET: "Detroit Tigers", HOU: "Houston Astros",
-  KCA: "Kansas City Royals", LAN: "Los Angeles Dodgers", MIA: "Miami Marlins",
-  MIL: "Milwaukee Brewers", MIN: "Minnesota Twins", NYA: "New York Yankees",
-  NYN: "New York Mets", OAK: "Oakland Athletics", PHI: "Philadelphia Phillies",
-  PIT: "Pittsburgh Pirates", SDN: "San Diego Padres", SEA: "Seattle Mariners",
-  SFN: "San Francisco Giants", SLN: "St. Louis Cardinals", TBA: "Tampa Bay Rays",
-  TEX: "Texas Rangers", TOR: "Toronto Blue Jays", WAS: "Washington Nationals",
+  KC: "Kansas City Royals", LAD: "Los Angeles Dodgers", MIA: "Miami Marlins",
+  MIL: "Milwaukee Brewers", MIN: "Minnesota Twins", NYY: "New York Yankees",
+  NYM: "New York Mets", OAK: "Athletics", PHI: "Philadelphia Phillies",
+  PIT: "Pittsburgh Pirates", SD: "San Diego Padres", SEA: "Seattle Mariners",
+  SFG: "San Francisco Giants", STL: "St. Louis Cardinals", TB: "Tampa Bay Rays",
+  TEX: "Texas Rangers", TOR: "Toronto Blue Jays", WSH: "Washington Nationals",
 };
 
-const CURRENT_YEAR = new Date().getFullYear();
-const EARLIEST_MLB_YEAR = 1871;
+export const CURRENT_FRANCHISE_CODES = Object.keys(TEAM_NAMES);
+
+export const TEAM_HASHTAG_MAP: Record<string, string> = {
+    'Baltimore Orioles': '#Birdland', 'Boston Red Sox': '#DirtyWater', 'New York Yankees': '#RepBX', 'Tampa Bay Rays': '#RaysUp',
+    'Toronto Blue Jays': '#LightsUpLetsGo', 'Cleveland Guardians': '#GuardsBall', 'Detroit Tigers': '#RepDetroit', 'Kansas City Royals': '#FountainsUp',
+    'Minnesota Twins': '#MNTwins', 'Chicago White Sox': '#WhiteSox', 'Houston Astros': '#BuiltForThis', 'Los Angeles Angels': '#RepTheHalo',
+    'Athletics': '#Athletics', 'Seattle Mariners': '#TridentsUp', 'Texas Rangers': '#AllForTX', 'Atlanta Braves': '#BravesCountry',
+    'Miami Marlins': '#MarlinsBeisbol', 'New York Mets': '#LGM', 'Philadelphia Phillies': '#RingTheBell', 'Washington Nationals': '#NATITUDE',
+    'Chicago Cubs': '#BeHereForIt', 'Cincinnati Reds': '#ATOBTTR', 'Milwaukee Brewers': '#ThisIsMyCrew', 'Pittsburgh Pirates': '#LetsGoBucs',
+    'St. Louis Cardinals': '#ForTheLou', 'Arizona Diamondbacks': '#Dbacks', 'Colorado Rockies': '#Rockies', 'Los Angeles Dodgers': '#LetsGoDodgers',
+    'San Diego Padres': '#ForTheFaithful', 'San Francisco Giants': '#SFGiants',
+};
 
 export const YEARS_FOR_DROPDOWN: string[] = ["ALL"];
-for (let y = CURRENT_YEAR; y >= EARLIEST_MLB_YEAR; y--) {
-  YEARS_FOR_DROPDOWN.push(y.toString());
-}
+const CURRENT_YEAR = new Date().getFullYear();
+for (let y = CURRENT_YEAR; y >= 1871; y--) { YEARS_FOR_DROPDOWN.push(y.toString()); }
