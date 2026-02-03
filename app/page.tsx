@@ -59,22 +59,19 @@ export default function Home() {
 
         <div className="relative bg-white dark:bg-gray-800/50 border border-slate-200/80 dark:border-gray-700/60 rounded-2xl shadow-xl overflow-hidden min-h-[500px]">
           
-          {/* Subtle 1px Top Progress Bar */}
-          {isValidating && rows && (
-            <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-blue-500/20 z-50">
-              <div className="h-full bg-blue-600/80 animate-loading-bar w-full origin-left" />
-            </div>
-          )}
+          {/* High-Precision 1px Loading Bar */}
+          <div className={`absolute top-0 left-0 right-0 h-[1.5px] bg-blue-500/10 z-50 transition-opacity duration-300 ${isValidating ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="h-full bg-blue-600 animate-loading-bar w-full origin-left" />
+          </div>
 
           {error ? (
             <div className="flex flex-col items-center justify-center p-6 min-h-[450px] text-center">
               <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-              <h3 className="text-xl font-semibold text-red-700">Database Offline</h3>
-              <p className="text-red-600 mt-1 max-w-sm">Unable to connect to Scorigami data.</p>
+              <h3 className="text-xl font-semibold text-red-700">Data Load Error</h3>
+              <p className="text-red-600 mt-1 max-w-sm">Please refresh the page.</p>
             </div>
           ) : (
-            /* Very subtle opacity shift instead of scaling/brightness */
-            <div className={`transition-opacity duration-300 ${isValidating ? 'opacity-90' : 'opacity-100'}`}>
+            <div className="transition-opacity duration-200">
               <ScorigamiHeatmap
                 rows={rows}
                 isLoading={isLoading && !rows}
@@ -90,11 +87,12 @@ export default function Home() {
       <style jsx global>{`
         @keyframes loading-bar {
           0% { transform: scaleX(0); opacity: 0; }
-          20% { opacity: 1; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
           100% { transform: scaleX(1); opacity: 0; }
         }
         .animate-loading-bar {
-          animation: loading-bar 0.8s ease-in-out infinite;
+          animation: loading-bar 0.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
       `}</style>
     </>
