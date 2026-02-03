@@ -33,8 +33,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(data, {
     headers: {
-      // s-maxage=3600: Vercel CDN caches this for 1 hour
-      // stale-while-revalidate=86400: Serve old data for 24h while background refreshing
       'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
     },
   });
