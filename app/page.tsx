@@ -24,14 +24,20 @@ export default function Home() {
   const [club, setClub] = useState<FranchiseCode | "ALL">("ALL");
   const [selectedYear, setSelectedYear] = useState<string>("ALL");
 
+  // CACHING OPTIONS: Makes team-switching instant
   const { data: rows, error, isLoading } = useSWR(
     `/api/scorigami?team=${club}&year=${selectedYear}&type=${scorigamiType}`,
-    fetcher
+    fetcher,
+    {
+        revalidateOnFocus: false,      // Don't re-fetch when user clicks back into tab
+        revalidateIfStale: false,      // Use memory cache immediately
+        dedupingInterval: 3600000,     // Cache same query for 1 hour
+        keepPreviousData: true         // Keep old grid visible while loading new one
+    }
   );
   
   const totalGamesDisplayed = useMemo(() => {
     if (!rows || error) return 0;
-    // Ensure rows is an array before calling reduce
     return Array.isArray(rows) ? rows.reduce((sum: number, row: { occurrences: number; }) => sum + Number(row.occurrences), 0) : 0;
   }, [rows, error]);
 

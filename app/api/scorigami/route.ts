@@ -14,11 +14,14 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const team = searchParams.get('team') || 'ALL';
   const year = searchParams.get('year') || 'ALL';
-  const type = searchParams.get('type') || 'traditional'; // 'oriented' or 'traditional'
+  const type = searchParams.get('type') || 'traditional';
 
   const teamId = team === 'ALL' ? 0 : (FRANCHISE_CODE_TO_ID_MAP[team] || 0);
 
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   const { data, error } = await supabase.rpc('get_scorigami_data', {
     p_year: year,
@@ -27,5 +30,12 @@ export async function GET(request: NextRequest) {
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+
+  return NextResponse.json(data, {
+    headers: {
+      // s-maxage=3600: Vercel CDN caches this for 1 hour
+      // stale-while-revalidate=86400: Serve old data for 24h while background refreshing
+      'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+    },
+  });
 }
