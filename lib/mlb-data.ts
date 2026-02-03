@@ -11,7 +11,10 @@ export const TEAM_NAMES: Record<string, string> = {
   TEX: "Texas Rangers", TOR: "Toronto Blue Jays", WSH: "Washington Nationals",
 };
 
-export const CURRENT_FRANCHISE_CODES = Object.keys(TEAM_NAMES);
+// EXPLICIT EXPORTS FOR VERCEL BUILD
+export const CURRENT_FRANCHISE_CODES = Object.keys(TEAM_NAMES) as Array<keyof typeof TEAM_NAMES>;
+export type FranchiseCode = keyof typeof TEAM_NAMES;
+export type ScorigamiType = "oriented" | "traditional";
 
 export const TEAM_HASHTAG_MAP: Record<string, string> = {
     'Baltimore Orioles': '#Birdland', 'Boston Red Sox': '#DirtyWater', 'New York Yankees': '#RepBX', 'Tampa Bay Rays': '#RaysUp',
@@ -26,4 +29,6 @@ export const TEAM_HASHTAG_MAP: Record<string, string> = {
 
 export const YEARS_FOR_DROPDOWN: string[] = ["ALL"];
 const CURRENT_YEAR = new Date().getFullYear();
-for (let y = CURRENT_YEAR; y >= 1871; y--) { YEARS_FOR_DROPDOWN.push(y.toString()); }
+for (let y = CURRENT_YEAR; y >= 1871; y--) { 
+    YEARS_FOR_DROPDOWN.push(y.toString()); 
+}
