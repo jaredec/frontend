@@ -97,7 +97,7 @@ export default function Home() {
             <div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">Data Attribution</h3>
                 <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-gray-800/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <p>Modern stats via MLB API. Historical ties and 1871-1900 records verified via Retrosheet.</p>
+                    <p>Modern game results provided by the MLB Stats API. Federal League data and 1871–1900 records were obtained from and are copyrighted by Retrosheet.</p>
                 </div>
             </div>
         </section>

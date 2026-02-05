@@ -30,10 +30,10 @@ const TooltipContent = ({ className = "", ...props }: React.ComponentPropsWithou
     </TooltipPrimitive.Portal>
 );
 
-const MAX_DISPLAY_SCORE = 30;
+const MAX_DISPLAY_SCORE = 35;
 const GRID_DIMENSION = MAX_DISPLAY_SCORE + 1;
-const DESKTOP_CELL_SIZE = 22;
-const DESKTOP_HEADER_CELL_SIZE = 36;
+const DESKTOP_CELL_SIZE = 20; // Reduced from 22
+const DESKTOP_HEADER_CELL_SIZE = 30; // Reduced from 36
 
 const hex = ["#f3f4f6", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#153bc0", "#0c248d"];
 const darkHex = ["#374151", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#153bc0", "#0c248d"];
@@ -66,8 +66,6 @@ interface ScorigamiHeatmapProps {
 export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club }: ScorigamiHeatmapProps) {
   const hasData = useMemo(() => !!rows && rows.length > 0, [rows]);
 
-  // Patch 1: Updated detection
-  // isMobile controls the "X" button visibility.
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const checkSize = () => setIsMobile(window.innerWidth < 768);
@@ -76,7 +74,6 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
     return () => window.removeEventListener('resize', checkSize);
   }, []);
 
-  // Patch 2: useMemo for data mapping
   const data = useMemo(() => {
     if (!rows || rows.length === 0) return {};
     const map: Record<string, ApiRow> = {};
@@ -150,21 +147,29 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
       <div ref={gridContainerRef} className="p-4 sm:p-6 flex flex-col items-center justify-center">
         <div className="flex flex-col items-center">
             <div style={{ paddingLeft: `${headerCellSize}px`}} className="text-center pb-2 pt-1">
-                <span className="text-xs sm:text-base font-semibold text-slate-700 dark:text-slate-300 tracking-wide">{xAxisTextLabel}</span>
+                <span className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 tracking-wide">{xAxisTextLabel}</span>
             </div>
             <div className="flex">
                 <div style={{ width: `${headerCellSize}px`}} className="flex-none flex items-center justify-center pr-2">
-                    <div className="transform -rotate-90 whitespace-nowrap text-xs sm:text-base font-semibold text-slate-700 dark:text-slate-300 tracking-wide">{yAxisTextLabel}</div>
+                    <div className="transform -rotate-90 whitespace-nowrap text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 tracking-wide">{yAxisTextLabel}</div>
                 </div>
                 <div className="relative border border-slate-300 dark:border-slate-700/80 rounded-sm overflow-hidden" style={{ width: `${headerCellSize + GRID_DIMENSION * cellSize}px`, height: `${headerCellSize + GRID_DIMENSION * cellSize}px`}}>
                     <div style={{ display: "grid", gridTemplateColumns: `${headerCellSize}px repeat(${GRID_DIMENSION}, ${cellSize}px)`, gridTemplateRows: `${headerCellSize}px repeat(${GRID_DIMENSION}, ${cellSize}px)`}}>
-                        <div className="border-r border-b border-slate-200/80 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/30"></div>
+                        {/* Empty Top-Left Corner */}
+                        <div className="bg-slate-50 dark:bg-slate-800/30"></div>
+                        
+                        {/* Column Headers */}
                         {Array.from({ length: GRID_DIMENSION }).map((_, i) => (
-                        <div key={`col-header-${i}`} className={`flex items-center justify-center border-r border-b border-slate-200/80 dark:border-slate-700/60 text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${activeX === i ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{i}</div>
+                        <div key={`col-header-${i}`} className={`flex items-center justify-center text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${activeX === i ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{i}</div>
                         ))}
+
+                        {/* Rows */}
                         {Array.from({ length: GRID_DIMENSION }).map((_, score2_iterator) => (
                         <React.Fragment key={`row-frag-${score2_iterator}`}>
-                            <div className={`flex items-center justify-center border-r border-b border-slate-200/80 dark:border-slate-700/60 text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${activeY === score2_iterator ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{score2_iterator}</div>
+                            {/* Row Header */}
+                            <div className={`flex items-center justify-center text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${activeY === score2_iterator ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{score2_iterator}</div>
+                            
+                            {/* Data Cells */}
                             {Array.from({ length: GRID_DIMENSION }).map((_, score1_iterator) => {
                                 const k = `${score1_iterator}-${score2_iterator}`;
                                 const rowData = data[k];
@@ -174,8 +179,7 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
                                 const CellBase = (
                                   <div
                                     style={{ backgroundColor: getLogScaledColor(f, maxOccurrencesInView) }}
-                                    className={`border-r border-b cursor-pointer transition-all duration-150 ease-in-out ${isActive ? 'ring-2 ring-offset-0 ring-blue-500 dark:ring-blue-400 z-20 shadow-lg' : 'border-slate-200/50 dark:border-slate-700/50'}`}
-                                    // Hover Logic: We always allow hover on mouse-enabled devices.
+                                    className={`cursor-pointer transition-all duration-150 ease-in-out ${isActive ? 'relative z-20 shadow-lg ring-2 ring-blue-500 scale-110' : ''}`}
                                     onMouseEnter={() => { setActiveCellKey(k) }}
                                     onMouseLeave={() => { setActiveCellKey(null) }}
                                     onClick={() => setActiveCellKey(isActive ? null : k)}
@@ -190,7 +194,6 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
                                           <div className="flex flex-col items-start text-left min-w-[140px]">
                                               <div className="flex justify-between items-center w-full mb-1">
                                                 <span className="text-lg font-bold text-slate-900 dark:text-white leading-tight">{`${score1_iterator} - ${score2_iterator}`}</span>
-                                                {/* Button only shows on actual Mobile screens */}
                                                 {isMobile && (
                                                     <button 
                                                       onClick={(e) => { e.stopPropagation(); setActiveCellKey(null); }} 
