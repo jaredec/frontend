@@ -26,7 +26,7 @@ const TooltipContent = ({ className = "", ...props }: React.ComponentPropsWithou
       <TooltipPrimitive.Content
         sideOffset={8}
         collisionPadding={10}
-        className={"z-50 w-auto rounded-md bg-white dark:bg-gray-900 shadow-xl ring-1 ring-gray-200 dark:ring-gray-800 p-3 " + className}
+        className={"z-50 w-auto rounded-md bg-white dark:bg-[#1e1e1e] shadow-xl ring-1 ring-gray-200 dark:ring-[#2c2c2c] p-3 " + className}
         {...props}
       />
     </TooltipPrimitive.Portal>
@@ -38,7 +38,7 @@ const DESKTOP_CELL_SIZE = 20; // Reduced from 22
 const DESKTOP_HEADER_CELL_SIZE = 30; // Reduced from 36
 
 const hex = ["#f3f4f6", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#153bc0", "#0c248d"];
-const darkHex = ["#374151", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#153bc0", "#0c248d"];
+const darkHex = ["#404040", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#153bc0", "#0c248d", "#0a1d74", "#08165c", "#040a2f"];
 
 const StatusIndicator = ({ type }: { type: 'loading' | 'empty' }) => {
     if (type === 'empty') {
@@ -157,21 +157,21 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
                 <div style={{ width: `${headerCellSize}px`}} className="flex-none flex items-center justify-center pr-2">
                     <div className="transform -rotate-90 whitespace-nowrap text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 tracking-wide">{yAxisTextLabel}</div>
                 </div>
-                <div className="relative border border-slate-300 dark:border-slate-700/80 rounded-sm overflow-hidden" style={{ width: `${headerCellSize + GRID_DIMENSION * cellSize}px`, height: `${headerCellSize + GRID_DIMENSION * cellSize}px`}}>
+                <div className="relative border border-slate-300 dark:border-[#2c2c2c] rounded-sm overflow-hidden" style={{ width: `${headerCellSize + GRID_DIMENSION * cellSize}px`, height: `${headerCellSize + GRID_DIMENSION * cellSize}px`}}>
                     <div style={{ display: "grid", gridTemplateColumns: `${headerCellSize}px repeat(${GRID_DIMENSION}, ${cellSize}px)`, gridTemplateRows: `${headerCellSize}px repeat(${GRID_DIMENSION}, ${cellSize}px)`}}>
                         {/* Empty Top-Left Corner */}
-                        <div className="bg-slate-50 dark:bg-slate-800/30"></div>
+                        <div className="bg-slate-50 dark:bg-[#2c2c2c]"></div>
 
                         {/* Column Headers */}
                         {Array.from({ length: GRID_DIMENSION }).map((_, i) => (
-                        <div key={`col-header-${i}`} className={`flex items-center justify-center text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${activeX === i ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{i}</div>
+                        <div key={`col-header-${i}`} className={`flex items-center justify-center text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#2c2c2c] transition-colors ${activeX === i ? 'bg-slate-200 dark:bg-[#383838]' : ''}`}>{i}</div>
                         ))}
 
                         {/* Rows */}
                         {Array.from({ length: GRID_DIMENSION }).map((_, score2_iterator) => (
                         <React.Fragment key={`row-frag-${score2_iterator}`}>
                             {/* Row Header */}
-                            <div className={`flex items-center justify-center text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${activeY === score2_iterator ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{score2_iterator}</div>
+                            <div className={`flex items-center justify-center text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#2c2c2c] transition-colors ${activeY === score2_iterator ? 'bg-slate-200 dark:bg-[#383838]' : ''}`}>{score2_iterator}</div>
 
                             {/* Data Cells */}
                             {Array.from({ length: GRID_DIMENSION }).map((_, score1_iterator) => {
@@ -204,7 +204,7 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
                                                 {isMobile && (
                                                     <button
                                                       onClick={(e) => { e.stopPropagation(); setActiveCellKey(null); }}
-                                                      className="ml-4 p-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 hover:text-slate-900 dark:hover:text-slate-100 border border-slate-200 dark:border-slate-700"
+                                                      className="ml-4 p-1 rounded-full bg-slate-100 dark:bg-[#2c2c2c] text-slate-600 hover:text-slate-900 dark:hover:text-slate-100 border border-slate-200 dark:border-[#2c2c2c]"
                                                     >
                                                         <X className="w-3.5 h-3.5"/>
                                                     </button>
@@ -212,7 +212,7 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
                                               </div>
                                               <span className="text-sm text-slate-500 dark:text-slate-400">{freqText(f)}</span>
                                               {f > 0 && rowData?.last_date && (
-                                              <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 w-full text-xs space-y-0.5">
+                                              <div className="mt-2 pt-2 border-t border-slate-200 dark:border-[#2c2c2c] w-full text-xs space-y-0.5">
                                                   <div className="text-slate-500 dark:text-slate-400"><span className="font-medium text-slate-600 dark:text-slate-300">Last:</span> {formatDisplayDate(rowData.last_date)}</div>
                                                   <div className="text-slate-500 dark:text-slate-400">{rowData.last_home_team} vs {rowData.last_visitor_team}</div>
                                                   {rowData.last_game_id && rowData.source === 'mlb_api' && (

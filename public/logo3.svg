@@ -7,8 +7,14 @@
 <metadata>
 Created by potrace 1.10, written by Peter Selinger 2001-2011
 </metadata>
+<style>
+  path { fill: #000000; }
+  @media (prefers-color-scheme: dark) {
+    path { fill: #ffffff; }
+  }
+</style>
 <g transform="translate(0.000000,867.000000) scale(0.100000,-0.100000)"
-fill="#000000" stroke="none">
+stroke="none">
 <path d="M2930 8570 c-165 -21 -343 -110 -447 -224 -50 -55 -51 -57 -58 -133
 -3 -43 -12 -118 -20 -168 -34 -211 -56 -430 -47 -465 4 -16 42 -43 112 -79 54
 -27 101 -55 185 -108 11 -7 43 -25 70 -39 28 -15 77 -44 111 -65 34 -22 64

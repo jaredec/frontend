@@ -59,7 +59,7 @@ export default function Home() {
           isLoading={isLoading && !rows} 
         />
 
-        <div className="relative bg-white dark:bg-gray-800/50 border border-slate-200/80 dark:border-gray-700/60 rounded-2xl shadow-xl overflow-hidden min-h-[500px]">
+        <div className="relative bg-white dark:bg-[#1e1e1e] border border-slate-200/80 dark:border-[#2c2c2c] rounded-2xl shadow-xl overflow-hidden min-h-[500px]">
           
           {/* Subtle Top Loading Line (1.5px) */}
           {isValidating && (
@@ -96,7 +96,7 @@ export default function Home() {
             </div>
             <div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">Data Attribution</h3>
-                <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-gray-800/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-[#1e1e1e] p-4 rounded-lg border border-slate-200 dark:border-[#2c2c2c]">
                     <p>Modern game results provided by the MLB Stats API. Federal League data and 1871–1900 records were obtained from and are copyrighted by Retrosheet.</p>
                 </div>
             </div>

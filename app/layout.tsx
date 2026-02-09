@@ -10,6 +10,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "MLB Scorigami",
   description: "Explore the complete history of Major League Baseball final scores with an interactive heatmap. Discover which scores have never happened and when each unique score occurred.",
+  icons: {
+    icon: { url: "/logo3.svg", type: "image/svg+xml" },
+  },
 };
 
 export const viewport: Viewport = {
@@ -24,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth">
-      <body className={`${inter.variable} font-sans antialiased bg-slate-50 dark:bg-gray-900`}>
+      <body className={`${inter.variable} font-sans antialiased bg-slate-50 dark:bg-[#121212]`}>
         {children}
       </body>
     </html>
