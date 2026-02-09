@@ -84,8 +84,8 @@ export default function PageHeader({
                   <RadioGroup.Item value="traditional" id="rg-trad-sm" className="w-full focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md">
                     <label htmlFor="rg-trad-sm" className={`block text-center rounded-md px-3 py-1 text-sm font-medium cursor-pointer transition-colors whitespace-nowrap ${scorigamiType === 'traditional' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-gray-700'}`}>Traditional</label>
                   </RadioGroup.Item>
-                  <RadioGroup.Item value="oriented" id="rg-ori-sm" className="w-full focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md">
-                    <label htmlFor="rg-ori-sm" className={`block text-center rounded-md px-3 py-1 text-sm font-medium cursor-pointer transition-colors whitespace-nowrap ${scorigamiType === 'oriented' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-gray-700'}`}>Oriented</label>
+                  <RadioGroup.Item value="home_away" id="rg-ha-sm" className="w-full focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md">
+                    <label htmlFor="rg-ha-sm" className={`block text-center rounded-md px-3 py-1 text-sm font-medium cursor-pointer transition-colors whitespace-nowrap ${scorigamiType === 'home_away' ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-gray-700'}`}>Home/Away</label>
                   </RadioGroup.Item>
                 </RadioGroup.Root>
             </div>

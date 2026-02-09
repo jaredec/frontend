@@ -7,7 +7,7 @@ import { X, Loader2, FilterX } from "lucide-react";
 import { TEAM_NAMES } from "@/lib/mlb-data";
 
 // --- Types & Helpers ---
-type ScorigamiType = "oriented" | "traditional";
+type ScorigamiType = "home_away" | "traditional";
 interface ApiRow {
   score1: number;
   score2: number;
@@ -15,6 +15,8 @@ interface ApiRow {
   last_date: string | null;
   last_home_team: string | null;
   last_visitor_team: string | null;
+  last_game_id: number | null;
+  source: string | null;
 }
 const formatDisplayDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 const freqText = (f: number) => f === 1 ? "1 Game" : `${f.toLocaleString()} Games`;
@@ -86,6 +88,7 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
   const [headerCellSize, setHeaderCellSize] = useState(DESKTOP_HEADER_CELL_SIZE);
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [activeCellKey, setActiveCellKey] = useState<string | null>(null);
+  const [hoveredCellKey, setHoveredCellKey] = useState<string | null>(null);
 
   const yAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Losing Score' : club === 'ALL' ? 'Visitor Score' : 'Opponent Score', [scorigamiType, club]);
   const xAxisTextLabel = useMemo(() => scorigamiType === 'traditional' ? 'Winning Score' : club === 'ALL' ? 'Home Score' : `${TEAM_NAMES[club] ?? club} Score`, [scorigamiType, club]);
@@ -96,8 +99,9 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
     return maxOcc === 0 ? 1 : maxOcc;
   }, [rows]);
 
-  const [activeX, activeY] = useMemo(() => activeCellKey ? activeCellKey.split('-').map(Number) : [null, null], [activeCellKey]);
-  
+  const highlightKey = activeCellKey ?? hoveredCellKey;
+  const [activeX, activeY] = useMemo(() => highlightKey ? highlightKey.split('-').map(Number) : [null, null], [highlightKey]);
+
   const getLogScaledColor = (currentOccurrences: number, maxInView: number) => {
     const currentHexSet = isDarkMode ? darkHex : hex;
     if (currentOccurrences === 0) return currentHexSet[0];
@@ -138,7 +142,7 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
     mediaQuery.addEventListener('change', handler);
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
-  
+
   if (isLoading) return <div className="flex min-h-[450px] w-full items-center justify-center"><StatusIndicator type="loading" /></div>;
   if (!hasData) return <div className="flex min-h-[450px] w-full items-center justify-center"><StatusIndicator type="empty" /></div>;
 
@@ -157,7 +161,7 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
                     <div style={{ display: "grid", gridTemplateColumns: `${headerCellSize}px repeat(${GRID_DIMENSION}, ${cellSize}px)`, gridTemplateRows: `${headerCellSize}px repeat(${GRID_DIMENSION}, ${cellSize}px)`}}>
                         {/* Empty Top-Left Corner */}
                         <div className="bg-slate-50 dark:bg-slate-800/30"></div>
-                        
+
                         {/* Column Headers */}
                         {Array.from({ length: GRID_DIMENSION }).map((_, i) => (
                         <div key={`col-header-${i}`} className={`flex items-center justify-center text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${activeX === i ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{i}</div>
@@ -168,7 +172,7 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
                         <React.Fragment key={`row-frag-${score2_iterator}`}>
                             {/* Row Header */}
                             <div className={`flex items-center justify-center text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/30 transition-colors ${activeY === score2_iterator ? 'bg-slate-200 dark:bg-slate-700' : ''}`}>{score2_iterator}</div>
-                            
+
                             {/* Data Cells */}
                             {Array.from({ length: GRID_DIMENSION }).map((_, score1_iterator) => {
                                 const k = `${score1_iterator}-${score2_iterator}`;
@@ -176,12 +180,13 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
                                 const f = rowData?.occurrences ?? 0;
                                 const isActive = activeCellKey === k;
 
+                                const isHighlighted = isActive || hoveredCellKey === k;
                                 const CellBase = (
                                   <div
                                     style={{ backgroundColor: getLogScaledColor(f, maxOccurrencesInView) }}
-                                    className={`cursor-pointer transition-all duration-150 ease-in-out ${isActive ? 'relative z-20 shadow-lg ring-2 ring-blue-500 scale-110' : ''}`}
-                                    onMouseEnter={() => { setActiveCellKey(k) }}
-                                    onMouseLeave={() => { setActiveCellKey(null) }}
+                                    className={`cursor-pointer transition-all duration-150 ease-in-out ${isHighlighted ? 'relative z-20 shadow-lg ring-2 ring-blue-500 scale-110' : ''}`}
+                                    onMouseEnter={() => setHoveredCellKey(k)}
+                                    onMouseLeave={() => setHoveredCellKey(null)}
                                     onClick={() => setActiveCellKey(isActive ? null : k)}
                                   />
                                 );
@@ -190,13 +195,15 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
                                   return (
                                     <Tooltip key={k} open={true} onOpenChange={(open) => !open && setActiveCellKey(null)}>
                                       <TooltipTrigger asChild>{CellBase}</TooltipTrigger>
-                                      <TooltipContent>
+                                      <TooltipContent
+                                        onPointerDownOutside={() => setActiveCellKey(null)}
+                                      >
                                           <div className="flex flex-col items-start text-left min-w-[140px]">
                                               <div className="flex justify-between items-center w-full mb-1">
                                                 <span className="text-lg font-bold text-slate-900 dark:text-white leading-tight">{`${score1_iterator} - ${score2_iterator}`}</span>
                                                 {isMobile && (
-                                                    <button 
-                                                      onClick={(e) => { e.stopPropagation(); setActiveCellKey(null); }} 
+                                                    <button
+                                                      onClick={(e) => { e.stopPropagation(); setActiveCellKey(null); }}
                                                       className="ml-4 p-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 hover:text-slate-900 dark:hover:text-slate-100 border border-slate-200 dark:border-slate-700"
                                                     >
                                                         <X className="w-3.5 h-3.5"/>
@@ -206,9 +213,19 @@ export default function ScorigamiHeatmap({ rows, isLoading, scorigamiType, club 
                                               <span className="text-sm text-slate-500 dark:text-slate-400">{freqText(f)}</span>
                                               {f > 0 && rowData?.last_date && (
                                               <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 w-full text-xs space-y-0.5">
-                                                  <div className="font-medium text-slate-600 dark:text-slate-300">Last Occurrence:</div>
-                                                  <div className="text-slate-500 dark:text-slate-400">{formatDisplayDate(rowData.last_date)}</div>
+                                                  <div className="text-slate-500 dark:text-slate-400"><span className="font-medium text-slate-600 dark:text-slate-300">Last:</span> {formatDisplayDate(rowData.last_date)}</div>
                                                   <div className="text-slate-500 dark:text-slate-400">{rowData.last_home_team} vs {rowData.last_visitor_team}</div>
+                                                  {rowData.last_game_id && rowData.source === 'mlb_api' && (
+                                                    <a
+                                                      href={`https://www.mlb.com/gameday/${rowData.last_game_id}`}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      onClick={(e) => e.stopPropagation()}
+                                                      className="inline-flex items-center gap-1 mt-1 text-blue-600 dark:text-blue-400 hover:underline"
+                                                    >
+                                                      Box Score ↗
+                                                    </a>
+                                                  )}
                                               </div>
                                               )}
                                           </div>

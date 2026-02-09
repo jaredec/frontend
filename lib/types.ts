@@ -38,7 +38,7 @@ export interface GameLog {
 export interface Team {
   team_id: number;
   team: string;
-  abbreviation: string | null;
+  abbr: string | null; // Changed from abbreviation
   franchise: string | null;
   is_negro_league: boolean;
   source: string;
@@ -52,4 +52,6 @@ export interface ScorigamiSummary {
   last_date: string;
   last_home_team: string;
   last_visitor_team: string;
+  last_game_id: number;
+  source: string;
 }

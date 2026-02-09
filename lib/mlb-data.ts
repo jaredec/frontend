@@ -13,7 +13,7 @@ export const TEAM_NAMES: Record<string, string> = {
 
 export const CURRENT_FRANCHISE_CODES = Object.keys(TEAM_NAMES) as Array<keyof typeof TEAM_NAMES>;
 export type FranchiseCode = keyof typeof TEAM_NAMES;
-export type ScorigamiType = "oriented" | "traditional";
+export type ScorigamiType = "home_away" | "traditional";
 
 export const TEAM_HASHTAG_MAP: Record<string, string> = {
     'Baltimore Orioles': '#Birdland', 'Boston Red Sox': '#DirtyWater', 'New York Yankees': '#RepBX', 'Tampa Bay Rays': '#RaysUp',
