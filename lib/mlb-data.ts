@@ -26,8 +26,3 @@ export const TEAM_HASHTAG_MAP: Record<string, string> = {
     'San Diego Padres': '#ForTheFaithful', 'San Francisco Giants': '#SFGiants',
 };
 
-export const YEARS_FOR_DROPDOWN: string[] = ["ALL"];
-const CURRENT_YEAR = new Date().getFullYear();
-for (let y = CURRENT_YEAR; y >= 1871; y--) { 
-    YEARS_FOR_DROPDOWN.push(y.toString()); 
-}

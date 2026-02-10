@@ -8,32 +8,51 @@ const XLogoIcon = ({ className }: { className?: string }) => (
 
 export default function PageFooter() {
   return (
-    <footer className="w-full mt-8 pb-8">
-      <div className="container mx-auto px-4 text-center text-slate-500 dark:text-slate-400 text-sm">
-        <div className="border-t border-slate-200 dark:border-[#2c2c2c] pt-8 flex flex-col sm:flex-row justify-center items-center gap-x-6 gap-y-4">
-            <p>
-                Created by 
-                {/* ⭐ FINAL FIX APPLIED: Removed font-medium and hover:underline to match the social links. */}
-                <a 
-                    href="https://www.linkedin.com/in/jared-connolly/" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-1"
-                >
-                    Jared Connolly
-                </a>
-            </p>
-            <div className="h-4 w-px bg-slate-300 dark:bg-[#383838] hidden sm:block"></div>
-            <div className="flex items-center gap-4">
-                <a href="https://x.com/MLBgami" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                    <XLogoIcon className="w-3.5 h-3.5" />
-                    <span>@MLBgami</span>
-                </a>
-                <a href="mailto:scorigami.mlb@gmail.com" className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                    <Mail className="w-4 h-4" />
-                    <span>Contact</span>
-                </a>
-            </div>
+    <footer className="border-t border-slate-200/60 dark:border-[#2c2c2c] mt-8">
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 dark:text-slate-500">
+          <div className="flex items-center gap-4">
+            <span>
+              Created by{" "}
+              <a
+                href="https://www.linkedin.com/in/jared-connolly/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                Jared Connolly
+              </a>
+            </span>
+            <span className="hidden sm:inline text-slate-300 dark:text-[#383838]">|</span>
+            <a
+              href="https://x.com/MLBgami"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              <XLogoIcon className="w-3 h-3" />
+              <span>@MLBgami</span>
+            </a>
+            <a
+              href="mailto:scorigami.mlb@gmail.com"
+              className="flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              <Mail className="w-3 h-3" />
+              <span>Contact</span>
+            </a>
+          </div>
+          <p className="text-center sm:text-right max-w-md">
+            Modern game results via MLB Stats API. Federal League &amp; 1871–1900 records from{" "}
+            <a
+              href="https://www.retrosheet.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              Retrosheet
+            </a>
+            .
+          </p>
         </div>
       </div>
     </footer>

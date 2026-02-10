@@ -1,5 +1,3 @@
-// File: app/api/franchise-history/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 
@@ -13,31 +11,20 @@ export async function GET(req: NextRequest) {
   const franchiseCode = teamParam.toUpperCase();
 
   const query = `
-    SELECT 
-      city, 
-      nickname, 
-      first, 
-      last
-    FROM 
-      public.teams 
-    WHERE 
-      franchise = $1 OR team = $1
-    ORDER BY 
-      first;
+    SELECT
+      display_name,
+      years_active,
+      start_year
+    FROM public.lineage
+    WHERE franchise_code = $1
+    ORDER BY start_year DESC;
   `;
 
   try {
     const { rows } = await pool.query(query, [franchiseCode]);
 
-    // If the franchise has only existed as one team, there's no history to show.
-    if (rows.length <= 1) {
-      return NextResponse.json([], {
-        headers: { "Cache-Control": "s-maxage=86400, stale-while-revalidate" },
-      });
-    }
-
     return NextResponse.json(rows, {
-      headers: { "Cache-control": "s-maxage=86400, stale-while-revalidate" },
+      headers: { "Cache-Control": "s-maxage=86400, stale-while-revalidate" },
     });
   } catch (error) {
     console.error("Database query error:", error);

@@ -42,7 +42,7 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.375rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -119,4 +119,15 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Loading bar animation */
+@keyframes loading-bar {
+  0% { transform: scaleX(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+.animate-loading-bar {
+  animation: loading-bar 0.7s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
