@@ -47,34 +47,16 @@ const TooltipContent = ({
   </TooltipPrimitive.Portal>
 );
 
-const MAX_DISPLAY_SCORE = 35;
-const GRID_DIMENSION = MAX_DISPLAY_SCORE + 1;
 const DESKTOP_CELL_SIZE = 20;
 const DESKTOP_HEADER_CELL_SIZE = 30;
 
 const hex = [
-  "#f3f4f6",
-  "#dbeafe",
-  "#bfdbfe",
-  "#93c5fd",
-  "#60a5fa",
-  "#3b82f6",
-  "#2563eb",
-  "#1d4ed8",
-  "#153bc0",
-  "#0c248d",
+  "#f3f4f6", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa",
+  "#3b82f6", "#2563eb", "#1d4ed8", "#153bc0", "#0c248d",
 ];
 const darkHex = [
-  "#404040",
-  "#60a5fa",
-  "#3b82f6",
-  "#2563eb",
-  "#1d4ed8",
-  "#153bc0",
-  "#0c248d",
-  "#0a1d74",
-  "#08165c",
-  "#040a2f",
+  "#404040", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8",
+  "#153bc0", "#0c248d", "#0a1d74", "#08165c", "#040a2f",
 ];
 
 const StatusIndicator = ({ type }: { type: "loading" | "empty" }) => {
@@ -105,9 +87,7 @@ function ColorLegend({ isDarkMode }: { isDarkMode: boolean }) {
   const colors = isDarkMode ? darkHex : hex;
   return (
     <div className="flex items-center gap-2 mt-4 justify-center">
-      <span className="text-[10px] text-slate-400 dark:text-slate-500">
-        Fewer
-      </span>
+      <span className="text-[10px] text-slate-400 dark:text-slate-500">Fewer</span>
       <div className="flex gap-px">
         {colors.map((color, i) => (
           <div
@@ -117,9 +97,7 @@ function ColorLegend({ isDarkMode }: { isDarkMode: boolean }) {
           />
         ))}
       </div>
-      <span className="text-[10px] text-slate-400 dark:text-slate-500">
-        More
-      </span>
+      <span className="text-[10px] text-slate-400 dark:text-slate-500">More</span>
     </div>
   );
 }
@@ -129,6 +107,7 @@ interface ScorigamiHeatmapProps {
   isLoading: boolean;
   scorigamiType: ScorigamiType;
   club: string;
+  gridSize: number;
 }
 
 export default function ScorigamiHeatmap({
@@ -136,7 +115,10 @@ export default function ScorigamiHeatmap({
   isLoading,
   scorigamiType,
   club,
+  gridSize,
 }: ScorigamiHeatmapProps) {
+  const GRID_DIMENSION = gridSize;
+
   const hasData = useMemo(() => Array.isArray(rows) && rows.length > 0, [rows]);
 
   const [isMobile, setIsMobile] = useState(false);
@@ -192,10 +174,7 @@ export default function ScorigamiHeatmap({
     [highlightKey]
   );
 
-  const getLogScaledColor = (
-    currentOccurrences: number,
-    maxInView: number
-  ) => {
+  const getLogScaledColor = (currentOccurrences: number, maxInView: number) => {
     const currentHexSet = isDarkMode ? darkHex : hex;
     if (currentOccurrences === 0) return currentHexSet[0];
     if (currentOccurrences === 1) return currentHexSet[1];
@@ -214,13 +193,13 @@ export default function ScorigamiHeatmap({
     const calculateSize = () => {
       if (!gridContainerRef.current) return;
       const containerWidth = gridContainerRef.current.offsetWidth;
-      const PADDING = window.innerWidth < 640 ? 32 : 48;
+      const PADDING = window.innerWidth < 640 ? 24 : 48;
       const availableWidth = containerWidth - PADDING;
       const totalUnits = GRID_DIMENSION + 1.2;
       const dynamicCellSize = Math.floor(availableWidth / totalUnits);
-      setCellSize(Math.max(6, Math.min(DESKTOP_CELL_SIZE, dynamicCellSize)));
+      setCellSize(Math.max(4, Math.min(DESKTOP_CELL_SIZE, dynamicCellSize)));
       setHeaderCellSize(
-        Math.max(12, Math.min(DESKTOP_HEADER_CELL_SIZE, dynamicCellSize * 1.2))
+        Math.max(10, Math.min(DESKTOP_HEADER_CELL_SIZE, dynamicCellSize * 1.2))
       );
     };
     if (hasData) {
@@ -228,7 +207,7 @@ export default function ScorigamiHeatmap({
       window.addEventListener("resize", calculateSize);
       return () => window.removeEventListener("resize", calculateSize);
     }
-  }, [hasData]);
+  }, [hasData, GRID_DIMENSION]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -238,15 +217,18 @@ export default function ScorigamiHeatmap({
     return () => mediaQuery.removeEventListener("change", handler);
   }, []);
 
+  // Back to the original multiplier logic, but applied to every label
+  const dynamicFontSize = Math.min(cellSize * 0.65, 12);
+
   if (isLoading)
     return (
-      <div className="flex min-h-[450px] w-full items-center justify-center">
+      <div className="flex min-h-[400px] md:min-h-[450px] w-full items-center justify-center">
         <StatusIndicator type="loading" />
       </div>
     );
   if (!hasData)
     return (
-      <div className="flex min-h-[450px] w-full items-center justify-center">
+      <div className="flex min-h-[400px] md:min-h-[450px] w-full items-center justify-center">
         <StatusIndicator type="empty" />
       </div>
     );
@@ -255,23 +237,23 @@ export default function ScorigamiHeatmap({
     <TooltipProvider delayDuration={150}>
       <div
         ref={gridContainerRef}
-        className="p-4 sm:p-6 flex flex-col items-center justify-center"
+        className="p-3 sm:p-6 flex flex-col items-center justify-center"
       >
         <div className="flex flex-col items-center">
           <div
             style={{ paddingLeft: `${headerCellSize}px` }}
-            className="text-center pb-2 pt-1"
+            className="text-center pb-1.5 pt-1"
           >
-            <span className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <span className="text-[9px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               {xAxisTextLabel}
             </span>
           </div>
           <div className="flex">
             <div
               style={{ width: `${headerCellSize}px` }}
-              className="flex-none flex items-center justify-center pr-2"
+              className="flex-none flex items-center justify-center pr-1"
             >
-              <div className="transform -rotate-90 whitespace-nowrap text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <div className="transform -rotate-90 whitespace-nowrap text-[9px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 {yAxisTextLabel}
               </div>
             </div>
@@ -295,12 +277,13 @@ export default function ScorigamiHeatmap({
                 {/* Column Headers */}
                 {Array.from({ length: GRID_DIMENSION }).map((_, i) => (
                   <div
-                    key={`col-header-${i}`}
-                    className={`flex items-center justify-center text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-[#2c2c2c] transition-colors ${
+                    key={`ch-${i}`}
+                    className={`flex items-center justify-center font-medium bg-slate-50 dark:bg-[#2c2c2c] transition-colors overflow-hidden ${
                       activeX === i
                         ? "bg-slate-200 dark:bg-[#383838] text-slate-600 dark:text-slate-300"
-                        : ""
+                        : "text-slate-400 dark:text-slate-500"
                     }`}
+                    style={{ fontSize: `${dynamicFontSize}px` }}
                   >
                     {i}
                   </div>
@@ -309,14 +292,15 @@ export default function ScorigamiHeatmap({
                 {/* Rows */}
                 {Array.from({ length: GRID_DIMENSION }).map(
                   (_, score2_iterator) => (
-                    <React.Fragment key={`row-frag-${score2_iterator}`}>
+                    <React.Fragment key={`rf-${score2_iterator}`}>
                       {/* Row Header */}
                       <div
-                        className={`flex items-center justify-center text-[7px] sm:text-[9px] md:text-xs font-medium text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-[#2c2c2c] transition-colors ${
+                        className={`flex items-center justify-center font-medium bg-slate-50 dark:bg-[#2c2c2c] transition-colors overflow-hidden ${
                           activeY === score2_iterator
                             ? "bg-slate-200 dark:bg-[#383838] text-slate-600 dark:text-slate-300"
-                            : ""
+                            : "text-slate-400 dark:text-slate-500"
                         }`}
+                        style={{ fontSize: `${dynamicFontSize}px` }}
                       >
                         {score2_iterator}
                       </div>
@@ -333,21 +317,14 @@ export default function ScorigamiHeatmap({
                           const CellBase = (
                             <div
                               style={{
-                                backgroundColor: getLogScaledColor(
-                                  f,
-                                  maxOccurrencesInView
-                                ),
+                                backgroundColor: getLogScaledColor(f, maxOccurrencesInView),
                               }}
                               className={`cursor-pointer transition-[filter] duration-100 ${
-                                isHovered && !isActive
-                                  ? "brightness-110"
-                                  : ""
+                                isHovered && !isActive ? "brightness-110" : ""
                               } ${isActive ? "brightness-125" : ""}`}
                               onMouseEnter={() => setHoveredCellKey(k)}
                               onMouseLeave={() => setHoveredCellKey(null)}
-                              onClick={() =>
-                                setActiveCellKey(isActive ? null : k)
-                              }
+                              onClick={() => setActiveCellKey(isActive ? null : k)}
                             />
                           );
 
@@ -356,17 +333,11 @@ export default function ScorigamiHeatmap({
                               <Tooltip
                                 key={k}
                                 open={true}
-                                onOpenChange={(open) =>
-                                  !open && setActiveCellKey(null)
-                                }
+                                onOpenChange={(open) => !open && setActiveCellKey(null)}
                               >
-                                <TooltipTrigger asChild>
-                                  {CellBase}
-                                </TooltipTrigger>
+                                <TooltipTrigger asChild>{CellBase}</TooltipTrigger>
                                 <TooltipContent
-                                  onPointerDownOutside={() =>
-                                    setActiveCellKey(null)
-                                  }
+                                  onPointerDownOutside={() => setActiveCellKey(null)}
                                 >
                                   <div className="flex flex-col items-start text-left min-w-[140px]">
                                     <div className="flex justify-between items-center w-full mb-1">
@@ -397,23 +368,19 @@ export default function ScorigamiHeatmap({
                                           {formatDisplayDate(rowData.last_date)}
                                         </div>
                                         <div className="text-slate-500 dark:text-slate-400">
-                                          {rowData.last_home_team} vs{" "}
-                                          {rowData.last_visitor_team}
+                                          {rowData.last_home_team} vs {rowData.last_visitor_team}
                                         </div>
-                                        {rowData.last_game_id &&
-                                          rowData.source === "mlb_api" && (
-                                            <a
-                                              href={`https://www.mlb.com/gameday/${rowData.last_game_id}`}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              onClick={(e) =>
-                                                e.stopPropagation()
-                                              }
-                                              className="inline-flex items-center gap-1 mt-1 text-blue-600 dark:text-blue-400 hover:underline"
-                                            >
-                                              Box Score ↗
-                                            </a>
-                                          )}
+                                        {rowData.last_game_id && rowData.source === "mlb_api" && (
+                                          <a
+                                            href={`https://www.mlb.com/gameday/${rowData.last_game_id}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="inline-flex items-center gap-1 mt-1 text-blue-600 dark:text-blue-400 hover:underline"
+                                          >
+                                            Box Score ↗
+                                          </a>
+                                        )}
                                       </div>
                                     )}
                                   </div>
@@ -421,11 +388,7 @@ export default function ScorigamiHeatmap({
                               </Tooltip>
                             );
                           }
-                          return (
-                            <React.Fragment key={k}>
-                              {CellBase}
-                            </React.Fragment>
-                          );
+                          return <React.Fragment key={k}>{CellBase}</React.Fragment>;
                         }
                       )}
                     </React.Fragment>

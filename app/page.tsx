@@ -26,23 +26,20 @@ const fetcher = async (u: string) => {
   return json;
 };
 
+export type GridSize = 31 | 41 | 51;
+
 export default function Home() {
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>("traditional");
   const [club, setClub] = useState<FranchiseCode | "ALL">("ALL");
-  // Visual state (updates on every drag tick for smooth slider)
   const [yearRange, setYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
-  // Committed state (updates only on thumb release — drives the API call)
   const [committedYearRange, setCommittedYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
+  const [gridSize, setGridSize] = useState<GridSize>(31);
 
-  const isAllTime = committedYearRange[0] === MIN_YEAR && committedYearRange[1] === CURRENT_YEAR;
-
+  // Always use year-range SQL path for consistent results
   const apiUrl = useMemo(() => {
     const base = `/api/scorigami?team=${club}&type=${scorigamiType}`;
-    if (isAllTime) {
-      return `${base}&year=ALL`;
-    }
     return `${base}&yearStart=${committedYearRange[0]}&yearEnd=${committedYearRange[1]}`;
-  }, [club, scorigamiType, committedYearRange, isAllTime]);
+  }, [club, scorigamiType, committedYearRange]);
 
   const {
     data: rows,
@@ -71,6 +68,19 @@ export default function Home() {
     })).sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 
+  const filterProps = {
+    scorigamiType,
+    setScorigamiType,
+    club,
+    setClub,
+    yearRange,
+    setYearRange,
+    onYearRangeCommit: setCommittedYearRange,
+    sortedTeamsForDropdown,
+    gridSize,
+    setGridSize,
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <TopBar
@@ -78,26 +88,21 @@ export default function Home() {
         isLoading={isLoading && !rows}
       />
 
-      <FilterBar
-        scorigamiType={scorigamiType}
-        setScorigamiType={setScorigamiType}
-        club={club}
-        setClub={setClub}
-        yearRange={yearRange}
-        setYearRange={setYearRange}
-        onYearRangeCommit={setCommittedYearRange}
-        sortedTeamsForDropdown={sortedTeamsForDropdown}
-      />
+      <main className="flex-1 container mx-auto px-4 py-4">
+        {/* Mobile: filters above heatmap */}
+        <div className="md:hidden mb-4">
+          <FilterBar {...filterProps} />
+        </div>
 
-      <main className="flex-1 container mx-auto px-4 pb-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Lineage sidebar — left on desktop, below heatmap on mobile */}
-          <div className="order-2 md:order-1 w-full md:w-48 flex-shrink-0 md:self-start">
+        <div className="flex gap-4">
+          {/* Desktop left sidebar: filters + lineage */}
+          <div className="hidden md:flex md:flex-col md:gap-4 md:w-52 flex-shrink-0 self-start">
+            <FilterBar {...filterProps} />
             <FranchiseLineage club={club} />
           </div>
 
-          {/* Heatmap card */}
-          <div className="order-1 md:order-2 flex-1 min-w-0 relative bg-white dark:bg-[#1e1e1e] border border-slate-200/80 dark:border-[#2c2c2c] rounded-lg overflow-hidden min-h-[500px]">
+          {/* Heatmap */}
+          <div className="flex-1 min-w-0 relative bg-white dark:bg-[#1e1e1e] border border-slate-200/80 dark:border-[#2c2c2c] rounded-lg overflow-hidden min-h-[400px] md:min-h-[500px]">
             {isValidating && (
               <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-blue-500/10 z-50">
                 <div className="h-full bg-blue-500 animate-loading-bar w-full origin-left" />
@@ -105,7 +110,7 @@ export default function Home() {
             )}
 
             {error ? (
-              <div className="flex flex-col items-center justify-center p-6 min-h-[450px] text-center">
+              <div className="flex flex-col items-center justify-center p-6 min-h-[400px] md:min-h-[450px] text-center">
                 <AlertTriangle className="w-10 h-10 text-red-500 mb-3" />
                 <h3 className="text-base font-medium text-red-700 dark:text-red-400">
                   Data Offline
@@ -120,9 +125,15 @@ export default function Home() {
                 isLoading={isLoading && !rows}
                 scorigamiType={scorigamiType}
                 club={club}
+                gridSize={gridSize}
               />
             )}
           </div>
+        </div>
+
+        {/* Mobile: lineage below heatmap */}
+        <div className="md:hidden mt-4">
+          <FranchiseLineage club={club} />
         </div>
       </main>
 
