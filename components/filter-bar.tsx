@@ -6,7 +6,7 @@ import * as Select from "@radix-ui/react-select";
 import * as Slider from "@radix-ui/react-slider";
 import { ChevronDown } from "lucide-react";
 import { TEAM_NAMES, FranchiseCode, ScorigamiType } from "@/lib/mlb-data";
-import type { GridSize } from "@/app/page";
+import type { GridSize } from "@/components/scorigami-page";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = 1871;
