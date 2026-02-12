@@ -141,6 +141,18 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
       </main>
 
       <PageFooter />
+
+      {/* Buy me a coffee — fixed bottom right */}
+      <a
+        href="https://buymeacoffee.com/mlbscorigami"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ fontFamily: "var(--font-cookie)" }}
+        className="fixed bottom-4 right-4 md:bottom-5 md:right-5 flex items-center gap-1.5 md:gap-2 bg-black dark:bg-white rounded-full px-3.5 py-2 md:px-6 md:py-3 text-sm md:text-xl text-white dark:text-black shadow-lg hover:scale-105 transition-transform z-50"
+      >
+        <span>☕</span>
+        <span>Buy me a coffee</span>
+      </a>
     </div>
   );
 }
