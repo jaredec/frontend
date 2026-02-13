@@ -162,8 +162,8 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
           {/* Heatmap */}
           <div className="flex-1 min-w-0 relative bg-white dark:bg-[#1e1e1e] border border-slate-200/80 dark:border-[#2c2c2c] rounded-lg overflow-hidden min-h-[400px] md:min-h-[500px]">
             {isValidating && (
-              <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-blue-500/10 z-50">
-                <div className="h-full bg-blue-500 animate-loading-bar w-full origin-left" />
+              <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden z-50">
+                <div className="h-full w-full bg-gradient-to-r from-transparent via-blue-500/40 to-transparent animate-shimmer" />
               </div>
             )}
 
