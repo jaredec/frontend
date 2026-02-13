@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import useSWR from "swr";
 import { AlertTriangle } from "lucide-react";
 
@@ -68,6 +68,44 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     keepPreviousData: true,
   });
 
+  // Derive min/max year from actual data
+  const dataYearBounds = useMemo<[number, number]>(() => {
+    if (!Array.isArray(yearlyRows) || yearlyRows.length === 0)
+      return [MIN_YEAR, CURRENT_YEAR];
+    let min = Infinity;
+    let max = -Infinity;
+    for (const row of yearlyRows) {
+      if (row.year < min) min = row.year;
+      if (row.year > max) max = row.year;
+    }
+    return [min, max];
+  }, [yearlyRows]);
+
+  // Adjust yearRange when data bounds change (e.g. team switch)
+  const prevBoundsRef = useRef(dataYearBounds);
+  useEffect(() => {
+    const [prevMin, prevMax] = prevBoundsRef.current;
+    const [dataMin, dataMax] = dataYearBounds;
+    prevBoundsRef.current = dataYearBounds;
+
+    setYearRange(([lo, hi]) => {
+      // If "all time" was selected for previous team, expand to new team's full range
+      if (lo === prevMin && hi === prevMax) {
+        return [dataMin, dataMax];
+      }
+      // If single year was at the edge, move to new edge
+      if (lo === hi && lo === prevMax) {
+        return [dataMax, dataMax];
+      }
+      // Otherwise clamp to new bounds
+      const clampedLo = Math.max(lo, dataMin);
+      const clampedHi = Math.min(hi, dataMax);
+      if (clampedLo > clampedHi) return [dataMin, dataMax];
+      if (clampedLo !== lo || clampedHi !== hi) return [clampedLo, clampedHi];
+      return [lo, hi];
+    });
+  }, [dataYearBounds]);
+
   // Client-side: filter by year range and aggregate by score pair
   const rows = useMemo(() => {
     if (!Array.isArray(yearlyRows) || yearlyRows.length === 0) return undefined;
@@ -134,6 +172,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     setClub,
     yearRange,
     setYearRange,
+    dataYearBounds,
     sortedTeamsForDropdown,
     gridSize,
     setGridSize,

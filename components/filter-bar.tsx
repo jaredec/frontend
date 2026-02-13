@@ -25,6 +25,7 @@ interface FilterBarProps {
   setClub: (value: FranchiseCode | "ALL") => void;
   yearRange: [number, number];
   setYearRange: (value: [number, number]) => void;
+  dataYearBounds: [number, number];
   sortedTeamsForDropdown: { code: string; name: string }[];
   gridSize: GridSize;
   setGridSize: (value: GridSize) => void;
@@ -37,13 +38,22 @@ export default function FilterBar({
   setClub,
   yearRange,
   setYearRange,
+  dataYearBounds,
   sortedTeamsForDropdown,
   gridSize,
   setGridSize,
 }: FilterBarProps) {
+  const [dataMin, dataMax] = dataYearBounds;
   const isSingleYear = yearRange[0] === yearRange[1];
-  const isModernEra = !isSingleYear && yearRange[0] === MODERN_ERA_START && yearRange[1] === CURRENT_YEAR;
-  const isAllTime = !isSingleYear && yearRange[0] === MIN_YEAR && yearRange[1] === CURRENT_YEAR;
+  const isModernEra = !isSingleYear && yearRange[0] === MODERN_ERA_START && yearRange[1] === dataMax;
+  const isAllTime = !isSingleYear && yearRange[0] === dataMin && yearRange[1] === dataMax;
+
+  const clampYear = (y: number) => Math.max(dataMin, Math.min(dataMax, y));
+  const clampedSet = (lo: number, hi: number) => {
+    const cLo = clampYear(lo);
+    const cHi = clampYear(hi);
+    setYearRange([Math.min(cLo, cHi), Math.max(cLo, cHi)]);
+  };
 
   return (
     <div className="space-y-3">
@@ -152,7 +162,7 @@ export default function FilterBar({
           <Slider.Root
             key="single"
             value={[yearRange[0]]}
-            onValueChange={(val: number[]) => setYearRange([val[0], val[0]])}
+            onValueChange={(val: number[]) => clampedSet(val[0], val[0])}
             min={MIN_YEAR}
             max={CURRENT_YEAR}
             step={1}
@@ -167,7 +177,7 @@ export default function FilterBar({
           <Slider.Root
             key="range"
             value={yearRange}
-            onValueChange={(val: number[]) => setYearRange([val[0], val[1]])}
+            onValueChange={(val: number[]) => clampedSet(val[0], val[1])}
             min={MIN_YEAR}
             max={CURRENT_YEAR}
             step={1}
@@ -188,8 +198,8 @@ export default function FilterBar({
               checked={isSingleYear}
               onChange={() =>
                 isSingleYear
-                  ? setYearRange([MIN_YEAR, CURRENT_YEAR])
-                  : setYearRange([CURRENT_YEAR - 1, CURRENT_YEAR - 1])
+                  ? setYearRange([dataMin, dataMax])
+                  : setYearRange([clampYear(dataMax), clampYear(dataMax)])
               }
               className="h-3.5 w-3.5 rounded border-slate-300 dark:border-[#383838] text-blue-500 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer accent-blue-500"
             />
@@ -197,22 +207,24 @@ export default function FilterBar({
               Single Year
             </span>
           </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isModernEra}
-              onChange={() => setYearRange([MODERN_ERA_START, CURRENT_YEAR])}
-              className="h-3.5 w-3.5 rounded border-slate-300 dark:border-[#383838] text-blue-500 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer accent-blue-500"
-            />
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
-              Modern Era (1901+)
-            </span>
-          </label>
+          {dataMin < MODERN_ERA_START && (
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isModernEra}
+                onChange={() => setYearRange([MODERN_ERA_START, dataMax])}
+                className="h-3.5 w-3.5 rounded border-slate-300 dark:border-[#383838] text-blue-500 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer accent-blue-500"
+              />
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                Modern Era (1901+)
+              </span>
+            </label>
+          )}
           <label className="flex items-center gap-1.5 cursor-pointer">
             <input
               type="checkbox"
               checked={isAllTime}
-              onChange={() => setYearRange([MIN_YEAR, CURRENT_YEAR])}
+              onChange={() => setYearRange([dataMin, dataMax])}
               className="h-3.5 w-3.5 rounded border-slate-300 dark:border-[#383838] text-blue-500 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer accent-blue-500"
             />
             <span className="text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
