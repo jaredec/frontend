@@ -25,7 +25,6 @@ interface FilterBarProps {
   setClub: (value: FranchiseCode | "ALL") => void;
   yearRange: [number, number];
   setYearRange: (value: [number, number]) => void;
-  onYearRangeCommit: (value: [number, number]) => void;
   sortedTeamsForDropdown: { code: string; name: string }[];
   gridSize: GridSize;
   setGridSize: (value: GridSize) => void;
@@ -38,13 +37,13 @@ export default function FilterBar({
   setClub,
   yearRange,
   setYearRange,
-  onYearRangeCommit,
   sortedTeamsForDropdown,
   gridSize,
   setGridSize,
 }: FilterBarProps) {
-  const isModernEra = yearRange[0] === MODERN_ERA_START && yearRange[1] === CURRENT_YEAR;
-  const isAllTime = yearRange[0] === MIN_YEAR && yearRange[1] === CURRENT_YEAR;
+  const isSingleYear = yearRange[0] === yearRange[1];
+  const isModernEra = !isSingleYear && yearRange[0] === MODERN_ERA_START && yearRange[1] === CURRENT_YEAR;
+  const isAllTime = !isSingleYear && yearRange[0] === MIN_YEAR && yearRange[1] === CURRENT_YEAR;
 
   return (
     <div className="space-y-3">
@@ -146,34 +145,63 @@ export default function FilterBar({
             Years
           </label>
           <span className="text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums">
-            {yearRange[0]} – {yearRange[1]}
+            {isSingleYear ? yearRange[0] : `${yearRange[0]} – ${yearRange[1]}`}
           </span>
         </div>
-        <Slider.Root
-          value={yearRange}
-          onValueChange={(val: number[]) => setYearRange([val[0], val[1]])}
-          onValueCommit={(val: number[]) => onYearRangeCommit([val[0], val[1]])}
-          min={MIN_YEAR}
-          max={CURRENT_YEAR}
-          step={1}
-          minStepsBetweenThumbs={1}
-          className="relative flex items-center select-none touch-none h-5 w-full"
-        >
-          <Slider.Track className="relative grow h-1 rounded-full bg-slate-200 dark:bg-[#383838]">
-            <Slider.Range className="absolute h-full rounded-full bg-blue-500 dark:bg-blue-600" />
-          </Slider.Track>
-          <Slider.Thumb className="block h-4 w-4 rounded-full bg-white border-2 border-blue-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#121212] cursor-grab active:cursor-grabbing" />
-          <Slider.Thumb className="block h-4 w-4 rounded-full bg-white border-2 border-blue-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#121212] cursor-grab active:cursor-grabbing" />
-        </Slider.Root>
-        <div className="flex items-center gap-3 mt-1.5">
+        {isSingleYear ? (
+          <Slider.Root
+            key="single"
+            value={[yearRange[0]]}
+            onValueChange={(val: number[]) => setYearRange([val[0], val[0]])}
+            min={MIN_YEAR}
+            max={CURRENT_YEAR}
+            step={1}
+            className="relative flex items-center select-none touch-none h-5 w-full"
+          >
+            <Slider.Track className="relative grow h-1 rounded-full bg-slate-200 dark:bg-[#383838]">
+              <Slider.Range className="absolute h-full rounded-full bg-transparent" />
+            </Slider.Track>
+            <Slider.Thumb className="block h-4 w-4 rounded-full bg-white border-2 border-blue-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#121212] cursor-grab active:cursor-grabbing" />
+          </Slider.Root>
+        ) : (
+          <Slider.Root
+            key="range"
+            value={yearRange}
+            onValueChange={(val: number[]) => setYearRange([val[0], val[1]])}
+            min={MIN_YEAR}
+            max={CURRENT_YEAR}
+            step={1}
+            minStepsBetweenThumbs={1}
+            className="relative flex items-center select-none touch-none h-5 w-full"
+          >
+            <Slider.Track className="relative grow h-1 rounded-full bg-slate-200 dark:bg-[#383838]">
+              <Slider.Range className="absolute h-full rounded-full bg-blue-500 dark:bg-blue-600" />
+            </Slider.Track>
+            <Slider.Thumb className="block h-4 w-4 rounded-full bg-white border-2 border-blue-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#121212] cursor-grab active:cursor-grabbing" />
+            <Slider.Thumb className="block h-4 w-4 rounded-full bg-white border-2 border-blue-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#121212] cursor-grab active:cursor-grabbing" />
+          </Slider.Root>
+        )}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isSingleYear}
+              onChange={() =>
+                isSingleYear
+                  ? setYearRange([MIN_YEAR, CURRENT_YEAR])
+                  : setYearRange([CURRENT_YEAR - 1, CURRENT_YEAR - 1])
+              }
+              className="h-3.5 w-3.5 rounded border-slate-300 dark:border-[#383838] text-blue-500 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer accent-blue-500"
+            />
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+              Single Year
+            </span>
+          </label>
           <label className="flex items-center gap-1.5 cursor-pointer">
             <input
               type="checkbox"
               checked={isModernEra}
-              onChange={() => {
-                setYearRange([MODERN_ERA_START, CURRENT_YEAR]);
-                onYearRangeCommit([MODERN_ERA_START, CURRENT_YEAR]);
-              }}
+              onChange={() => setYearRange([MODERN_ERA_START, CURRENT_YEAR])}
               className="h-3.5 w-3.5 rounded border-slate-300 dark:border-[#383838] text-blue-500 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer accent-blue-500"
             />
             <span className="text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
@@ -184,10 +212,7 @@ export default function FilterBar({
             <input
               type="checkbox"
               checked={isAllTime}
-              onChange={() => {
-                setYearRange([MIN_YEAR, CURRENT_YEAR]);
-                onYearRangeCommit([MIN_YEAR, CURRENT_YEAR]);
-              }}
+              onChange={() => setYearRange([MIN_YEAR, CURRENT_YEAR])}
               className="h-3.5 w-3.5 rounded border-slate-300 dark:border-[#383838] text-blue-500 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer accent-blue-500"
             />
             <span className="text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">

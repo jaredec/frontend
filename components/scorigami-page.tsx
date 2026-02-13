@@ -28,6 +28,18 @@ const fetcher = async (u: string) => {
 
 export type GridSize = 31 | 41 | 51;
 
+interface YearlyRow {
+  year: number;
+  score1: number;
+  score2: number;
+  occurrences: number;
+  last_date: string | null;
+  last_home_team: string | null;
+  last_visitor_team: string | null;
+  last_game_id: number | null;
+  source: string | null;
+}
+
 interface ScorigamiPageProps {
   initialClub?: FranchiseCode | "ALL";
 }
@@ -36,32 +48,76 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>("traditional");
   const [club, setClub] = useState<FranchiseCode | "ALL">(initialClub);
   const [yearRange, setYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
-  const [committedYearRange, setCommittedYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
   const [gridSize, setGridSize] = useState<GridSize>(31);
 
-  const apiUrl = useMemo(() => {
-    const base = `/api/scorigami?team=${club}&type=${scorigamiType}`;
-    return `${base}&yearStart=${committedYearRange[0]}&yearEnd=${committedYearRange[1]}`;
-  }, [club, scorigamiType, committedYearRange]);
+  // Load all yearly data once per team+type combo
+  const apiUrl = useMemo(
+    () => `/api/scorigami?team=${club}&type=${scorigamiType}&mode=yearly`,
+    [club, scorigamiType]
+  );
 
   const {
-    data: rows,
+    data: yearlyRows,
     error,
     isLoading,
     isValidating,
-  } = useSWR(apiUrl, fetcher, {
+  } = useSWR<YearlyRow[]>(apiUrl, fetcher, {
     revalidateOnFocus: false,
     revalidateIfStale: false,
     dedupingInterval: 3600000,
     keepPreviousData: true,
   });
 
+  // Client-side: filter by year range and aggregate by score pair
+  const rows = useMemo(() => {
+    if (!Array.isArray(yearlyRows) || yearlyRows.length === 0) return undefined;
+
+    const map = new Map<string, {
+      score1: number;
+      score2: number;
+      occurrences: number;
+      last_date: string | null;
+      last_home_team: string | null;
+      last_visitor_team: string | null;
+      last_game_id: number | null;
+      source: string | null;
+    }>();
+
+    for (const row of yearlyRows) {
+      if (row.year < yearRange[0] || row.year > yearRange[1]) continue;
+
+      const key = `${row.score1}-${row.score2}`;
+      const existing = map.get(key);
+
+      if (!existing) {
+        map.set(key, {
+          score1: row.score1,
+          score2: row.score2,
+          occurrences: Number(row.occurrences),
+          last_date: row.last_date,
+          last_home_team: row.last_home_team,
+          last_visitor_team: row.last_visitor_team,
+          last_game_id: row.last_game_id,
+          source: row.source,
+        });
+      } else {
+        existing.occurrences += Number(row.occurrences);
+        if (row.last_date && (!existing.last_date || row.last_date > existing.last_date)) {
+          existing.last_date = row.last_date;
+          existing.last_home_team = row.last_home_team;
+          existing.last_visitor_team = row.last_visitor_team;
+          existing.last_game_id = row.last_game_id;
+          existing.source = row.source;
+        }
+      }
+    }
+
+    return Array.from(map.values());
+  }, [yearlyRows, yearRange]);
+
   const totalGamesDisplayed = useMemo(() => {
-    if (!rows || error || !Array.isArray(rows)) return 0;
-    return rows.reduce(
-      (sum: number, row: { occurrences: number }) => sum + Number(row.occurrences),
-      0
-    );
+    if (!rows || error) return 0;
+    return rows.reduce((sum, row) => sum + row.occurrences, 0);
   }, [rows, error]);
 
   const sortedTeamsForDropdown = useMemo(() => {
@@ -78,7 +134,6 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     setClub,
     yearRange,
     setYearRange,
-    onYearRangeCommit: setCommittedYearRange,
     sortedTeamsForDropdown,
     gridSize,
     setGridSize,
@@ -88,7 +143,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     <div className="min-h-screen flex flex-col">
       <TopBar
         totalGamesDisplayed={totalGamesDisplayed}
-        isLoading={isLoading && !rows}
+        isLoading={isLoading && !yearlyRows}
       />
 
       <main className="flex-1 container mx-auto px-4 py-4">
@@ -125,7 +180,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
             ) : (
               <ScorigamiHeatmap
                 rows={rows}
-                isLoading={isLoading && !rows}
+                isLoading={isLoading && !yearlyRows}
                 scorigamiType={scorigamiType}
                 club={club}
                 gridSize={gridSize}
