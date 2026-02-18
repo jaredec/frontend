@@ -136,7 +136,7 @@ export default function ScorigamiHeatmap({
     return map;
   }, [rows]);
 
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [cellSize, setCellSize] = useState(DESKTOP_CELL_SIZE);
   const [headerCellSize, setHeaderCellSize] = useState(DESKTOP_HEADER_CELL_SIZE);
   const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -210,11 +210,11 @@ export default function ScorigamiHeatmap({
   }, [hasData, GRID_DIMENSION]);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    setIsDarkMode(mediaQuery.matches);
-    const handler = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
-    mediaQuery.addEventListener("change", handler);
-    return () => mediaQuery.removeEventListener("change", handler);
+    const check = () => setIsDarkMode(document.documentElement.classList.contains("dark"));
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
   }, []);
 
   // Back to the original multiplier logic, but applied to every label

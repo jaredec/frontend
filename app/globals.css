@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@custom-variant dark (&:is(.dark *));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -76,8 +78,7 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+.dark {
     --background: #1e1e1e;
     --foreground: #e0e0e0;
     --card: #252526;
@@ -109,7 +110,6 @@
     --sidebar-accent-foreground: #e0e0e0;
     --sidebar-border: #2d2d30;
     --sidebar-ring: #4a4a4a;
-  }
 }
 
 @layer base {

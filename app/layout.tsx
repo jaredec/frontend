@@ -9,7 +9,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const SITE_URL = "https://mlbscorigami.com";
-const TITLE = "MLB Scorigami — Every Final Score in Baseball History";
+const TITLE = "MLB Scorigami";
 const DESCRIPTION =
   "Explore every final score in Major League Baseball history with an interactive heatmap. Discover which scores have never happened, filter by team and era, and find box scores for each unique result.";
 
@@ -71,7 +71,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en" className="dark scroll-smooth">
       <body className={`${GeistSans.variable} ${GeistMono.variable} ${cookie.variable} font-sans antialiased bg-slate-50 dark:bg-[#1e1e1e]`}>
         <script
           type="application/ld+json"
