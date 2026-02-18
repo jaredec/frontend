@@ -8,8 +8,8 @@ const XLogoIcon = ({ className }: { className?: string }) => (
 
 export default function PageFooter() {
   return (
-    <footer className="border-t border-slate-200/60 dark:border-[#2c2c2c] mt-8">
-      <div className="container mx-auto px-4 py-6">
+    <footer className="border-t border-slate-200/60 dark:border-[#2d2d30] mt-8">
+      <div className="max-w-5xl mx-auto w-full px-4 py-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 dark:text-slate-500">
           <div className="flex items-center gap-4">
             <span>
@@ -23,7 +23,7 @@ export default function PageFooter() {
                 Jared Connolly
               </a>
             </span>
-            <span className="hidden sm:inline text-slate-300 dark:text-[#383838]">|</span>
+            <span className="hidden sm:inline text-slate-300 dark:text-[#3e3e42]">|</span>
             <a
               href="https://x.com/MLBgami"
               target="_blank"

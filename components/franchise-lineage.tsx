@@ -34,7 +34,7 @@ export default function FranchiseLineage({ club }: FranchiseLineageProps) {
   const franchiseName = club !== "ALL" ? (TEAM_NAMES[club] ?? club) : "Major League Baseball";
 
   return (
-    <div className="bg-white dark:bg-[#1e1e1e] border border-slate-200/80 dark:border-[#2c2c2c] rounded-lg p-4">
+    <div className="bg-white dark:bg-[#252526] border border-slate-200/80 dark:border-[#2d2d30] rounded-lg p-4">
       <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1">
         {franchiseName}
       </h3>
@@ -60,7 +60,7 @@ export default function FranchiseLineage({ club }: FranchiseLineageProps) {
                   }`}
                 />
                 {i < data!.length - 1 && (
-                  <div className="w-px flex-1 bg-slate-200 dark:bg-[#383838] min-h-[16px]" />
+                  <div className="w-px flex-1 bg-slate-200 dark:bg-[#3e3e42] min-h-[16px]" />
                 )}
               </div>
               <div className="pb-2.5 min-w-0">

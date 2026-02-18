@@ -39,7 +39,7 @@ const TooltipContent = ({
       sideOffset={8}
       collisionPadding={10}
       className={
-        "z-50 w-auto rounded-md bg-white dark:bg-[#1e1e1e] shadow-lg border border-slate-200 dark:border-[#383838] p-3 " +
+        "z-50 w-auto rounded-md bg-white dark:bg-[#252526] shadow-lg border border-slate-200 dark:border-[#3e3e42] p-3 " +
         className
       }
       {...props}
@@ -258,7 +258,7 @@ export default function ScorigamiHeatmap({
               </div>
             </div>
             <div
-              className="relative border border-slate-200 dark:border-[#2c2c2c] rounded-sm overflow-hidden"
+              className="relative border border-slate-200 dark:border-[#2d2d30] rounded-sm overflow-hidden"
               style={{
                 width: `${headerCellSize + GRID_DIMENSION * cellSize}px`,
                 height: `${headerCellSize + GRID_DIMENSION * cellSize}px`,
@@ -272,15 +272,15 @@ export default function ScorigamiHeatmap({
                 }}
               >
                 {/* Empty Top-Left Corner */}
-                <div className="bg-slate-50 dark:bg-[#2c2c2c]"></div>
+                <div className="bg-slate-50 dark:bg-[#2d2d30]"></div>
 
                 {/* Column Headers */}
                 {Array.from({ length: GRID_DIMENSION }).map((_, i) => (
                   <div
                     key={`ch-${i}`}
-                    className={`flex items-center justify-center font-medium bg-slate-50 dark:bg-[#2c2c2c] transition-colors overflow-hidden ${
+                    className={`flex items-center justify-center font-medium bg-slate-50 dark:bg-[#2d2d30] transition-colors overflow-hidden ${
                       activeX === i
-                        ? "bg-slate-200 dark:bg-[#383838] text-slate-600 dark:text-slate-300"
+                        ? "bg-slate-200 dark:bg-[#3e3e42] text-slate-600 dark:text-slate-300"
                         : "text-slate-400 dark:text-slate-500"
                     }`}
                     style={{ fontSize: `${dynamicFontSize}px` }}
@@ -295,9 +295,9 @@ export default function ScorigamiHeatmap({
                     <React.Fragment key={`rf-${score2_iterator}`}>
                       {/* Row Header */}
                       <div
-                        className={`flex items-center justify-center font-medium bg-slate-50 dark:bg-[#2c2c2c] transition-colors overflow-hidden ${
+                        className={`flex items-center justify-center font-medium bg-slate-50 dark:bg-[#2d2d30] transition-colors overflow-hidden ${
                           activeY === score2_iterator
-                            ? "bg-slate-200 dark:bg-[#383838] text-slate-600 dark:text-slate-300"
+                            ? "bg-slate-200 dark:bg-[#3e3e42] text-slate-600 dark:text-slate-300"
                             : "text-slate-400 dark:text-slate-500"
                         }`}
                         style={{ fontSize: `${dynamicFontSize}px` }}
@@ -360,7 +360,7 @@ export default function ScorigamiHeatmap({
                                       {freqText(f)}
                                     </span>
                                     {f > 0 && rowData?.last_date && (
-                                      <div className="mt-2 pt-2 border-t border-slate-100 dark:border-[#383838] w-full text-xs space-y-0.5">
+                                      <div className="mt-2 pt-2 border-t border-slate-100 dark:border-[#3e3e42] w-full text-xs space-y-0.5">
                                         <div className="text-slate-500 dark:text-slate-400">
                                           <span className="font-medium text-slate-600 dark:text-slate-300">
                                             Last:

@@ -2,12 +2,11 @@
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import useSWR from "swr";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Maximize2, Minimize2 } from "lucide-react";
 
 import TopBar from "@/components/top-bar";
 import FilterBar from "@/components/filter-bar";
 import ScorigamiHeatmap from "@/components/scorigami-heatmap";
-import FranchiseLineage from "@/components/franchise-lineage";
 import PageFooter from "@/components/page-footer";
 import {
   TEAM_NAMES,
@@ -26,7 +25,7 @@ const fetcher = async (u: string) => {
   return json;
 };
 
-export type GridSize = 31 | 41 | 51;
+export type GridSize = 36 | 51;
 
 interface YearlyRow {
   year: number;
@@ -48,7 +47,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>("traditional");
   const [club, setClub] = useState<FranchiseCode | "ALL">(initialClub);
   const [yearRange, setYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
-  const [gridSize, setGridSize] = useState<GridSize>(31);
+  const [gridSize, setGridSize] = useState<GridSize>(36);
 
   // Load all yearly data once per team+type combo
   const apiUrl = useMemo(
@@ -174,8 +173,6 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     setYearRange,
     dataYearBounds,
     sortedTeamsForDropdown,
-    gridSize,
-    setGridSize,
   };
 
   return (
@@ -185,52 +182,52 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
         isLoading={isLoading && !yearlyRows}
       />
 
-      <main className="flex-1 container mx-auto px-4 py-4">
-        {/* Mobile: filters above heatmap */}
-        <div className="md:hidden mb-4">
+      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-4">
+        {/* Filters */}
+        <div className="mb-3">
           <FilterBar {...filterProps} />
         </div>
 
-        <div className="flex gap-4">
-          {/* Desktop left sidebar: filters + lineage */}
-          <div className="hidden md:flex md:flex-col md:gap-4 md:w-52 flex-shrink-0 self-start">
-            <FilterBar {...filterProps} />
-            <FranchiseLineage club={club} />
-          </div>
-
-          {/* Heatmap */}
-          <div className="flex-1 min-w-0 relative bg-white dark:bg-[#1e1e1e] border border-slate-200/80 dark:border-[#2c2c2c] rounded-lg overflow-hidden min-h-[400px] md:min-h-[500px]">
-            {isValidating && (
-              <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden z-50">
-                <div className="h-full w-full bg-gradient-to-r from-transparent via-blue-500/40 to-transparent animate-shimmer" />
-              </div>
-            )}
-
-            {error ? (
-              <div className="flex flex-col items-center justify-center p-6 min-h-[400px] md:min-h-[450px] text-center">
-                <AlertTriangle className="w-10 h-10 text-red-500 mb-3" />
-                <h3 className="text-base font-medium text-red-700 dark:text-red-400">
-                  Data Offline
-                </h3>
-                <p className="text-sm text-red-600 dark:text-red-500 mt-1">
-                  The connection was interrupted.
-                </p>
-              </div>
+        {/* Heatmap — full width */}
+        <div className="relative bg-white dark:bg-[#252526] border border-slate-200/80 dark:border-[#2d2d30] rounded-lg overflow-hidden min-h-[400px] md:min-h-[500px]">
+          {/* Expand/collapse grid button */}
+          <button
+            onClick={() => setGridSize(gridSize === 36 ? 51 : 36)}
+            className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-white/80 dark:bg-[#252526]/80 backdrop-blur-sm border border-slate-200/60 dark:border-[#3e3e42]/60 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            title={gridSize === 36 ? "Expand grid" : "Collapse grid"}
+          >
+            {gridSize === 36 ? (
+              <Maximize2 className="w-4 h-4" />
             ) : (
-              <ScorigamiHeatmap
-                rows={rows}
-                isLoading={isLoading && !yearlyRows}
-                scorigamiType={scorigamiType}
-                club={club}
-                gridSize={gridSize}
-              />
+              <Minimize2 className="w-4 h-4" />
             )}
-          </div>
-        </div>
+          </button>
 
-        {/* Mobile: lineage below heatmap */}
-        <div className="md:hidden mt-4">
-          <FranchiseLineage club={club} />
+          {isValidating && (
+            <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden z-50">
+              <div className="h-full w-full bg-gradient-to-r from-transparent via-blue-500/40 to-transparent animate-shimmer" />
+            </div>
+          )}
+
+          {error ? (
+            <div className="flex flex-col items-center justify-center p-6 min-h-[400px] md:min-h-[450px] text-center">
+              <AlertTriangle className="w-10 h-10 text-red-500 mb-3" />
+              <h3 className="text-base font-medium text-red-700 dark:text-red-400">
+                Data Offline
+              </h3>
+              <p className="text-sm text-red-600 dark:text-red-500 mt-1">
+                The connection was interrupted.
+              </p>
+            </div>
+          ) : (
+            <ScorigamiHeatmap
+              rows={rows}
+              isLoading={isLoading && !yearlyRows}
+              scorigamiType={scorigamiType}
+              club={club}
+              gridSize={gridSize}
+            />
+          )}
         </div>
       </main>
 

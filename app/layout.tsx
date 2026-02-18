@@ -72,7 +72,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth">
-      <body className={`${GeistSans.variable} ${GeistMono.variable} ${cookie.variable} font-sans antialiased bg-slate-50 dark:bg-[#121212]`}>
+      <body className={`${GeistSans.variable} ${GeistMono.variable} ${cookie.variable} font-sans antialiased bg-slate-50 dark:bg-[#1e1e1e]`}>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

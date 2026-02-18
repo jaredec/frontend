@@ -9,8 +9,8 @@ interface TopBarProps {
 
 export default function TopBar({ totalGamesDisplayed, isLoading }: TopBarProps) {
   return (
-    <header className="border-b border-slate-200/60 dark:border-[#2c2c2c] py-4">
-      <div className="container mx-auto px-4 flex items-center justify-between">
+    <header className="border-b border-slate-200/60 dark:border-[#2d2d30] py-4">
+      <div className="max-w-5xl mx-auto w-full px-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Image
             src="/logo3.svg"
