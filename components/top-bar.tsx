@@ -19,7 +19,7 @@ export default function TopBar({ totalGamesDisplayed, isLoading }: TopBarProps) 
             height={48}
             priority
             style={{ width: 'auto' }}
-            className="h-10 w-auto flex-shrink-0"
+            className="h-10 w-auto flex-shrink-0 dark:invert"
           />
           <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
             MLB Scorigami

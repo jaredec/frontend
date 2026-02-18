@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     images: ["/og.png"],
   },
   icons: {
-    icon: { url: "/logo3.svg", type: "image/svg+xml" },
+    icon: { url: "/favicon.svg", type: "image/svg+xml" },
   },
   robots: {
     index: true,
