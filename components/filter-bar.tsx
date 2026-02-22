@@ -19,6 +19,7 @@ interface FilterBarProps {
   setYearRange: (value: [number, number]) => void;
   dataYearBounds: [number, number];
   sortedTeamsForDropdown: { code: string; name: string }[];
+  onDropdownOpenChange?: (open: boolean) => void;
 }
 
 export default function FilterBar({
@@ -30,6 +31,7 @@ export default function FilterBar({
   setYearRange,
   dataYearBounds,
   sortedTeamsForDropdown,
+  onDropdownOpenChange,
 }: FilterBarProps) {
   const [dataMin, dataMax] = dataYearBounds;
   const isSingleYear = yearRange[0] === yearRange[1];
@@ -96,6 +98,7 @@ export default function FilterBar({
         <Select.Root
           value={club}
           onValueChange={(val: string) => setClub(val as FranchiseCode | "ALL")}
+          onOpenChange={onDropdownOpenChange}
         >
           <Select.Trigger className="flex h-9 w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
             <Select.Value>

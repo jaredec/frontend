@@ -37,7 +37,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Home/away aggregated fallback
-    const scoreSelect = `g.home_score AS score1, g.visitor_score AS score2`;
     let teamFilter = '';
     const params: number[] = [];
     if (teamId > 0) {
@@ -46,13 +45,23 @@ export async function GET(request: NextRequest) {
     }
     const negroLeagueFilter = teamId > 0 ? '' : ' WHERE g.is_negro_league = false';
 
+    const scoreSelect = teamId > 0
+      ? `CASE WHEN g.home_team_id = $1 THEN g.home_score ELSE g.visitor_score END AS score1,
+         CASE WHEN g.home_team_id = $1 THEN g.visitor_score ELSE g.home_score END AS score2`
+      : `g.home_score AS score1, g.visitor_score AS score2`;
+
+    const partitionCols = teamId > 0
+      ? `CASE WHEN g.home_team_id = ${teamId} THEN g.home_score ELSE g.visitor_score END,
+         CASE WHEN g.home_team_id = ${teamId} THEN g.visitor_score ELSE g.home_score END`
+      : `g.home_score, g.visitor_score`;
+
     const query = `
       WITH scored AS (
         SELECT
           ${scoreSelect},
           g.date, g.home_team, g.visitor_team, g.game_id, g.source,
-          COUNT(*) OVER (PARTITION BY g.home_score, g.visitor_score) AS occurrences,
-          ROW_NUMBER() OVER (PARTITION BY g.home_score, g.visitor_score ORDER BY g.date DESC) AS rn
+          COUNT(*) OVER (PARTITION BY ${partitionCols}) AS occurrences,
+          ROW_NUMBER() OVER (PARTITION BY ${partitionCols} ORDER BY g.date DESC) AS rn
         FROM gamelogs g
         ${teamFilter || negroLeagueFilter}
       )

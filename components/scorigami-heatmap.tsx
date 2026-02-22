@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useLayoutEffect, useRef } from "react";
 import { Tooltip, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { X, Loader2, FilterX } from "lucide-react";
@@ -139,6 +139,7 @@ export default function ScorigamiHeatmap({
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [cellSize, setCellSize] = useState(DESKTOP_CELL_SIZE);
   const [headerCellSize, setHeaderCellSize] = useState(DESKTOP_HEADER_CELL_SIZE);
+  const [gridReady, setGridReady] = useState(false);
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [activeCellKey, setActiveCellKey] = useState<string | null>(null);
   const [hoveredCellKey, setHoveredCellKey] = useState<string | null>(null);
@@ -189,7 +190,7 @@ export default function ScorigamiHeatmap({
     return dataColors[colorIndex];
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const calculateSize = () => {
       if (!gridContainerRef.current) return;
       const containerWidth = gridContainerRef.current.offsetWidth;
@@ -201,6 +202,7 @@ export default function ScorigamiHeatmap({
       setHeaderCellSize(
         Math.max(10, Math.min(DESKTOP_HEADER_CELL_SIZE, dynamicCellSize * 1.2))
       );
+      setGridReady(true);
     };
     if (hasData) {
       calculateSize();
@@ -238,6 +240,7 @@ export default function ScorigamiHeatmap({
       <div
         ref={gridContainerRef}
         className="p-3 sm:p-6 flex flex-col items-center justify-center"
+        style={{ visibility: gridReady ? "visible" : "hidden" }}
       >
         <div className="flex flex-col items-center">
           <div

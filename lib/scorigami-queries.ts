@@ -46,7 +46,8 @@ export async function getYearlyScorigami(
   // Per-team: query gamelogs grouped by year
   const scoreSelect = isTraditional
     ? `GREATEST(g.home_score, g.visitor_score) AS score1, LEAST(g.home_score, g.visitor_score) AS score2`
-    : `g.home_score AS score1, g.visitor_score AS score2`;
+    : `CASE WHEN g.home_team_id = $1 THEN g.home_score ELSE g.visitor_score END AS score1,
+       CASE WHEN g.home_team_id = $1 THEN g.visitor_score ELSE g.home_score END AS score2`;
 
   const query = `
     SELECT

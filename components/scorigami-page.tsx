@@ -37,6 +37,20 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   const [club, setClub] = useState<FranchiseCode | "ALL">(initialClub);
   const [yearRange, setYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
   const [gridSize, setGridSize] = useState<GridSize>(36);
+  const [heatmapInteractive, setHeatmapInteractive] = useState(true);
+  const dropdownOpenRef = useRef(false);
+
+  const handleDropdownOpenChange = (open: boolean) => {
+    dropdownOpenRef.current = open;
+    if (open) {
+      setHeatmapInteractive(false);
+    } else {
+      // Delay re-enabling to absorb the ghost click after dropdown close
+      setTimeout(() => {
+        if (!dropdownOpenRef.current) setHeatmapInteractive(true);
+      }, 300);
+    }
+  };
 
   // Load all yearly data once per team+type combo
   const apiUrl = useMemo(
@@ -168,6 +182,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     setYearRange,
     dataYearBounds,
     sortedTeamsForDropdown,
+    onDropdownOpenChange: handleDropdownOpenChange,
   };
 
   return (
@@ -184,7 +199,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
         </div>
 
         {/* Heatmap — full width */}
-        <div className="relative bg-white dark:bg-[#252526] border border-slate-200/80 dark:border-[#2d2d30] rounded-lg overflow-hidden min-h-[400px] md:min-h-[500px]">
+        <div className={`relative bg-white dark:bg-[#252526] border border-slate-200/80 dark:border-[#2d2d30] rounded-lg overflow-hidden min-h-[400px] md:min-h-[500px] ${!heatmapInteractive ? "pointer-events-none" : ""}`}>
           {/* Expand/collapse grid button */}
           <button
             onClick={() => setGridSize(gridSize === 36 ? 51 : 36)}
