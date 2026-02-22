@@ -71,8 +71,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark scroll-smooth">
+    <html lang="en" className="dark scroll-smooth no-transitions" suppressHydrationWarning>
       <body className={`${GeistSans.variable} ${GeistMono.variable} ${cookie.variable} font-sans antialiased bg-slate-50 dark:bg-[#1e1e1e]`}>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `requestAnimationFrame(()=>requestAnimationFrame(()=>document.documentElement.classList.remove("no-transitions")))`,
+          }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

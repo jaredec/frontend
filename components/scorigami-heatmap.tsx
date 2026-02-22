@@ -108,6 +108,7 @@ interface ScorigamiHeatmapProps {
   scorigamiType: ScorigamiType;
   club: string;
   gridSize: number;
+  isGhostClick?: () => boolean;
 }
 
 export default function ScorigamiHeatmap({
@@ -116,6 +117,7 @@ export default function ScorigamiHeatmap({
   scorigamiType,
   club,
   gridSize,
+  isGhostClick,
 }: ScorigamiHeatmapProps) {
   const GRID_DIMENSION = gridSize;
 
@@ -327,7 +329,10 @@ export default function ScorigamiHeatmap({
                               } ${isActive ? "brightness-125" : ""}`}
                               onMouseEnter={() => setHoveredCellKey(k)}
                               onMouseLeave={() => setHoveredCellKey(null)}
-                              onClick={() => setActiveCellKey(isActive ? null : k)}
+                              onClick={() => {
+                                if (isGhostClick?.()) return;
+                                setActiveCellKey(isActive ? null : k);
+                              }}
                             />
                           );
 

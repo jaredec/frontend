@@ -121,6 +121,13 @@
   }
 }
 
+/* Suppress all transitions during initial page load to prevent FOUC flicker */
+.no-transitions *,
+.no-transitions *::before,
+.no-transitions *::after {
+  transition: none !important;
+}
+
 /* Loading shimmer animation */
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
