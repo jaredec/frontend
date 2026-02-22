@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import useSWR from "swr";
+import useSWR, { preload } from "swr";
 import { AlertTriangle, Maximize2, Minimize2 } from "lucide-react";
 
 import TopBar from "@/components/top-bar";
@@ -14,6 +14,7 @@ import {
   FranchiseCode,
   ScorigamiType,
 } from "@/lib/mlb-data";
+import type { YearlyRow } from "@/lib/scorigami-queries";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = 1871;
@@ -26,18 +27,6 @@ const fetcher = async (u: string) => {
 };
 
 export type GridSize = 36 | 51;
-
-interface YearlyRow {
-  year: number;
-  score1: number;
-  score2: number;
-  occurrences: number;
-  last_date: string | null;
-  last_home_team: string | null;
-  last_visitor_team: string | null;
-  last_game_id: number | null;
-  source: string | null;
-}
 
 interface ScorigamiPageProps {
   initialClub?: FranchiseCode | "ALL";
@@ -64,7 +53,6 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     revalidateOnFocus: false,
     revalidateIfStale: false,
     dedupingInterval: 3600000,
-    keepPreviousData: true,
   });
 
   // Derive min/max year from actual data
@@ -81,29 +69,36 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   }, [yearlyRows]);
 
   // Adjust yearRange when data bounds change (e.g. team switch)
-  const prevBoundsRef = useRef(dataYearBounds);
+  const prevClubRef = useRef(club);
   useEffect(() => {
-    const [prevMin, prevMax] = prevBoundsRef.current;
-    const [dataMin, dataMax] = dataYearBounds;
-    prevBoundsRef.current = dataYearBounds;
+    if (!yearlyRows || yearlyRows.length === 0) return;
 
-    setYearRange(([lo, hi]) => {
-      // If "all time" was selected for previous team, expand to new team's full range
-      if (lo === prevMin && hi === prevMax) {
-        return [dataMin, dataMax];
-      }
-      // If single year was at the edge, move to new edge
-      if (lo === hi && lo === prevMax) {
-        return [dataMax, dataMax];
-      }
-      // Otherwise clamp to new bounds
-      const clampedLo = Math.max(lo, dataMin);
-      const clampedHi = Math.min(hi, dataMax);
-      if (clampedLo > clampedHi) return [dataMin, dataMax];
-      if (clampedLo !== lo || clampedHi !== hi) return [clampedLo, clampedHi];
-      return [lo, hi];
-    });
-  }, [dataYearBounds]);
+    const [dataMin, dataMax] = dataYearBounds;
+    const clubChanged = prevClubRef.current !== club;
+    prevClubRef.current = club;
+
+    if (clubChanged) {
+      // Team changed: snap to full range
+      setYearRange([dataMin, dataMax]);
+    } else {
+      // Same team, bounds may have shifted (type switch or data reload): clamp
+      setYearRange(([lo, hi]) => {
+        const clampedLo = Math.max(lo, dataMin);
+        const clampedHi = Math.min(hi, dataMax);
+        if (clampedLo > clampedHi) return [dataMin, dataMax];
+        if (clampedLo !== lo || clampedHi !== hi) return [clampedLo, clampedHi];
+        return [lo, hi];
+      });
+    }
+  }, [club, yearlyRows, dataYearBounds]);
+
+  // Prefetch the alternate type so toggling is instant
+  useEffect(() => {
+    if (!yearlyRows) return;
+    const altType = scorigamiType === "traditional" ? "home_away" : "traditional";
+    const altUrl = `/api/scorigami?team=${club}&type=${altType}&mode=yearly`;
+    preload(altUrl, fetcher);
+  }, [yearlyRows, club, scorigamiType]);
 
   // Client-side: filter by year range and aggregate by score pair
   const rows = useMemo(() => {

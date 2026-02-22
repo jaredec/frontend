@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TEAM_NAMES, CURRENT_FRANCHISE_CODES, FranchiseCode } from "@/lib/mlb-data";
+import { getYearlyScorigami } from "@/lib/scorigami-queries";
+import SWRProvider from "@/components/swr-provider";
 import ScorigamiPage from "@/components/scorigami-page";
+
+export const revalidate = 3600;
 
 interface TeamPageProps {
   params: Promise<{ code: string }>;
@@ -47,5 +51,15 @@ export default async function TeamPage({ params }: TeamPageProps) {
     notFound();
   }
 
-  return <ScorigamiPage initialClub={upper as FranchiseCode} />;
+  const data = await getYearlyScorigami(upper, "traditional");
+
+  return (
+    <SWRProvider
+      fallback={{
+        [`/api/scorigami?team=${upper}&type=traditional&mode=yearly`]: data,
+      }}
+    >
+      <ScorigamiPage initialClub={upper as FranchiseCode} />
+    </SWRProvider>
+  );
 }
