@@ -119,13 +119,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const winnerName = winnerIsAway ? (TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop()) : (TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop());
     const loserName = winnerIsAway ? (TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop()) : (TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop());
     
-    const winnerHashtag = TEAM_HASHTAG_MAP[winnerIsAway ? away_name : home_name] || "";
-    const loserHashtag = TEAM_HASHTAG_MAP[winnerIsAway ? home_name : away_name] || "";
-
-    const header = `FINAL: ${winnerName} ${Math.max(away_score, home_score)}, ${loserName} ${Math.min(away_score, home_score)}\n${winnerHashtag} // ${loserHashtag}`;
+    const isPostseason = ['F', 'D', 'L', 'W'].includes(g.gameType);
+    const header = `FINAL: ${winnerName} ${Math.max(away_score, home_score)}, ${loserName} ${Math.min(away_score, home_score)}${isPostseason ? '\n#Postseason' : ''}`;
 
     if (scorigamiResult.isScorigami) {
-        postText = `${header}\n\n🚨 That's Scorigami!\nThe ${getOrdinal(scorigamiResult.newCount)} unique score combination in MLB history.`;
+        postText = `${header}\n\nThat's Scorigami!\nThe ${getOrdinal(scorigamiResult.newCount)} unique score combination in MLB history.`;
     } else {
         const isAwayS = await isFranchiseScorigami(supabase, franchiseIdsAway, away_score, home_score);
         const isHomeS = await isFranchiseScorigami(supabase, franchiseIdsHome, home_score, away_score);
@@ -133,7 +131,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         if (isAwayS || isHomeS) {
             const teamName = isAwayS ? away_name : home_name;
-            postText = `${header}\n\n🚨 That's Franchisigami!\nThe first time this score has occurred in ${teamName} history.\n\nThis score has happened ${history?.occurrences} times in MLB history, last on ${history?.last_game_date}.`;
+            postText = `${header}\n\nThat's Franchisigami!\nThe first time this score has occurred in ${teamName} history.\n\nThis score has happened ${history?.occurrences} times in MLB history, last on ${history?.last_game_date}.`;
         } else {
             postText = `${header}\n\nNo Scorigami. This score has happened ${history?.occurrences} times in MLB history, last on ${history?.last_game_date}.`;
         }
