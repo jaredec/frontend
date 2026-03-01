@@ -1,10 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import * as Select from "@radix-ui/react-select";
 import * as Slider from "@radix-ui/react-slider";
 import { ChevronDown } from "lucide-react";
-import { TEAM_NAMES, FranchiseCode, GameFilter } from "@/lib/mlb-data";
+import { TEAM_NAMES, FranchiseCode, GameFilter, getTeamLogoUrl } from "@/lib/mlb-data";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = 1871;
@@ -33,6 +33,15 @@ export default function FilterBar({
   sortedTeamsForDropdown,
   onDropdownOpenChange,
 }: FilterBarProps) {
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.classList.contains("dark"));
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
   const [dataMin, dataMax] = dataYearBounds;
   const isSingleYear = yearRange[0] === yearRange[1];
   const isModernEra = !isSingleYear && yearRange[0] === MODERN_ERA_START && yearRange[1] === dataMax;
@@ -78,7 +87,7 @@ export default function FilterBar({
                     [
                       { value: "all",      label: "All Games" },
                       { value: "regular",  label: "Regular Season" },
-                      { value: "playoffs", label: "All Playoffs" },
+                      { value: "playoffs", label: "Playoffs" },
                       { value: "ws",       label: "World Series" },
                       { value: "lcs",      label: "LCS" },
                       { value: "ds",       label: "Division Series" },
@@ -111,8 +120,13 @@ export default function FilterBar({
           >
             <Select.Trigger className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-3 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
               <Select.Value>
-                <span className="truncate">
-                  {club === "ALL" ? "All Teams" : TEAM_NAMES[club] ?? club}
+                <span className="flex items-center gap-2 min-w-0">
+                  {club !== "ALL" && getTeamLogoUrl(club, isDark) && (
+                    <img src={getTeamLogoUrl(club, isDark)!} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                  )}
+                  <span className="truncate">
+                    {club === "ALL" ? "All Teams" : TEAM_NAMES[club] ?? club}
+                  </span>
                 </span>
               </Select.Value>
               <Select.Icon>
@@ -138,7 +152,19 @@ export default function FilterBar({
                       value={team.code}
                       className="cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white"
                     >
-                      <Select.ItemText>{team.name}</Select.ItemText>
+                      <Select.ItemText>
+                        <span className="flex items-center gap-2">
+                          {getTeamLogoUrl(team.code, isDark) && (
+                            <img
+                              src={getTeamLogoUrl(team.code, isDark)!}
+                              alt=""
+                              loading="lazy"
+                              className="w-5 h-5 object-contain flex-shrink-0"
+                            />
+                          )}
+                          {team.name}
+                        </span>
+                      </Select.ItemText>
                     </Select.Item>
                   ))}
                 </Select.Viewport>
