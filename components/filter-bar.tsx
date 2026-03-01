@@ -1,18 +1,18 @@
 "use client";
 
 import React from "react";
-import * as RadioGroup from "@radix-ui/react-radio-group";
 import * as Select from "@radix-ui/react-select";
 import * as Slider from "@radix-ui/react-slider";
 import { ChevronDown } from "lucide-react";
-import { TEAM_NAMES, FranchiseCode, ScorigamiType } from "@/lib/mlb-data";
+import { TEAM_NAMES, FranchiseCode, GameFilter } from "@/lib/mlb-data";
+
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = 1871;
 const MODERN_ERA_START = 1901;
 
 interface FilterBarProps {
-  scorigamiType: ScorigamiType;
-  setScorigamiType: (value: ScorigamiType) => void;
+  gameFilter: GameFilter;
+  setGameFilter: (value: GameFilter) => void;
   club: FranchiseCode | "ALL";
   setClub: (value: FranchiseCode | "ALL") => void;
   yearRange: [number, number];
@@ -23,8 +23,8 @@ interface FilterBarProps {
 }
 
 export default function FilterBar({
-  scorigamiType,
-  setScorigamiType,
+  gameFilter,
+  setGameFilter,
   club,
   setClub,
   yearRange,
@@ -47,100 +47,110 @@ export default function FilterBar({
 
   return (
     <div className="space-y-3 md:space-y-0 md:flex md:items-end md:gap-5">
-      {/* Type + Team: side by side on mobile, individual items on desktop */}
-      <div className="flex gap-3 md:contents">
-      {/* Type toggle */}
-      <div className="flex-shrink-0">
-        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
-          Type
-        </label>
-        <RadioGroup.Root
-          value={scorigamiType}
-          onValueChange={(v: string) => setScorigamiType(v as ScorigamiType)}
-          className="flex items-center gap-0.5 rounded-md bg-slate-100 dark:bg-[#2d2d30] p-0.5"
-        >
-          <RadioGroup.Item
-            value="traditional"
-            className="focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-          >
-            <span
-              className={`block rounded px-2.5 py-1.5 text-xs sm:text-sm font-medium cursor-pointer transition-colors whitespace-nowrap ${
-                scorigamiType === "traditional"
-                  ? "bg-white dark:bg-[#3e3e42] text-slate-900 dark:text-white shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-              }`}
-            >
-              Traditional
-            </span>
-          </RadioGroup.Item>
-          <RadioGroup.Item
-            value="home_away"
-            className="focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-          >
-            <span
-              className={`block rounded px-2.5 py-1.5 text-xs sm:text-sm font-medium cursor-pointer transition-colors whitespace-nowrap ${
-                scorigamiType === "home_away"
-                  ? "bg-white dark:bg-[#3e3e42] text-slate-900 dark:text-white shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-              }`}
-            >
-              Home/Away
-            </span>
-          </RadioGroup.Item>
-        </RadioGroup.Root>
-      </div>
 
-      {/* Team select */}
-      <div className="flex-1 min-w-0 md:w-44 md:flex-none">
-        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
-          Team
-        </label>
-        <Select.Root
-          value={club}
-          onValueChange={(val: string) => setClub(val as FranchiseCode | "ALL")}
-          onOpenChange={onDropdownOpenChange}
-        >
-          <Select.Trigger className="flex h-9 w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-            <Select.Value>
-              <span className="truncate">
-                {club === "ALL" ? "All Teams" : TEAM_NAMES[club] ?? club}
-              </span>
-            </Select.Value>
-            <Select.Icon>
-              <ChevronDown className="h-4 w-4 text-slate-400 flex-shrink-0" />
-            </Select.Icon>
-          </Select.Trigger>
-          <Select.Portal>
-            <Select.Content
-              className="z-[99] max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] p-1 text-sm shadow-lg"
-              position="popper"
-              sideOffset={4}
-            >
-              <Select.Viewport>
-                <Select.Item
-                  value="ALL"
-                  className="cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white"
-                >
-                  <Select.ItemText>All Teams</Select.ItemText>
-                </Select.Item>
-                {sortedTeamsForDropdown.map((team) => (
+      {/* Row 1 on mobile: Games dropdown + Team dropdown */}
+      <div className="flex items-end gap-2 md:contents">
+
+        {/* Game Type dropdown */}
+        <div className="flex-1 min-w-0 md:w-40 md:flex-none">
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+            Game Type
+          </label>
+          <Select.Root
+            value={gameFilter}
+            onValueChange={(val: string) => setGameFilter(val as GameFilter)}
+            onOpenChange={onDropdownOpenChange}
+          >
+            <Select.Trigger className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 whitespace-nowrap">
+              <Select.Value />
+              <Select.Icon>
+                <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+              </Select.Icon>
+            </Select.Trigger>
+            <Select.Portal>
+              <Select.Content
+                className="z-[99] w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] p-1 shadow-lg"
+                position="popper"
+                sideOffset={4}
+              >
+                <Select.Viewport>
+                  {(
+                    [
+                      { value: "all",      label: "All Games" },
+                      { value: "regular",  label: "Regular Season" },
+                      { value: "playoffs", label: "All Playoffs" },
+                      { value: "ws",       label: "World Series" },
+                      { value: "lcs",      label: "LCS" },
+                      { value: "ds",       label: "Division Series" },
+                      { value: "wc",       label: "Wild Card" },
+                    ] as { value: GameFilter; label: string }[]
+                  ).map((opt) => (
+                    <Select.Item
+                      key={opt.value}
+                      value={opt.value}
+                      className="cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white whitespace-nowrap"
+                    >
+                      <Select.ItemText>{opt.label}</Select.ItemText>
+                    </Select.Item>
+                  ))}
+                </Select.Viewport>
+              </Select.Content>
+            </Select.Portal>
+          </Select.Root>
+        </div>
+
+        {/* Team dropdown */}
+        <div className="flex-1 min-w-0 md:w-52 md:flex-none">
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+            Team
+          </label>
+          <Select.Root
+            value={club}
+            onValueChange={(val: string) => setClub(val as FranchiseCode | "ALL")}
+            onOpenChange={onDropdownOpenChange}
+          >
+            <Select.Trigger className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-3 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+              <Select.Value>
+                <span className="truncate">
+                  {club === "ALL" ? "All Teams" : TEAM_NAMES[club] ?? club}
+                </span>
+              </Select.Value>
+              <Select.Icon>
+                <ChevronDown className="h-4 w-4 text-slate-400 flex-shrink-0" />
+              </Select.Icon>
+            </Select.Trigger>
+            <Select.Portal>
+              <Select.Content
+                className="z-[99] max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] p-1 text-sm shadow-lg"
+                position="popper"
+                sideOffset={4}
+              >
+                <Select.Viewport>
                   <Select.Item
-                    key={team.code}
-                    value={team.code}
+                    value="ALL"
                     className="cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white"
                   >
-                    <Select.ItemText>{team.name}</Select.ItemText>
+                    <Select.ItemText>All Teams</Select.ItemText>
                   </Select.Item>
-                ))}
-              </Select.Viewport>
-            </Select.Content>
-          </Select.Portal>
-        </Select.Root>
-      </div>
+                  {sortedTeamsForDropdown.map((team) => (
+                    <Select.Item
+                      key={team.code}
+                      value={team.code}
+                      className="cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white"
+                    >
+                      <Select.ItemText>{team.name}</Select.ItemText>
+                    </Select.Item>
+                  ))}
+                </Select.Viewport>
+              </Select.Content>
+            </Select.Portal>
+          </Select.Root>
+        </div>
+
       </div>
 
-      {/* Year range slider */}
-      <div className="md:flex-1 md:min-w-0">
+      {/* Row 2 on mobile: Year range slider — full width */}
+      <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1.5">
           <span className="text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums">
             {isSingleYear ? yearRange[0] : `${yearRange[0]} – ${yearRange[1]}`}
@@ -218,6 +228,7 @@ export default function FilterBar({
           </Slider.Root>
         )}
       </div>
+
     </div>
   );
 }

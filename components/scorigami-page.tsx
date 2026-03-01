@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import useSWR, { preload } from "swr";
-import { AlertTriangle, Maximize2, Minimize2 } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Maximize2, Minimize2 } from "lucide-react";
 
 import TopBar from "@/components/top-bar";
 import FilterBar from "@/components/filter-bar";
@@ -13,6 +13,7 @@ import {
   CURRENT_FRANCHISE_CODES,
   FranchiseCode,
   ScorigamiType,
+  GameFilter,
 } from "@/lib/mlb-data";
 import type { YearlyRow } from "@/lib/scorigami-queries";
 
@@ -36,6 +37,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>("traditional");
   const [club, setClub] = useState<FranchiseCode | "ALL">(initialClub);
   const [yearRange, setYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
+  const [gameFilter, setGameFilter] = useState<GameFilter>("all");
   const [gridSize, setGridSize] = useState<GridSize>(36);
   // Track when filter dropdowns close to suppress ghost clicks on heatmap
   const dropdownCloseTimeRef = useRef(0);
@@ -46,8 +48,8 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
 
   // Load all yearly data once per team+type combo
   const apiUrl = useMemo(
-    () => `/api/scorigami?team=${club}&type=${scorigamiType}&mode=yearly`,
-    [club, scorigamiType]
+    () => `/api/scorigami?team=${club}&type=${scorigamiType}&mode=yearly&gameFilter=${gameFilter}`,
+    [club, scorigamiType, gameFilter]
   );
 
   const {
@@ -74,20 +76,23 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     return [min, max];
   }, [yearlyRows]);
 
-  // Adjust yearRange when data bounds change (e.g. team switch)
+  // Adjust yearRange when data bounds change (e.g. team or game filter switch)
   const prevClubRef = useRef(club);
+  const prevGameFilterRef = useRef(gameFilter);
   useEffect(() => {
     if (!yearlyRows || yearlyRows.length === 0) return;
 
     const [dataMin, dataMax] = dataYearBounds;
     const clubChanged = prevClubRef.current !== club;
+    const gameFilterChanged = prevGameFilterRef.current !== gameFilter;
     prevClubRef.current = club;
+    prevGameFilterRef.current = gameFilter;
 
-    if (clubChanged) {
-      // Team changed: snap to full range
+    if (clubChanged || gameFilterChanged) {
+      // Team or game filter changed: snap to full range for new data
       setYearRange([dataMin, dataMax]);
     } else {
-      // Same team, bounds may have shifted (type switch or data reload): clamp
+      // Same team + filter, bounds may have shifted (type switch or data reload): clamp
       setYearRange(([lo, hi]) => {
         const clampedLo = Math.max(lo, dataMin);
         const clampedHi = Math.min(hi, dataMax);
@@ -96,13 +101,13 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
         return [lo, hi];
       });
     }
-  }, [club, yearlyRows, dataYearBounds]);
+  }, [club, gameFilter, yearlyRows, dataYearBounds]);
 
   // Prefetch the alternate type so toggling is instant
   useEffect(() => {
     if (!yearlyRows) return;
     const altType = scorigamiType === "traditional" ? "home_away" : "traditional";
-    const altUrl = `/api/scorigami?team=${club}&type=${altType}&mode=yearly`;
+    const altUrl = `/api/scorigami?team=${club}&type=${altType}&mode=yearly&gameFilter=${gameFilter}`;
     preload(altUrl, fetcher);
   }, [yearlyRows, club, scorigamiType]);
 
@@ -166,8 +171,8 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   }, []);
 
   const filterProps = {
-    scorigamiType,
-    setScorigamiType,
+    gameFilter,
+    setGameFilter,
     club,
     setClub,
     yearRange,
@@ -192,18 +197,27 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
 
         {/* Heatmap — full width */}
         <div className="relative bg-white dark:bg-[#252526] border border-slate-200/80 dark:border-[#2d2d30] rounded-lg overflow-hidden min-h-[400px] md:min-h-[500px]">
-          {/* Expand/collapse grid button */}
-          <button
-            onClick={() => setGridSize(gridSize === 36 ? 51 : 36)}
-            className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-white/80 dark:bg-[#252526]/80 backdrop-blur-sm border border-slate-200/60 dark:border-[#3e3e42]/60 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-            title={gridSize === 36 ? "Expand grid" : "Collapse grid"}
-          >
-            {gridSize === 36 ? (
-              <Maximize2 className="w-4 h-4" />
-            ) : (
-              <Minimize2 className="w-4 h-4" />
-            )}
-          </button>
+          {/* Icon buttons: type toggle + expand/collapse */}
+          <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+            <button
+              onClick={() => setScorigamiType(scorigamiType === "traditional" ? "home_away" : "traditional")}
+              className="p-1.5 rounded-md bg-white/80 dark:bg-[#252526]/80 backdrop-blur-sm border border-slate-200/60 dark:border-[#3e3e42]/60 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              title={scorigamiType === "traditional" ? "Switch to Home/Away view" : "Switch to Traditional view"}
+            >
+              <ArrowLeftRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setGridSize(gridSize === 36 ? 51 : 36)}
+              className="p-1.5 rounded-md bg-white/80 dark:bg-[#252526]/80 backdrop-blur-sm border border-slate-200/60 dark:border-[#3e3e42]/60 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              title={gridSize === 36 ? "Expand grid" : "Collapse grid"}
+            >
+              {gridSize === 36 ? (
+                <Maximize2 className="w-4 h-4" />
+              ) : (
+                <Minimize2 className="w-4 h-4" />
+              )}
+            </button>
+          </div>
 
           {isValidating && (
             <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden z-50">

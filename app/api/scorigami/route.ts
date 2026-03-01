@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { FRANCHISE_CODE_TO_ID_MAP, getYearlyScorigami } from '@/lib/scorigami-queries';
+import type { GameFilter } from '@/lib/mlb-data';
 
 const CACHE_HEADERS = {
   'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
   const team = searchParams.get('team') || 'ALL';
   const type = searchParams.get('type') || 'traditional';
   const mode = searchParams.get('mode') || 'aggregated';
+  const gameFilter = (searchParams.get('gameFilter') || 'all') as GameFilter;
 
   const teamId = team === 'ALL' ? 0 : (FRANCHISE_CODE_TO_ID_MAP[team] || 0);
   const isTraditional = type === 'traditional';
@@ -18,7 +20,7 @@ export async function GET(request: NextRequest) {
   try {
     // Yearly mode: delegate to shared function
     if (mode === 'yearly') {
-      const rows = await getYearlyScorigami(team, type);
+      const rows = await getYearlyScorigami(team, type, gameFilter);
       return NextResponse.json(rows, { headers: CACHE_HEADERS });
     }
 
