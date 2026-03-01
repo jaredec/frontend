@@ -109,7 +109,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     const altType = scorigamiType === "traditional" ? "home_away" : "traditional";
     const altUrl = `/api/scorigami?team=${club}&type=${altType}&mode=yearly&gameFilter=${gameFilter}`;
     preload(altUrl, fetcher);
-  }, [yearlyRows, club, scorigamiType]);
+  }, [yearlyRows, club, scorigamiType, gameFilter]);
 
   // Client-side: filter by year range and aggregate by score pair
   const rows = useMemo(() => {

@@ -1,7 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import TwitterApi from 'twitter-api-v2';
-import { TEAM_HASHTAG_MAP } from '@/lib/mlb-data';
 
 const TEAM_NAME_SHORTENER_MAP: { [key: string]: string } = {
   'Chicago White Sox': 'White Sox', 
