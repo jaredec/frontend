@@ -61,7 +61,7 @@ export default function FilterBar({
       <div className="flex items-end gap-2 md:contents">
 
         {/* Game Type dropdown */}
-        <div className="flex-1 min-w-0 md:w-40 md:flex-none">
+        <div className="flex-1 min-w-0 md:w-52 md:flex-none">
           <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
             Game Type
           </label>
@@ -70,10 +70,10 @@ export default function FilterBar({
             onValueChange={(val: string) => setGameFilter(val as GameFilter)}
             onOpenChange={onDropdownOpenChange}
           >
-            <Select.Trigger className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 whitespace-nowrap">
-              <Select.Value />
-              <Select.Icon>
-                <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+            <Select.Trigger className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 whitespace-nowrap overflow-hidden">
+              <Select.Value className="truncate" />
+              <Select.Icon className="flex-shrink-0 ml-1">
+                <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
               </Select.Icon>
             </Select.Trigger>
             <Select.Portal>
@@ -87,10 +87,10 @@ export default function FilterBar({
                     [
                       { value: "all",      label: "All Games" },
                       { value: "regular",  label: "Regular Season" },
-                      { value: "playoffs", label: "Playoffs" },
+                      { value: "playoffs", label: "Postseason" },
                       { value: "ws",       label: "World Series" },
-                      { value: "lcs",      label: "LCS" },
-                      { value: "ds",       label: "Division Series" },
+                      { value: "lcs",      label: "League Championship" },
+                      { value: "ds",       label: "Division" },
                       { value: "wc",       label: "Wild Card" },
                     ] as { value: GameFilter; label: string }[]
                   ).map((opt) => (
