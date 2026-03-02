@@ -70,8 +70,10 @@ export default function FilterBar({
             onValueChange={(val: string) => setGameFilter(val as GameFilter)}
             onOpenChange={onDropdownOpenChange}
           >
-            <Select.Trigger className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 whitespace-nowrap overflow-hidden">
-              <Select.Value className="truncate" />
+            <Select.Trigger className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 overflow-hidden">
+              <span className="flex-1 min-w-0 truncate">
+                <Select.Value />
+              </span>
               <Select.Icon className="flex-shrink-0 ml-1">
                 <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
               </Select.Icon>
@@ -118,19 +120,21 @@ export default function FilterBar({
             onValueChange={(val: string) => setClub(val as FranchiseCode | "ALL")}
             onOpenChange={onDropdownOpenChange}
           >
-            <Select.Trigger className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-3 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-              <Select.Value>
-                <span className="flex items-center gap-2 min-w-0">
-                  {club !== "ALL" && getTeamLogoUrl(club, isDark) && (
-                    <img src={getTeamLogoUrl(club, isDark)!} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
-                  )}
-                  <span className="truncate">
-                    {club === "ALL" ? "All Teams" : TEAM_NAMES[club] ?? club}
+            <Select.Trigger className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-3 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 overflow-hidden">
+              <span className="flex-1 min-w-0 overflow-hidden">
+                <Select.Value>
+                  <span className="flex items-center gap-2 min-w-0">
+                    {club !== "ALL" && getTeamLogoUrl(club, isDark) && (
+                      <img src={getTeamLogoUrl(club, isDark)!} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                    )}
+                    <span className="truncate">
+                      {club === "ALL" ? "All Teams" : TEAM_NAMES[club] ?? club}
+                    </span>
                   </span>
-                </span>
-              </Select.Value>
-              <Select.Icon>
-                <ChevronDown className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                </Select.Value>
+              </span>
+              <Select.Icon className="flex-shrink-0 ml-1">
+                <ChevronDown className="h-4 w-4 text-slate-400" />
               </Select.Icon>
             </Select.Trigger>
             <Select.Portal>
