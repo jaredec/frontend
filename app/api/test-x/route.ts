@@ -118,9 +118,6 @@ function formatGame(history: ScoreHistory): string {
   return `${history.last_visitor_team} vs ${history.last_home_team}`;
 }
 
-function formatPlayoffLine(b: { total: number; ws: number; lcs: number; ds: number; wc: number; last_date: string | null }) {
-  return `Postseason: ${b.total} times (WS: ${b.ws}, LCS: ${b.lcs}, DS: ${b.ds}, WC: ${b.wc}), last on ${b.last_date}.`;
-}
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US');
