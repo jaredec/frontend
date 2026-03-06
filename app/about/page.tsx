@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "How It Works",
@@ -11,9 +12,9 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#1e1e1e]">
       <div className="px-4 pt-4">
-        <a href="/" className="text-sm text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+        <Link href="/" className="text-sm text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
           ← Back to heatmap
-        </a>
+        </Link>
       </div>
 
       <div className="flex-1 flex items-center justify-center">
