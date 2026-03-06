@@ -18,7 +18,7 @@ export default function AboutPage() {
       </div>
 
       <div className="flex-1 flex items-center justify-center">
-        <div className="max-w-lg w-full mx-auto px-4 py-6 space-y-4 text-slate-700 dark:text-slate-300 leading-normal">
+        <div className="max-w-2xl w-full mx-auto px-4 py-6 space-y-4 text-slate-700 dark:text-slate-300 leading-normal">
           <div className="flex items-center gap-3">
             <Image
               src="/logo3.svg"
