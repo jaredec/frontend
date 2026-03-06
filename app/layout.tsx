@@ -75,7 +75,7 @@ export default function RootLayout({
       <body className={`${GeistSans.variable} ${GeistMono.variable} ${cookie.variable} font-sans antialiased bg-slate-50 dark:bg-[#1e1e1e]`}>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){if(window.matchMedia("(prefers-color-scheme: dark)").matches){document.documentElement.classList.add("dark")}})();requestAnimationFrame(()=>requestAnimationFrame(()=>document.documentElement.classList.remove("no-transitions")))`,
+            __html: `if(!window.matchMedia("(prefers-color-scheme: light)").matches){document.documentElement.classList.add("dark")}requestAnimationFrame(()=>requestAnimationFrame(()=>document.documentElement.classList.remove("no-transitions")))`,
           }}
         />
         <script

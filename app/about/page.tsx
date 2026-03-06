@@ -18,7 +18,7 @@ export default function AboutPage() {
       </div>
 
       <div className="flex-1 flex items-center justify-center">
-        <div className="max-w-2xl w-full mx-auto px-4 py-6 space-y-4 text-slate-700 dark:text-slate-300 leading-normal">
+        <div className="w-full max-w-2xl px-6 py-8 space-y-5 text-slate-700 dark:text-slate-300 leading-relaxed">
           <div className="flex items-center gap-3">
             <Image
               src="/logo3.svg"
@@ -27,9 +27,9 @@ export default function AboutPage() {
               height={48}
               priority
               style={{ width: "auto" }}
-              className="h-10 w-auto flex-shrink-0 dark:invert"
+              className="h-9 w-auto flex-shrink-0 dark:invert"
             />
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            <h2 className="text-[clamp(1.1rem,4.5vw,1.5rem)] font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap">
               Welcome to MLB Scorigami!
             </h2>
           </div>
@@ -37,7 +37,7 @@ export default function AboutPage() {
           <div className="space-y-1">
             <h3 className="font-semibold text-slate-900 dark:text-slate-100">What is a Scorigami?</h3>
             <p>
-              A Scorigami is a final score that has never happened before in MLB history. Jon Bois invented the concept for the NFL and we track it for baseball. In over 150 years of MLB, only 358 unique final scores have ever occurred. In the modern era alone, that number is 289, with just 11 new scores since 2000.
+              A Scorigami is a final score that has never happened before in MLB history. In over 150 years of MLB, only 358 unique final scores have ever occurred. In the modern era alone, that number is 289, with just 11 new scores since 2000.
             </p>
           </div>
 

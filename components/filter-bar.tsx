@@ -44,8 +44,12 @@ export default function FilterBar({
 
   const [dataMin, dataMax] = dataYearBounds;
   const isSingleYear = yearRange[0] === yearRange[1];
-  const isModernEra = !isSingleYear && yearRange[0] === MODERN_ERA_START && yearRange[1] === dataMax;
-  const isAllTime = !isSingleYear && yearRange[0] === dataMin && yearRange[1] === dataMax;
+  const hasPreModernData = dataMin < MODERN_ERA_START;
+
+  const modernStartPct = ((MODERN_ERA_START - MIN_YEAR) / (CURRENT_YEAR - MIN_YEAR)) * 100;
+  const trackGradient = isDark
+    ? `linear-gradient(to right, #52525b 0%, #52525b ${modernStartPct}%, #3e3e42 ${modernStartPct}%, #3e3e42 100%)`
+    : `linear-gradient(to right, #94a3b8 0%, #94a3b8 ${modernStartPct}%, #e2e8f0 ${modernStartPct}%, #e2e8f0 100%)`;
 
   const clampYear = (y: number) => Math.max(dataMin, Math.min(dataMax, y));
   const clampedSet = (lo: number, hi: number) => {
@@ -185,45 +189,21 @@ export default function FilterBar({
           <span className="text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums">
             {isSingleYear ? yearRange[0] : `${yearRange[0]} – ${yearRange[1]}`}
           </span>
-          <div className="flex items-center gap-0.5 ml-auto rounded-md bg-slate-100 dark:bg-[#2d2d30] p-0.5">
-            {dataMin < MODERN_ERA_START && (
-              <button
-                onClick={() => setYearRange([MODERN_ERA_START, dataMax])}
-                className={`px-2 py-1 text-[11px] font-medium rounded transition-colors whitespace-nowrap ${
-                  isModernEra
-                    ? "bg-white dark:bg-[#3e3e42] text-slate-900 dark:text-white shadow-sm"
-                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                }`}
-              >
-                Modern Era
-              </button>
-            )}
-            <button
-              onClick={() => setYearRange([dataMin, dataMax])}
-              className={`px-2 py-1 text-[11px] font-medium rounded transition-colors whitespace-nowrap ${
-                isAllTime
-                  ? "bg-white dark:bg-[#3e3e42] text-slate-900 dark:text-white shadow-sm"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-              }`}
-            >
-              All Time
-            </button>
-            <button
-              onClick={() =>
+          <label className="flex items-center gap-1.5 ml-auto cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={!isSingleYear}
+              onChange={() =>
                 isSingleYear
-                  ? setYearRange([dataMin, dataMax])
+                  ? setYearRange([Math.max(dataMin, MODERN_ERA_START), dataMax])
                   : setYearRange([clampYear(dataMax), clampYear(dataMax)])
               }
-              className={`px-2 py-1 text-[11px] font-medium rounded transition-colors whitespace-nowrap ${
-                isSingleYear
-                  ? "bg-white dark:bg-[#3e3e42] text-slate-900 dark:text-white shadow-sm"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-              }`}
-            >
-              Single Year
-            </button>
-          </div>
+              className="accent-blue-500 cursor-pointer"
+            />
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">Range</span>
+          </label>
         </div>
+        <div className="relative">
         {isSingleYear ? (
           <Slider.Root
             key="single"
@@ -234,7 +214,7 @@ export default function FilterBar({
             step={1}
             className="relative flex items-center select-none touch-none h-5 w-full"
           >
-            <Slider.Track className="relative grow h-1 rounded-full bg-slate-200 dark:bg-[#3e3e42]">
+            <Slider.Track className="relative grow h-1 rounded-full" style={{ background: trackGradient }}>
               <Slider.Range className="absolute h-full rounded-full bg-transparent" />
             </Slider.Track>
             <Slider.Thumb className="block h-4 w-4 rounded-full bg-white border-2 border-blue-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#1e1e1e] cursor-grab active:cursor-grabbing" />
@@ -250,13 +230,23 @@ export default function FilterBar({
             minStepsBetweenThumbs={1}
             className="relative flex items-center select-none touch-none h-5 w-full"
           >
-            <Slider.Track className="relative grow h-1 rounded-full bg-slate-200 dark:bg-[#3e3e42]">
+            <Slider.Track className="relative grow h-1 rounded-full" style={{ background: trackGradient }}>
               <Slider.Range className="absolute h-full rounded-full bg-blue-500 dark:bg-blue-600" />
             </Slider.Track>
             <Slider.Thumb className="block h-4 w-4 rounded-full bg-white border-2 border-blue-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#1e1e1e] cursor-grab active:cursor-grabbing" />
             <Slider.Thumb className="block h-4 w-4 rounded-full bg-white border-2 border-blue-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#1e1e1e] cursor-grab active:cursor-grabbing" />
           </Slider.Root>
         )}
+        {hasPreModernData && (
+          <div className="relative mt-1 h-3 select-none pointer-events-none">
+            <span className="absolute left-0 text-[9px] text-slate-400 dark:text-slate-500">1871</span>
+            <span className="absolute -translate-x-1/2 text-[9px] text-slate-400 dark:text-slate-500" style={{ left: `${modernStartPct}%` }}>
+              1901 (Modern Era)
+            </span>
+            <span className="absolute right-0 text-[9px] text-slate-400 dark:text-slate-500">{CURRENT_YEAR}</span>
+          </div>
+        )}
+        </div>
       </div>
 
     </div>

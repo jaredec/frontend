@@ -19,6 +19,7 @@ import type { YearlyRow } from "@/lib/scorigami-queries";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = 1871;
+const MODERN_ERA_START = 1901;
 
 const fetcher = async (u: string) => {
   const r = await fetch(u);
@@ -36,7 +37,7 @@ interface ScorigamiPageProps {
 export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProps) {
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>("traditional");
   const [club, setClub] = useState<FranchiseCode | "ALL">(initialClub);
-  const [yearRange, setYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
+  const [yearRange, setYearRange] = useState<[number, number]>([MODERN_ERA_START, CURRENT_YEAR]);
   const [gameFilter, setGameFilter] = useState<GameFilter>("all");
   const [gridSize, setGridSize] = useState<GridSize>(36);
   // Track when filter dropdowns close to suppress ghost clicks on heatmap
@@ -90,7 +91,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
 
     if (clubChanged || gameFilterChanged) {
       // Team or game filter changed: snap to full range for new data
-      setYearRange([dataMin, dataMax]);
+      setYearRange([Math.max(dataMin, MODERN_ERA_START), dataMax]);
     } else {
       // Same team + filter, bounds may have shifted (type switch or data reload): clamp
       setYearRange(([lo, hi]) => {
