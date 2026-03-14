@@ -1,10 +1,97 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import * as Select from "@radix-ui/react-select";
 import * as Slider from "@radix-ui/react-slider";
 import { ChevronDown, RotateCcw } from "lucide-react";
 import { TEAM_NAMES, FranchiseCode, GameFilter, getTeamLogoUrl } from "@/lib/mlb-data";
+
+const POSTSEASON_ROUNDS: { value: GameFilter; label: string }[] = [
+  { value: "playoffs", label: "All Postseason" },
+  { value: "ws",       label: "World Series" },
+  { value: "lcs",      label: "League Championship" },
+  { value: "ds",       label: "Division Series" },
+  { value: "wc",       label: "Wild Card" },
+];
+
+const isPostseason = (f: GameFilter) => ["playoffs", "ws", "lcs", "ds", "wc"].includes(f);
+
+function GameTypeDropdown({
+  value,
+  onChange,
+  onOpenChange,
+}: {
+  value: GameFilter;
+  onChange: (v: GameFilter) => void;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [postExpanded, setPostExpanded] = useState(isPostseason(value));
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        onOpenChange?.(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onOpenChange]);
+
+  const triggerLabel = isPostseason(value)
+    ? (POSTSEASON_ROUNDS.find(r => r.value === value)?.label ?? "Postseason")
+    : value === "all" ? "All Games" : "Regular Season";
+
+  const select = (v: GameFilter) => {
+    onChange(v);
+    setOpen(false);
+    onOpenChange?.(false);
+  };
+
+  const itemCls = "w-full text-left px-3 py-2 text-sm text-slate-800 dark:text-slate-200 hover:bg-blue-500 hover:text-white rounded cursor-pointer";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); onOpenChange?.(!open); }}
+        className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+      >
+        <span className="flex-1 truncate">{triggerLabel}</span>
+        <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0 ml-1" />
+      </button>
+
+      {open && (
+        <div className="absolute z-[99] mt-1 w-full min-w-[180px] rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] p-1 shadow-lg">
+          <button onClick={() => select("all")} className={itemCls}>All Games</button>
+          <button onClick={() => select("regular")} className={itemCls}>Regular Season</button>
+
+          {/* Postseason header — toggles sub-list */}
+          <button
+            type="button"
+            onClick={() => setPostExpanded(e => !e)}
+            className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#2d2d30] rounded cursor-pointer"
+          >
+            <span>Postseason</span>
+            <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${postExpanded ? "rotate-180" : ""}`} />
+          </button>
+
+          {postExpanded && (
+            <div className="ml-2 border-l border-slate-200 dark:border-[#3e3e42] pl-2">
+              {POSTSEASON_ROUNDS.map(r => (
+                <button key={r.value} onClick={() => select(r.value)} className={itemCls}>
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = 1871;
@@ -72,49 +159,11 @@ export default function FilterBar({
           <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
             Game Type
           </label>
-          <Select.Root
+          <GameTypeDropdown
             value={gameFilter}
-            onValueChange={(val: string) => setGameFilter(val as GameFilter)}
+            onChange={setGameFilter}
             onOpenChange={onDropdownOpenChange}
-          >
-            <Select.Trigger className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 overflow-hidden">
-              <span className="flex-1 min-w-0 truncate">
-                <Select.Value />
-              </span>
-              <Select.Icon className="flex-shrink-0 ml-1">
-                <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-              </Select.Icon>
-            </Select.Trigger>
-            <Select.Portal>
-              <Select.Content
-                className="z-[99] w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] p-1 shadow-lg"
-                position="popper"
-                sideOffset={4}
-              >
-                <Select.Viewport>
-                  {(
-                    [
-                      { value: "all",      label: "All Games" },
-                      { value: "regular",  label: "Regular Season" },
-                      { value: "playoffs", label: "Postseason" },
-                      { value: "ws",       label: "World Series" },
-                      { value: "lcs",      label: "League Championship" },
-                      { value: "ds",       label: "Division" },
-                      { value: "wc",       label: "Wild Card" },
-                    ] as { value: GameFilter; label: string }[]
-                  ).map((opt) => (
-                    <Select.Item
-                      key={opt.value}
-                      value={opt.value}
-                      className="cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white whitespace-nowrap"
-                    >
-                      <Select.ItemText>{opt.label}</Select.ItemText>
-                    </Select.Item>
-                  ))}
-                </Select.Viewport>
-              </Select.Content>
-            </Select.Portal>
-          </Select.Root>
+          />
         </div>
 
         {/* Team dropdown */}
