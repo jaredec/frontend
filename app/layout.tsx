@@ -81,24 +81,32 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebApplication",
-              name: "MLB Scorigami",
-              url: SITE_URL,
-              description: DESCRIPTION,
-              applicationCategory: "SportsApplication",
-              operatingSystem: "Any",
-              offers: {
-                "@type": "Offer",
-                price: "0",
-                priceCurrency: "USD",
+            __html: JSON.stringify([
+              {
+                "@context": "https://schema.org",
+                "@type": "WebSite",
+                name: "MLB Scorigami",
+                url: SITE_URL,
+                description: DESCRIPTION,
+                author: { "@type": "Person", name: "Jared Connolly" },
+                potentialAction: {
+                  "@type": "SearchAction",
+                  target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/team/{team}` },
+                  "query-input": "required name=team",
+                },
               },
-              author: {
-                "@type": "Person",
-                name: "Jared Connolly",
+              {
+                "@context": "https://schema.org",
+                "@type": "WebApplication",
+                name: "MLB Scorigami",
+                url: SITE_URL,
+                description: DESCRIPTION,
+                applicationCategory: "SportsApplication",
+                operatingSystem: "Any",
+                offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+                author: { "@type": "Person", name: "Jared Connolly" },
               },
-            }),
+            ]),
           }}
         />
         {children}

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import * as Select from "@radix-ui/react-select";
 import * as Slider from "@radix-ui/react-slider";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, RotateCcw } from "lucide-react";
 import { TEAM_NAMES, FranchiseCode, GameFilter, getTeamLogoUrl } from "@/lib/mlb-data";
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -20,6 +20,8 @@ interface FilterBarProps {
   dataYearBounds: [number, number];
   sortedTeamsForDropdown: { code: string; name: string }[];
   onDropdownOpenChange?: (open: boolean) => void;
+  onReset?: () => void;
+  isFiltered?: boolean;
 }
 
 export default function FilterBar({
@@ -32,6 +34,8 @@ export default function FilterBar({
   dataYearBounds,
   sortedTeamsForDropdown,
   onDropdownOpenChange,
+  onReset,
+  isFiltered,
 }: FilterBarProps) {
   const [isDark, setIsDark] = useState(false);
   useEffect(() => {
@@ -189,7 +193,19 @@ export default function FilterBar({
           <span className="text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums">
             {isSingleYear ? yearRange[0] : `${yearRange[0]} – ${yearRange[1]}`}
           </span>
-          <label className="flex items-center gap-1.5 ml-auto cursor-pointer select-none">
+          {onReset && (
+            <>
+              <button
+                onClick={onReset}
+                className="ml-auto flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Reset
+              </button>
+              <div className="w-px h-4 bg-slate-200 dark:bg-[#3e3e42]" />
+            </>
+          )}
+          <label className={`flex items-center gap-1.5 ${onReset ? "" : "ml-auto"} cursor-pointer select-none`}>
             <input
               type="checkbox"
               checked={!isSingleYear}

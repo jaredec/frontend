@@ -1,13 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { CircleHelp } from "lucide-react";
 
-interface TopBarProps {
-  totalGamesDisplayed: number;
-  isLoading: boolean;
-}
-
-export default function TopBar({ totalGamesDisplayed, isLoading }: TopBarProps) {
+export default function TopBar() {
   return (
     <header className="border-b border-slate-200/60 dark:border-[#2d2d30] py-4">
       <div className="max-w-5xl mx-auto w-full px-4 flex items-center justify-between">
@@ -25,18 +22,13 @@ export default function TopBar({ totalGamesDisplayed, isLoading }: TopBarProps) 
             MLB Scorigami
           </h1>
         </div>
-        <div className="text-sm text-slate-500 dark:text-slate-400">
-          {isLoading ? (
-            <span className="text-slate-400 dark:text-slate-500">Loading...</span>
-          ) : totalGamesDisplayed > 0 ? (
-            <span>
-              <span className="font-medium text-slate-700 dark:text-slate-300">
-                {totalGamesDisplayed.toLocaleString()}
-              </span>{" "}
-              games
-            </span>
-          ) : null}
-        </div>
+        <Link
+          href="/about"
+          aria-label="How it works"
+          className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+        >
+          <CircleHelp className="w-5 h-5" />
+        </Link>
       </div>
     </header>
   );

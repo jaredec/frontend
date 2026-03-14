@@ -16,6 +16,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "daily",
       priority: 1,
     },
+    {
+      url: "https://mlbscorigami.com/about",
+      lastModified: new Date("2025-01-01"),
+      changeFrequency: "monthly" as const,
+      priority: 0.5,
+    },
     ...teamPages,
   ];
 }

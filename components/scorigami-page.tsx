@@ -159,10 +159,6 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     return Array.from(map.values());
   }, [yearlyRows, yearRange]);
 
-  const totalGamesDisplayed = useMemo(() => {
-    if (!rows || error) return 0;
-    return rows.reduce((sum, row) => sum + row.occurrences, 0);
-  }, [rows, error]);
 
   const sortedTeamsForDropdown = useMemo(() => {
     return CURRENT_FRANCHISE_CODES.map((code) => ({
@@ -170,6 +166,18 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
       name: TEAM_NAMES[code] ?? code,
     })).sort((a, b) => a.name.localeCompare(b.name));
   }, []);
+
+  const isFiltered =
+    club !== initialClub ||
+    gameFilter !== "all" ||
+    yearRange[0] !== MODERN_ERA_START ||
+    yearRange[1] !== CURRENT_YEAR;
+
+  const handleReset = () => {
+    setClub(initialClub);
+    setGameFilter("all");
+    setYearRange([MODERN_ERA_START, CURRENT_YEAR]);
+  };
 
   const filterProps = {
     gameFilter,
@@ -181,14 +189,13 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     dataYearBounds,
     sortedTeamsForDropdown,
     onDropdownOpenChange: handleDropdownOpenChange,
+    onReset: handleReset,
+    isFiltered,
   };
 
   return (
     <div className="min-h-screen flex flex-col">
-      <TopBar
-        totalGamesDisplayed={totalGamesDisplayed}
-        isLoading={isLoading && !yearlyRows}
-      />
+      <TopBar />
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-4">
         {/* Filters */}

@@ -83,21 +83,48 @@ const StatusIndicator = ({ type }: { type: "loading" | "empty" }) => {
   );
 };
 
-function ColorLegend({ isDarkMode }: { isDarkMode: boolean }) {
-  const colors = isDarkMode ? darkHex : hex;
+function QuickStats({ rows }: { rows: ApiRow[] | undefined }) {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+
+  const uniqueScores = rows.length;
+  const totalGames = rows.reduce((sum, r) => sum + Number(r.occurrences), 0);
+  const lastScorigami = rows
+    .filter(r => Number(r.occurrences) === 1 && r.last_date)
+    .reduce<ApiRow | null>((latest, r) => {
+      if (!latest || r.last_date! > latest.last_date!) return r;
+      return latest;
+    }, null);
+
   return (
-    <div className="flex items-center gap-2 mt-4 justify-center">
-      <span className="text-[10px] text-slate-400 dark:text-slate-500">Fewer</span>
-      <div className="flex gap-px">
-        {colors.map((color, i) => (
-          <div
-            key={i}
-            className="w-4 h-3 first:rounded-l-sm last:rounded-r-sm"
-            style={{ backgroundColor: color }}
-          />
-        ))}
+    <div className="mt-4 flex items-center justify-center gap-6 sm:gap-10 text-center">
+      <div>
+        <div className="text-base sm:text-lg font-semibold tabular-nums text-slate-700 dark:text-slate-200">
+          {uniqueScores.toLocaleString()}
+        </div>
+        <div className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-0.5">
+          Unique Scores
+        </div>
       </div>
-      <span className="text-[10px] text-slate-400 dark:text-slate-500">More</span>
+      <div className="w-px h-8 bg-slate-200 dark:bg-[#3e3e42]" />
+      <div>
+        <div className="text-base sm:text-lg font-semibold tabular-nums text-slate-700 dark:text-slate-200">
+          {totalGames.toLocaleString()}
+        </div>
+        <div className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-0.5">
+          Games
+        </div>
+      </div>
+      <div className="w-px h-8 bg-slate-200 dark:bg-[#3e3e42]" />
+      {lastScorigami && (
+        <div>
+          <div className="text-base sm:text-lg font-semibold tabular-nums text-slate-700 dark:text-slate-200">
+            {lastScorigami.score1}–{lastScorigami.score2}
+          </div>
+          <div className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-0.5">
+            Last Scorigami
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -406,7 +433,7 @@ export default function ScorigamiHeatmap({
             </div>
           </div>
         </div>
-        <ColorLegend isDarkMode={isDarkMode} />
+        <QuickStats rows={rows} />
       </div>
     </TooltipProvider>
   );
