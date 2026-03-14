@@ -35,7 +35,6 @@ export default function FilterBar({
   sortedTeamsForDropdown,
   onDropdownOpenChange,
   onReset,
-  isFiltered,
 }: FilterBarProps) {
   const [isDark, setIsDark] = useState(false);
   useEffect(() => {
