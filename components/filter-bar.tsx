@@ -144,6 +144,7 @@ export default function FilterBar({
     : `linear-gradient(to right, #94a3b8 0%, #94a3b8 ${modernStartPct}%, #e2e8f0 ${modernStartPct}%, #e2e8f0 100%)`;
 
   const clampYear = (y: number) => Math.max(dataMin, Math.min(dataMax, y));
+
   const clampedSet = (lo: number, hi: number) => {
     const cLo = clampYear(lo);
     const cHi = clampYear(hi);
@@ -302,15 +303,6 @@ export default function FilterBar({
             <Slider.Thumb className="block h-4 w-4 rounded-full bg-white border-2 border-blue-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#1e1e1e] cursor-grab active:cursor-grabbing" />
             <Slider.Thumb className="block h-4 w-4 rounded-full bg-white border-2 border-blue-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#1e1e1e] cursor-grab active:cursor-grabbing" />
           </Slider.Root>
-        )}
-        {hasPreModernData && (
-          <div className="relative mt-1 h-3 select-none pointer-events-none">
-            <span className="absolute left-0 text-[9px] text-slate-400 dark:text-slate-500">1871</span>
-            <span className="absolute -translate-x-1/2 text-[9px] text-slate-400 dark:text-slate-500" style={{ left: `${modernStartPct}%` }}>
-              1901 (Modern Era)
-            </span>
-            <span className="absolute right-0 text-[9px] text-slate-400 dark:text-slate-500">{CURRENT_YEAR}</span>
-          </div>
         )}
         </div>
       </div>
