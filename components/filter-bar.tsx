@@ -28,10 +28,12 @@ function GameTypeDropdown({
   const [open, setOpen] = useState(false);
   const [postExpanded, setPostExpanded] = useState(isPostseason(value));
   const ref = useRef<HTMLDivElement>(null);
+  const openRef = useRef(false);
+  openRef.current = open;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (ref.current && !ref.current.contains(e.target as Node) && openRef.current) {
         setOpen(false);
         onOpenChange?.(false);
       }
