@@ -136,7 +136,6 @@ export default function FilterBar({
 
   const [dataMin, dataMax] = dataYearBounds;
   const isSingleYear = yearRange[0] === yearRange[1];
-  const hasPreModernData = dataMin < MODERN_ERA_START;
 
   const modernStartPct = ((MODERN_ERA_START - MIN_YEAR) / (CURRENT_YEAR - MIN_YEAR)) * 100;
   const trackGradient = isDark
