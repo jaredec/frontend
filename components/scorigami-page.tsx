@@ -167,6 +167,12 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     })).sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 
+  const quickStats = useMemo(() => {
+    if (!rows || rows.length === 0) return null;
+    const totalGames = rows.reduce((s, r) => s + r.occurrences, 0);
+    return { totalGames, uniqueScores: rows.length };
+  }, [rows]);
+
   const isFiltered =
     club !== initialClub ||
     gameFilter !== "all" ||
@@ -195,7 +201,10 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
 
   return (
     <div className="min-h-screen flex flex-col">
-      <TopBar />
+      <TopBar
+        totalGames={quickStats?.totalGames}
+        uniqueScores={quickStats?.uniqueScores}
+      />
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-4">
         {/* Filters */}
@@ -205,6 +214,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
 
         {/* Heatmap — full width */}
         <div className="relative bg-white dark:bg-[#252526] border border-slate-200/80 dark:border-[#2d2d30] rounded-lg overflow-hidden min-h-[400px] md:min-h-[500px]">
+
           {/* Icon buttons: type toggle + expand/collapse */}
           <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
             <button

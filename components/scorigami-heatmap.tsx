@@ -83,51 +83,6 @@ const StatusIndicator = ({ type }: { type: "loading" | "empty" }) => {
   );
 };
 
-function QuickStats({ rows }: { rows: ApiRow[] | undefined }) {
-  if (!Array.isArray(rows) || rows.length === 0) return null;
-
-  const uniqueScores = rows.length;
-  const totalGames = rows.reduce((sum, r) => sum + Number(r.occurrences), 0);
-  const lastScorigami = rows
-    .filter(r => Number(r.occurrences) === 1 && r.last_date)
-    .reduce<ApiRow | null>((latest, r) => {
-      if (!latest || r.last_date! > latest.last_date!) return r;
-      return latest;
-    }, null);
-
-  return (
-    <div className="mt-4 flex items-center justify-center gap-6 sm:gap-10 text-center">
-      <div>
-        <div className="text-base sm:text-lg font-semibold tabular-nums text-slate-700 dark:text-slate-200">
-          {uniqueScores.toLocaleString()}
-        </div>
-        <div className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-0.5">
-          Unique Scores
-        </div>
-      </div>
-      <div className="w-px h-8 bg-slate-200 dark:bg-[#3e3e42]" />
-      <div>
-        <div className="text-base sm:text-lg font-semibold tabular-nums text-slate-700 dark:text-slate-200">
-          {totalGames.toLocaleString()}
-        </div>
-        <div className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-0.5">
-          Games
-        </div>
-      </div>
-      <div className="w-px h-8 bg-slate-200 dark:bg-[#3e3e42]" />
-      {lastScorigami && (
-        <div>
-          <div className="text-base sm:text-lg font-semibold tabular-nums text-slate-700 dark:text-slate-200">
-            {lastScorigami.score1}–{lastScorigami.score2}
-          </div>
-          <div className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-0.5">
-            Last Scorigami
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface ScorigamiHeatmapProps {
   rows: ApiRow[] | undefined;
@@ -433,7 +388,23 @@ export default function ScorigamiHeatmap({
             </div>
           </div>
         </div>
-        <QuickStats rows={rows} />
+        {Array.isArray(rows) && rows.length > 0 && (
+          <div className="sm:hidden flex items-center justify-center gap-6 mt-3 pb-1">
+            <div className="text-center">
+              <div className="text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-200">
+                {rows.reduce((s, r) => s + Number(r.occurrences), 0).toLocaleString()}
+              </div>
+              <div className="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 mt-0.5">Games</div>
+            </div>
+            <div className="w-px h-6 bg-slate-200 dark:bg-[#3e3e42]" />
+            <div className="text-center">
+              <div className="text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-200">
+                {rows.length.toLocaleString()}
+              </div>
+              <div className="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 mt-0.5">Scores</div>
+            </div>
+          </div>
+        )}
       </div>
     </TooltipProvider>
   );
