@@ -10,6 +10,8 @@ const TEAM_NAME_SHORTENER_MAP: { [key: string]: string } = {
   'Arizona Diamondbacks': 'D-backs',
 };
 
+const START_YEAR = 1871;
+
 // --- TYPES ---
 
 interface PlayoffBreakdown {
@@ -26,6 +28,8 @@ interface ScoreHistory {
   last_game_date: string;
   last_home_team: string;
   last_visitor_team: string;
+  last_home_score: number;
+  last_visitor_score: number;
 }
 
 // --- DATABASE HELPERS ---
@@ -45,13 +49,14 @@ async function checkTrueScorigami(supabase: SupabaseClient, s1: number, s2: numb
     .select('game_id')
     .or(`and(home_score.eq.${win},visitor_score.eq.${lose}),and(home_score.eq.${lose},visitor_score.eq.${win})`)
     .eq('is_negro_league', false)
+    .gte('date', `${START_YEAR}-01-01`)
     .limit(1);
 
   if (data && data.length > 0) return { isScorigami: false, newCount: 0 };
 
   const result = await pool.query(`
     SELECT COUNT(DISTINCT CONCAT(GREATEST(home_score, visitor_score), '-', LEAST(home_score, visitor_score)))::int AS count
-    FROM gamelogs WHERE is_negro_league = false
+    FROM gamelogs WHERE is_negro_league = false AND EXTRACT(YEAR FROM date) >= ${START_YEAR}
   `);
   return { isScorigami: true, newCount: (result.rows[0]?.count ?? 0) + 1 };
 }
@@ -63,7 +68,7 @@ async function isFranchiseScorigami(supabase: SupabaseClient, franchiseIds: numb
     `and(visitor_team_id.in.${ids},visitor_score.eq.${s1},home_score.eq.${s2}),` +
     `and(home_team_id.in.${ids},home_score.eq.${s2},visitor_score.eq.${s1}),` +
     `and(visitor_team_id.in.${ids},visitor_score.eq.${s2},home_score.eq.${s1})`
-  ).limit(1);
+  ).gte('date', `${START_YEAR}-01-01`).limit(1);
   return !data || data.length === 0;
 }
 
@@ -71,9 +76,10 @@ async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number)
   const win = Math.max(s1, s2);
   const lose = Math.min(s1, s2);
   const { count, data } = await supabase.from('gamelogs')
-    .select('date, home_team, visitor_team', { count: 'exact' })
+    .select('date, home_team, visitor_team, home_score, visitor_score', { count: 'exact' })
     .or(`and(home_score.eq.${win},visitor_score.eq.${lose}),and(home_score.eq.${lose},visitor_score.eq.${win})`)
     .eq('is_negro_league', false)
+    .gte('date', `${START_YEAR}-01-01`)
     .order('date', { ascending: false })
     .limit(1);
 
@@ -83,6 +89,8 @@ async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number)
     last_game_date: new Date(data[0].date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
     last_home_team: data[0].home_team,
     last_visitor_team: data[0].visitor_team,
+    last_home_score: data[0].home_score,
+    last_visitor_score: data[0].visitor_score,
   };
 }
 
@@ -93,6 +101,7 @@ async function getPlayoffBreakdown(supabase: SupabaseClient, s1: number, s2: num
     .select('game_type, date')
     .or(`and(home_score.eq.${win},visitor_score.eq.${lose}),and(home_score.eq.${lose},visitor_score.eq.${win})`)
     .in('game_type', ['W', 'L', 'D', 'F'])
+    .gte('date', `${START_YEAR}-01-01`)
     .order('date', { ascending: false });
 
   if (!data || data.length === 0) return { total: 0, ws: 0, lcs: 0, ds: 0, wc: 0, last_date: null };
@@ -113,7 +122,7 @@ async function getPlayoffBreakdown(supabase: SupabaseClient, s1: number, s2: num
 async function getUniquePlayoffScoreCount(): Promise<number> {
   const result = await pool.query(`
     SELECT COUNT(DISTINCT CONCAT(GREATEST(home_score, visitor_score), '-', LEAST(home_score, visitor_score)))::int AS count
-    FROM gamelogs WHERE game_type IN ('W', 'L', 'D', 'F')
+    FROM gamelogs WHERE game_type IN ('W', 'L', 'D', 'F') AND EXTRACT(YEAR FROM date) >= ${START_YEAR}
   `);
   return result.rows[0]?.count ?? 0;
 }
@@ -121,13 +130,28 @@ async function getUniquePlayoffScoreCount(): Promise<number> {
 async function getFranchiseUniqueScoreCount(franchiseIds: number[]): Promise<number> {
   const result = await pool.query(`
     SELECT COUNT(DISTINCT CONCAT(GREATEST(home_score, visitor_score), '-', LEAST(home_score, visitor_score)))::int AS count
-    FROM gamelogs WHERE home_team_id = ANY($1) OR visitor_team_id = ANY($1)
+    FROM gamelogs WHERE (home_team_id = ANY($1) OR visitor_team_id = ANY($1)) AND EXTRACT(YEAR FROM date) >= ${START_YEAR}
   `, [franchiseIds]);
   return result.rows[0]?.count ?? 0;
 }
 
+const TWO_WORD_CITIES = new Set([
+  'New York', 'Kansas City', 'Los Angeles', 'San Francisco', 'San Diego',
+  'St. Louis', 'St. Paul', 'Fort Wayne', 'Fort Worth', 'Salt Lake',
+  'Rhode Island', 'Maple Leafs',
+]);
+
+function stripCity(fullName: string): string {
+  if (TEAM_NAME_SHORTENER_MAP[fullName]) return TEAM_NAME_SHORTENER_MAP[fullName];
+  for (const city of TWO_WORD_CITIES) {
+    if (fullName.startsWith(city + ' ')) return fullName.slice(city.length + 1);
+  }
+  const parts = fullName.split(' ');
+  return parts.slice(1).join(' ');
+}
+
 function formatGame(history: ScoreHistory): string {
-  return `${history.last_visitor_team} vs ${history.last_home_team}`;
+  return `${stripCity(history.last_visitor_team)} vs. ${stripCity(history.last_home_team)}`;
 }
 
 
@@ -208,18 +232,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (scorigamiResult.isScorigami) {
       // 1. True Scorigami
-      postText = `${header}\n\nThat's Scorigami!\nIt's the ${getOrdinal(scorigamiResult.newCount)} unique final score in MLB history.`;
+      postText = `${header}\n\nThat's Scorigami! It's the ${getOrdinal(scorigamiResult.newCount)} unique final score in MLB history.`;
 
     } else if (isPostseason && playoffBreakdown && playoffBreakdown.total === 0) {
       // 2. Playoffigami
-      const [history, playoffCount] = await Promise.all([
-        getScoreHistory(supabase, away_score, home_score),
-        getUniquePlayoffScoreCount(),
-      ]);
-      const historyLine = history
-        ? `\n\nIt's happened ${formatNum(history.occurrences)} times in MLB history, most recently ${history.last_game_date} (${formatGame(history)}).`
-        : '';
-      postText = `${header}\n\nThat's Playoffigami!\nIt's the ${getOrdinal(playoffCount + 1)} unique final score in MLB playoff history.${historyLine}`;
+      const playoffCount = await getUniquePlayoffScoreCount();
+      postText = `${header}\n\nThat's Playoffigami! It's the ${getOrdinal(playoffCount + 1)} unique final score in MLB playoff history.`;
 
     } else {
       // 3. Franchisigami or No Scorigami
@@ -233,12 +251,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const teamName = isAwayS ? away_name : home_name;
         const franchiseIds = isAwayS ? franchiseIdsAway : franchiseIdsHome;
         const franchiseCount = await getFranchiseUniqueScoreCount(franchiseIds);
-        const historyLine = history
-          ? `\n\nIt's happened ${formatNum(history.occurrences)} times in MLB history, most recently ${history.last_game_date} (${formatGame(history)}).`
-          : '';
-        postText = `${header}\n\nThat's Franchisigami!\nIt's the ${getOrdinal(franchiseCount + 1)} unique final score in ${teamName} history.${historyLine}`;
+        const onlyWord = history && history.occurrences < 25 ? 'only ' : '';
+        const historyLine = history ? ` This score has happened ${onlyWord}${formatNum(history.occurrences)} times in MLB history.` : '';
+        postText = `${header}\n\nThat's Franchisigami! It's the ${getOrdinal(franchiseCount + 1)} unique final score in ${teamName} history.${historyLine}`;
       } else {
-        postText = `${header}\n\nNo Scorigami. This score has happened ${formatNum(history?.occurrences ?? 0)} times in MLB history, most recently ${history?.last_game_date}${history ? ` (${formatGame(history)})` : ''}.`;
+        postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(history?.occurrences ?? 0)} times in MLB history, most recently on ${history?.last_game_date}${history ? ` (${formatGame(history)})` : ''}.`;
       }
     }
 
