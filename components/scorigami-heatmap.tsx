@@ -49,7 +49,6 @@ const TooltipContent = ({
 
 const DESKTOP_CELL_SIZE = 20;
 const DESKTOP_HEADER_CELL_SIZE = 30;
-const CELL_GAP = 0.5;
 
 const hex = [
   "#f3f4f6", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa",
