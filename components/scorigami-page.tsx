@@ -19,7 +19,6 @@ import type { YearlyRow } from "@/lib/scorigami-queries";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = 1871;
-const MODERN_ERA_START = 1901;
 
 const fetcher = async (u: string) => {
   const r = await fetch(u);
