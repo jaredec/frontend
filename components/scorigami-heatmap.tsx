@@ -49,6 +49,7 @@ const TooltipContent = ({
 
 const DESKTOP_CELL_SIZE = 20;
 const DESKTOP_HEADER_CELL_SIZE = 30;
+const CELL_GAP = 0.5;
 
 const hex = [
   "#f3f4f6", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa",
@@ -245,7 +246,7 @@ export default function ScorigamiHeatmap({
               </div>
             </div>
             <div
-              className="relative border border-slate-200 dark:border-[#2d2d30] rounded-sm overflow-hidden"
+              className="relative border border-slate-200 dark:border-[#2d2d30] rounded-sm overflow-hidden bg-slate-200 dark:bg-[#1c1c1e]"
               style={{
                 width: `${headerCellSize + GRID_DIMENSION * cellSize}px`,
                 height: `${headerCellSize + GRID_DIMENSION * cellSize}px`,
@@ -301,10 +302,12 @@ export default function ScorigamiHeatmap({
                           const isActive = activeCellKey === k;
                           const isHovered = hoveredCellKey === k;
 
+                          const isImpossible = scorigamiType === "traditional" && score1_iterator < score2_iterator;
+
                           const CellBase = (
                             <div
                               style={{
-                                backgroundColor: getLogScaledColor(f, maxOccurrencesInView),
+                                backgroundColor: isImpossible ? "#1c1c1e" : getLogScaledColor(f, maxOccurrencesInView),
                               }}
                               className={`cursor-pointer transition-[filter] duration-100 ${
                                 isHovered && !isActive ? "brightness-110" : ""

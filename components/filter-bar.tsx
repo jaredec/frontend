@@ -261,7 +261,7 @@ export default function FilterBar({
               checked={!isSingleYear}
               onChange={() =>
                 isSingleYear
-                  ? setYearRange([Math.max(dataMin, MODERN_ERA_START), dataMax])
+                  ? setYearRange([Math.max(dataMin, MIN_YEAR), dataMax])
                   : setYearRange([clampYear(dataMax), clampYear(dataMax)])
               }
               className="accent-blue-500 cursor-pointer"
