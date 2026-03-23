@@ -37,7 +37,7 @@ interface ScorigamiPageProps {
 export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProps) {
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>("traditional");
   const [club, setClub] = useState<FranchiseCode | "ALL">(initialClub);
-  const [yearRange, setYearRange] = useState<[number, number]>([MODERN_ERA_START, CURRENT_YEAR]);
+  const [yearRange, setYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
   const [gameFilter, setGameFilter] = useState<GameFilter>("all");
   const [gridSize, setGridSize] = useState<GridSize>(36);
   // Track when filter dropdowns close to suppress ghost clicks on heatmap
@@ -91,7 +91,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
 
     if (clubChanged || gameFilterChanged) {
       // Team or game filter changed: snap to full range for new data
-      setYearRange([Math.max(dataMin, MODERN_ERA_START), dataMax]);
+      setYearRange([Math.max(dataMin, MIN_YEAR), dataMax]);
     } else {
       // Same team + filter, bounds may have shifted (type switch or data reload): clamp
       setYearRange(([lo, hi]) => {
@@ -176,13 +176,13 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   const isFiltered =
     club !== initialClub ||
     gameFilter !== "all" ||
-    yearRange[0] !== MODERN_ERA_START ||
+    yearRange[0] !== MIN_YEAR ||
     yearRange[1] !== CURRENT_YEAR;
 
   const handleReset = () => {
     setClub(initialClub);
     setGameFilter("all");
-    setYearRange([MODERN_ERA_START, CURRENT_YEAR]);
+    setYearRange([MIN_YEAR, CURRENT_YEAR]);
   };
 
   const filterProps = {
