@@ -120,7 +120,7 @@ export default function ScorigamiHeatmap({
     return map;
   }, [rows]);
 
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const isDarkMode = true;
   const [cellSize, setCellSize] = useState(DESKTOP_CELL_SIZE);
   const [headerCellSize, setHeaderCellSize] = useState(DESKTOP_HEADER_CELL_SIZE);
   const [gridReady, setGridReady] = useState(false);
@@ -195,13 +195,6 @@ export default function ScorigamiHeatmap({
     }
   }, [hasData, GRID_DIMENSION]);
 
-  useEffect(() => {
-    const check = () => setIsDarkMode(document.documentElement.classList.contains("dark"));
-    check();
-    const observer = new MutationObserver(check);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => observer.disconnect();
-  }, []);
 
   // Back to the original multiplier logic, but applied to every label
   const dynamicFontSize = Math.min(cellSize * 0.65, 12);
