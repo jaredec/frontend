@@ -197,6 +197,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   for (const g of scheduleGames) {
     if (g.status.codedGameState !== 'F' && g.status.codedGameState !== 'O') continue;
+    if (!['R', 'F', 'D', 'L', 'W'].includes(g.gameType)) continue;
 
     const game_id = g.gamePk;
     const away_id = g.teams.away.team.id;
