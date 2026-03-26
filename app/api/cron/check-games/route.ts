@@ -150,10 +150,6 @@ function stripCity(fullName: string): string {
   return parts.slice(1).join(' ');
 }
 
-function formatGame(history: ScoreHistory): string {
-  return `${stripCity(history.last_visitor_team)} vs. ${stripCity(history.last_home_team)}`;
-}
-
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US');
