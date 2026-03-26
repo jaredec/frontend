@@ -211,6 +211,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (alreadyPosted && alreadyPosted.length > 0) continue;
 
     const isPostseason = ['F', 'D', 'L', 'W'].includes(g.gameType);
+    const gameDate = g.officialDate as string;
+    const isOpeningNight = gameDate === '2026-03-25';
+    const isOpeningDay = gameDate === '2026-03-26';
     const winnerIsAway = away_score > home_score;
 
     const winnerName = winnerIsAway
@@ -220,7 +223,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ? (TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop())
       : (TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop());
 
-    const header = `FINAL: ${winnerName} ${Math.max(away_score, home_score)}, ${loserName} ${Math.min(away_score, home_score)}${isPostseason ? '\n#Postseason' : ''}`;
+    const hashtag = isPostseason ? '\n#Postseason' : isOpeningNight ? '\n#OpeningNight' : isOpeningDay ? '\n#OpeningDay' : '';
+    const header = `FINAL: ${winnerName} ${Math.max(away_score, home_score)}, ${loserName} ${Math.min(away_score, home_score)}${hashtag}`;
 
     const [franchiseIdsAway, franchiseIdsHome, scorigamiResult, playoffBreakdown] = await Promise.all([
       getFranchiseTeamIds(supabase, away_id),
@@ -256,7 +260,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const historyLine = history ? ` This score has happened ${onlyWord}${formatNum(history.occurrences)} times in MLB history.` : '';
         postText = `${header}\n\nThat's Franchisigami! It's the ${getOrdinal(franchiseCount + 1)} unique final score in ${teamName} history.${historyLine}`;
       } else {
-        postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(history?.occurrences ?? 0)} times in MLB history, most recently on ${history?.last_game_date}${history ? ` (${formatGame(history)})` : ''}.`;
+        postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(history?.occurrences ?? 0)} times in MLB history, most recently on ${history?.last_game_date}.`;
       }
     }
 
