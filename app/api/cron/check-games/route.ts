@@ -234,12 +234,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ]);
 
       if (isAwayS || isHomeS) {
-        const teamName = isAwayS ? away_name : home_name;
-        const franchiseIds = isAwayS ? franchiseIdsAway : franchiseIdsHome;
-        const franchiseCount = await getFranchiseUniqueScoreCount(franchiseIds);
         const onlyWord = history && history.occurrences < 25 ? 'only ' : '';
         const historyLine = history ? ` This score has happened ${onlyWord}${formatNum(history.occurrences)} times in MLB history.` : '';
-        postText = `${header}\n\nThat's Franchisigami! It's the ${getOrdinal(franchiseCount + 1)} unique final score in ${teamName} history.${historyLine}`;
+
+        let franchiseLine: string;
+        if (isAwayS && isHomeS) {
+          const [awayCount, homeCount] = await Promise.all([
+            getFranchiseUniqueScoreCount(franchiseIdsAway),
+            getFranchiseUniqueScoreCount(franchiseIdsHome),
+          ]);
+          franchiseLine = `It's the ${getOrdinal(awayCount + 1)} unique final score in ${away_name} history and the ${getOrdinal(homeCount + 1)} unique final score in ${home_name} history.`;
+        } else {
+          const teamName = isAwayS ? away_name : home_name;
+          const franchiseIds = isAwayS ? franchiseIdsAway : franchiseIdsHome;
+          const franchiseCount = await getFranchiseUniqueScoreCount(franchiseIds);
+          franchiseLine = `It's the ${getOrdinal(franchiseCount + 1)} unique final score in ${teamName} history.`;
+        }
+
+        postText = `${header}\n\nThat's Franchisigami! ${franchiseLine}${historyLine}`;
       } else {
         postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(history?.occurrences ?? 0)} times in MLB history, most recently on ${history?.last_game_date}.`;
       }
