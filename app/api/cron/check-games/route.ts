@@ -135,21 +135,6 @@ async function getFranchiseUniqueScoreCount(franchiseIds: number[]): Promise<num
   return result.rows[0]?.count ?? 0;
 }
 
-const TWO_WORD_CITIES = new Set([
-  'New York', 'Kansas City', 'Los Angeles', 'San Francisco', 'San Diego',
-  'St. Louis', 'St. Paul', 'Fort Wayne', 'Fort Worth', 'Salt Lake',
-  'Rhode Island', 'Maple Leafs',
-]);
-
-function stripCity(fullName: string): string {
-  if (TEAM_NAME_SHORTENER_MAP[fullName]) return TEAM_NAME_SHORTENER_MAP[fullName];
-  for (const city of TWO_WORD_CITIES) {
-    if (fullName.startsWith(city + ' ')) return fullName.slice(city.length + 1);
-  }
-  const parts = fullName.split(' ');
-  return parts.slice(1).join(' ');
-}
-
 
 function formatNum(n: number): string {
   return n.toLocaleString('en-US');
