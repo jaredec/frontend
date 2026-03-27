@@ -47,9 +47,10 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   const isGhostClick = () => Date.now() - dropdownCloseTimeRef.current < 400;
 
   // Load all yearly data once per team+type combo
+  const today = new Date().toISOString().slice(0, 10);
   const apiUrl = useMemo(
-    () => `/api/scorigami?team=${club}&type=${scorigamiType}&mode=yearly&gameFilter=${gameFilter}`,
-    [club, scorigamiType, gameFilter]
+    () => `/api/scorigami?team=${club}&type=${scorigamiType}&mode=yearly&gameFilter=${gameFilter}&d=${today}`,
+    [club, scorigamiType, gameFilter, today]
   );
 
   const {
