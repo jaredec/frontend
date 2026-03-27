@@ -108,7 +108,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   useEffect(() => {
     if (!yearlyRows) return;
     const altType = scorigamiType === "traditional" ? "home_away" : "traditional";
-    const altUrl = `/api/scorigami?team=${club}&type=${altType}&mode=yearly&gameFilter=${gameFilter}`;
+    const altUrl = `/api/scorigami?team=${club}&type=${altType}&mode=yearly&gameFilter=${gameFilter}&d=${today}`;
     preload(altUrl, fetcher);
   }, [yearlyRows, club, scorigamiType, gameFilter]);
 
