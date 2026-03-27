@@ -4,7 +4,7 @@ import { FRANCHISE_CODE_TO_ID_MAP, getYearlyScorigami } from '@/lib/scorigami-qu
 import type { GameFilter } from '@/lib/mlb-data';
 
 const CACHE_HEADERS = {
-  'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+  'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800',
 };
 
 export async function GET(request: NextRequest) {

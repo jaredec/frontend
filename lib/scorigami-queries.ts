@@ -42,17 +42,17 @@ export async function getYearlyScorigami(
   const teamId = team === "ALL" ? 0 : (FRANCHISE_CODE_TO_ID_MAP[team] || 0);
   const isTraditional = type === "traditional";
 
-  // All teams, no game filter: use fast materialized views
-  if (teamId === 0 && gameFilter === "all") {
+  // No game filter: use fast materialized views (all teams and per-team)
+  if (gameFilter === "all") {
     const view = isTraditional ? "scorigami_by_year" : "scorigami_by_year_ha";
     const result = await pool.query(`
       SELECT year, score1, score2, occurrences::int,
              last_date::text, last_home_team, last_visitor_team,
              last_game_id, source
       FROM ${view}
-      WHERE team_id = 0
+      WHERE team_id = $1
       ORDER BY year, score1, score2
-    `);
+    `, [teamId]);
     return result.rows;
   }
 
