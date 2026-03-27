@@ -256,14 +256,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const win = Math.max(away_score, home_score);
         const lose = Math.min(away_score, home_score);
         const todayUTC = new Date().toISOString().slice(0, 10);
-        const { data: todayMatch } = await supabase
+        const { data: todayPosts } = await supabase
           .from('posted_updates')
-          .select('id')
-          .or(`score_snapshot.eq.${win}-${lose},score_snapshot.eq.${lose}-${win}`)
+          .select('score_snapshot')
           .gte('created_at', `${todayUTC}T00:00:00Z`)
-          .neq('game_id', game_id)
-          .limit(1);
-        const mostRecently = todayMatch && todayMatch.length > 0 ? 'earlier today' : `on ${history?.last_game_date}`;
+          .neq('game_id', game_id);
+        const todayMatch = todayPosts?.some(p =>
+          p.score_snapshot === `${win}-${lose}` ||
+          p.score_snapshot === `${lose}-${win}` ||
+          p.score_snapshot === `${away_score}-${home_score}` ||
+          p.score_snapshot === `${home_score}-${away_score}`
+        );
+        const mostRecently = todayMatch ? 'earlier today' : `on ${history?.last_game_date}`;
         postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(history?.occurrences ?? 0)} times in MLB history, most recently ${mostRecently}.`;
       }
     }
