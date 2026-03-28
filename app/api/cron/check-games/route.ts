@@ -320,7 +320,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           : `on ${history?.last_game_date}`;
         const isRarigami = totalOccurrences < 10;
         const teamContext = mostRecently !== 'earlier today' && history
-          ? ` (${teamAbbr(history.last_home_score >= history.last_visitor_score ? history.last_home_team : history.last_visitor_team)} ${Math.max(history.last_home_score, history.last_visitor_score)}, ${teamAbbr(history.last_home_score >= history.last_visitor_score ? history.last_visitor_team : history.last_home_team)} ${Math.min(history.last_home_score, history.last_visitor_score)})`
+          ? ` (${teamAbbr(history.last_visitor_team)} vs. ${teamAbbr(history.last_home_team)})`
           : '';
         if (isRarigami && history) {
           postText = `${header}\n\nRarigami. This score has happened only ${formatNum(totalOccurrences)} times in MLB history, most recently ${mostRecently}${teamContext}.`;
