@@ -10,6 +10,45 @@ const TEAM_NAME_SHORTENER_MAP: { [key: string]: string } = {
   'Arizona Diamondbacks': 'D-backs',
 };
 
+const TEAM_ABBR_MAP: { [key: string]: string } = {
+  // Modern
+  'Arizona Diamondbacks': 'ARI', 'Atlanta Braves': 'ATL', 'Baltimore Orioles': 'BAL',
+  'Boston Red Sox': 'BOS', 'Chicago Cubs': 'CHC', 'Chicago White Sox': 'CWS',
+  'Cincinnati Reds': 'CIN', 'Cleveland Guardians': 'CLE', 'Colorado Rockies': 'COL',
+  'Detroit Tigers': 'DET', 'Houston Astros': 'HOU', 'Kansas City Royals': 'KC',
+  'Los Angeles Angels': 'LAA', 'Los Angeles Dodgers': 'LAD', 'Miami Marlins': 'MIA',
+  'Milwaukee Brewers': 'MIL', 'Minnesota Twins': 'MIN', 'New York Mets': 'NYM',
+  'New York Yankees': 'NYY', 'Athletics': 'OAK', 'Philadelphia Phillies': 'PHI',
+  'Pittsburgh Pirates': 'PIT', 'San Diego Padres': 'SD', 'San Francisco Giants': 'SFG',
+  'Seattle Mariners': 'SEA', 'St. Louis Cardinals': 'STL', 'Tampa Bay Rays': 'TB',
+  'Texas Rangers': 'TEX', 'Toronto Blue Jays': 'TOR', 'Washington Nationals': 'WSH',
+  // Historical
+  'Altoona Mountain Citys': 'ALT', 'Baltimore Lord Baltimores': 'BL1', 'Baltimore Marylands': 'BL4',
+  'Baltimore Monumentals': 'BLU', 'Baltimore Terrapins': 'BLF', 'Boston Reds': 'BSU',
+  'Brooklyn Atlantics': 'BR2', 'Brooklyn Eckfords': 'BR1', 'Brooklyn Gladiators': 'BR4',
+  'Brooklyn Tip-Tops': 'BRF', 'Brooklyn Wonders': 'BRP', 'Buffalo Bisons': 'BFN',
+  'Buffalo Blues': 'BUF', 'Chicago Pirates': 'CHP', 'Chicago Whales': 'CHF',
+  'Cincinnati Outlaw Reds': 'CNU', 'Cleveland Forest Cities': 'CL1', 'Cleveland Infants': 'CLP',
+  'Cleveland Spiders': 'CL2', 'Columbus Colts': 'CL5', 'Detroit Wolverines': 'DTN',
+  'Elizabeth Resolutes': 'ELI', 'Ft. Wayne Kekiongas': 'FW1', 'Hartford Dark Blues': 'HAR',
+  'Indianapolis Hoosiers': 'IND', 'Kansas City Cowboys': 'KCN', 'Kansas City Packers': 'KCF',
+  'Keokuk Westerns': 'KEO', 'Louisville Colonels': 'LS2', 'Louisville Grays': 'LS1',
+  'Milwaukee Cream Citys': 'ML2', 'Newark Peppers': 'NEW', 'New York Giants': 'NYP',
+  'New York Metropolitans': 'NY4', 'New York Mutuals': 'NY2', 'Philadelphia Athletics': 'PH1',
+  'Philadelphia Centennials': 'PH3', 'Philadelphia Keystones': 'PHU', 'Philadelphia Quakers': 'PHP',
+  'Philadelphia White Stockings': 'PH2', 'Pittsburgh Burghers': 'PTP', 'Pittsburgh Rebels': 'PTF',
+  'Providence Grays': 'PRO', 'Richmond Virginias': 'RIC', 'Rochester Hop Bitters': 'RC2',
+  'Rockford Forest Citys': 'RC1', 'St. Louis Brown Stockings': 'SL2', 'St. Louis Maroons': 'SLU',
+  'St. Louis Red Stockings': 'SL1', 'St.Louis Terriers': 'SLF', 'St. Paul Saints': 'SPU',
+  'Syracuse Stars': 'SR1', 'Toledo Blue Stockings': 'TL1', 'Toledo Maumees': 'TL2',
+  'Troy Haymakers': 'TRO', 'Troy Trojans': 'TRN', 'Washington Olympics': 'WS3',
+  'Washington Senators': 'WSN', 'Wilmington Quicksteps': 'WIL', 'Worcester Ruby Legs': 'WOR',
+};
+
+function teamAbbr(name: string): string {
+  return TEAM_ABBR_MAP[name] ?? name.split(' ').pop() ?? name;
+}
+
 const START_YEAR = 1871;
 
 // --- TYPES ---
@@ -280,14 +319,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           : lastDateStr === yesterdayPT ? 'yesterday'
           : `on ${history?.last_game_date}`;
         const isRarigami = totalOccurrences < 10;
+        const teamContext = mostRecently !== 'earlier today' && history
+          ? ` (${teamAbbr(history.last_home_score >= history.last_visitor_score ? history.last_home_team : history.last_visitor_team)} ${Math.max(history.last_home_score, history.last_visitor_score)}, ${teamAbbr(history.last_home_score >= history.last_visitor_score ? history.last_visitor_team : history.last_home_team)} ${Math.min(history.last_home_score, history.last_visitor_score)})`
+          : '';
         if (isRarigami && history) {
-          const lastWinTeam = history.last_home_score >= history.last_visitor_score ? history.last_home_team : history.last_visitor_team;
-          const lastWinScore = Math.max(history.last_home_score, history.last_visitor_score);
-          const lastLoseTeam = history.last_home_score >= history.last_visitor_score ? history.last_visitor_team : history.last_home_team;
-          const lastLoseScore = Math.min(history.last_home_score, history.last_visitor_score);
-          postText = `${header}\n\nRarigami. This score has happened only ${formatNum(totalOccurrences)} times in MLB history, most recently ${mostRecently} (${lastWinTeam} ${lastWinScore}, ${lastLoseTeam} ${lastLoseScore}).`;
+          postText = `${header}\n\nRarigami. This score has happened only ${formatNum(totalOccurrences)} times in MLB history, most recently ${mostRecently}${teamContext}.`;
         } else {
-          postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history, most recently ${mostRecently}.`;
+          postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history, most recently ${mostRecently}${teamContext}.`;
         }
       }
     }
