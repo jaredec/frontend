@@ -254,23 +254,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       } else {
         const win = Math.max(away_score, home_score);
         const lose = Math.min(away_score, home_score);
-        const todayUTC = new Date().toISOString().slice(0, 10);
-        const { data: todayPosts } = await supabase
+        // Use PT dates: cron can cross midnight UTC during US evening, so UTC midnight
+        // cutoff misses same-PT-day games posted before midnight UTC.
+        const todayPT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+        const yesterdayPT = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+        // Look back 30h so we never miss same-day games regardless of UTC rollover
+        const { data: recentPosts } = await supabase
           .from('posted_updates')
-          .select('score_snapshot')
-          .gte('created_at', `${todayUTC}T00:00:00Z`)
+          .select('score_snapshot, created_at')
+          .gte('created_at', new Date(Date.now() - 30 * 3600000).toISOString())
           .neq('game_id', game_id);
-        const todayMatchCount = todayPosts?.filter(p =>
-          p.score_snapshot === `${win}-${lose}` ||
-          p.score_snapshot === `${lose}-${win}` ||
-          p.score_snapshot === `${away_score}-${home_score}` ||
-          p.score_snapshot === `${home_score}-${away_score}`
-        ).length ?? 0;
+        const todayMatchCount = recentPosts?.filter(p => {
+          const postDatePT = new Date(p.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+          return postDatePT === todayPT && (
+            p.score_snapshot === `${win}-${lose}` ||
+            p.score_snapshot === `${lose}-${win}` ||
+            p.score_snapshot === `${away_score}-${home_score}` ||
+            p.score_snapshot === `${home_score}-${away_score}`
+          );
+        }).length ?? 0;
         const todayMatch = todayMatchCount > 0;
         const totalOccurrences = (history?.occurrences ?? 0) + todayMatchCount;
-        const yesterdayUTC = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        const lastDateStr = history?.last_game_date_raw?.slice(0, 10) ?? '';
         const mostRecently = todayMatch ? 'earlier today'
-          : history?.last_game_date_raw === yesterdayUTC ? 'yesterday'
+          : lastDateStr === yesterdayPT ? 'yesterday'
           : `on ${history?.last_game_date}`;
         postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history, most recently ${mostRecently}.`;
       }
