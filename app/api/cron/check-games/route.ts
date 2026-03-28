@@ -26,6 +26,7 @@ interface PlayoffBreakdown {
 interface ScoreHistory {
   occurrences: number;
   last_game_date: string;
+  last_game_date_raw: string;
   last_home_team: string;
   last_visitor_team: string;
   last_home_score: number;
@@ -87,6 +88,7 @@ async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number)
   return {
     occurrences: count || 0,
     last_game_date: new Date(data[0].date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
+    last_game_date_raw: data[0].date,
     last_home_team: data[0].home_team,
     last_visitor_team: data[0].visitor_team,
     last_home_score: data[0].home_score,
@@ -192,9 +194,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (alreadyPosted && alreadyPosted.length > 0) continue;
 
     const isPostseason = ['F', 'D', 'L', 'W'].includes(g.gameType);
-    const gameDate = g.officialDate as string;
-    const isOpeningNight = gameDate === '2026-03-25';
-    const isOpeningDay = gameDate === '2026-03-26';
     const winnerIsAway = away_score > home_score;
 
     const winnerName = winnerIsAway
@@ -204,7 +203,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ? (TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop())
       : (TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop());
 
-    const hashtag = isPostseason ? '\n#Postseason' : isOpeningNight ? '\n#OpeningNight' : isOpeningDay ? '\n#OpeningDay' : '';
+    const hashtag = isPostseason ? '\n#Postseason' : '';
     const header = `FINAL: ${winnerName} ${Math.max(away_score, home_score)}, ${loserName} ${Math.min(away_score, home_score)}${hashtag}`;
 
     const [franchiseIdsAway, franchiseIdsHome, scorigamiResult, playoffBreakdown] = await Promise.all([
@@ -261,14 +260,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           .select('score_snapshot')
           .gte('created_at', `${todayUTC}T00:00:00Z`)
           .neq('game_id', game_id);
-        const todayMatch = todayPosts?.some(p =>
+        const todayMatchCount = todayPosts?.filter(p =>
           p.score_snapshot === `${win}-${lose}` ||
           p.score_snapshot === `${lose}-${win}` ||
           p.score_snapshot === `${away_score}-${home_score}` ||
           p.score_snapshot === `${home_score}-${away_score}`
-        );
-        const mostRecently = todayMatch ? 'earlier today' : `on ${history?.last_game_date}`;
-        postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(history?.occurrences ?? 0)} times in MLB history, most recently ${mostRecently}.`;
+        ).length ?? 0;
+        const todayMatch = todayMatchCount > 0;
+        const totalOccurrences = (history?.occurrences ?? 0) + todayMatchCount;
+        const yesterdayUTC = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        const mostRecently = todayMatch ? 'earlier today'
+          : history?.last_game_date_raw === yesterdayUTC ? 'yesterday'
+          : `on ${history?.last_game_date}`;
+        postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history, most recently ${mostRecently}.`;
       }
     }
 
