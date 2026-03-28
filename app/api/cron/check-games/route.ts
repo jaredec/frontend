@@ -279,7 +279,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const mostRecently = todayMatch ? 'earlier today'
           : lastDateStr === yesterdayPT ? 'yesterday'
           : `on ${history?.last_game_date}`;
-        postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history, most recently ${mostRecently}.`;
+        const isRarigami = totalOccurrences < 10;
+        if (isRarigami && history) {
+          const lastWinTeam = history.last_home_score >= history.last_visitor_score ? history.last_home_team : history.last_visitor_team;
+          const lastWinScore = Math.max(history.last_home_score, history.last_visitor_score);
+          const lastLoseTeam = history.last_home_score >= history.last_visitor_score ? history.last_visitor_team : history.last_home_team;
+          const lastLoseScore = Math.min(history.last_home_score, history.last_visitor_score);
+          postText = `${header}\n\nRarigami. This score has happened only ${formatNum(totalOccurrences)} times in MLB history, most recently ${mostRecently} (${lastWinTeam} ${lastWinScore}, ${lastLoseTeam} ${lastLoseScore}).`;
+        } else {
+          postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history, most recently ${mostRecently}.`;
+        }
       }
     }
 
