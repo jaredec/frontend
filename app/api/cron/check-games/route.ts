@@ -315,17 +315,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const todayMatch = todayMatchCount > 0;
         const totalOccurrences = (history?.occurrences ?? 0) + todayMatchCount;
         const lastDateStr = history?.last_game_date_raw?.slice(0, 10) ?? '';
-        const mostRecently = todayMatch ? 'earlier today'
-          : lastDateStr === yesterdayPT ? 'yesterday'
-          : `on ${history?.last_game_date}`;
+        const mostRecently = todayMatchCount === 0 ? (lastDateStr === yesterdayPT ? 'yesterday' : `on ${history?.last_game_date}`)
+          : todayMatchCount === 1 ? 'earlier today'
+          : null;
+        const includingToday = todayMatchCount === 2 ? 'including twice earlier today'
+          : todayMatchCount > 2 ? `including ${todayMatchCount} times earlier today`
+          : null;
         const isRarigami = totalOccurrences < 10;
-        const teamContext = mostRecently !== 'earlier today' && history
+        const teamContext = mostRecently && mostRecently !== 'earlier today' && history
           ? ` (${teamAbbr(history.last_visitor_team)} vs. ${teamAbbr(history.last_home_team)})`
           : '';
+        const recencyClause = includingToday
+          ? `, ${includingToday}`
+          : `, most recently ${mostRecently}`;
         if (isRarigami && history) {
-          postText = `${header}\n\nRarigami. This score has happened only ${formatNum(totalOccurrences)} times in MLB history, most recently ${mostRecently}${teamContext}.`;
+          postText = `${header}\n\nRarigami. This score has happened only ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
         } else {
-          postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history, most recently ${mostRecently}${teamContext}.`;
+          postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
         }
       }
     }
