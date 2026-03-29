@@ -74,6 +74,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth dark" suppressHydrationWarning>
       <head>
+        <meta name="google-adsense-account" content="ca-pub-3394379644367524" />
         <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3394379644367524"
