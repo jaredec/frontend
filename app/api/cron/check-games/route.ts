@@ -312,7 +312,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             p.score_snapshot === `${home_score}-${away_score}`
           );
         }).length ?? 0;
-        const todayMatch = todayMatchCount > 0;
         const totalOccurrences = (history?.occurrences ?? 0) + todayMatchCount;
         const lastDateStr = history?.last_game_date_raw?.slice(0, 10) ?? '';
         const mostRecently = todayMatchCount === 0 ? (lastDateStr === yesterdayPT ? 'yesterday' : `on ${history?.last_game_date}`)
