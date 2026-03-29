@@ -73,6 +73,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth dark" suppressHydrationWarning>
+      <head>
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3394379644367524"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
+      </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable} ${cookie.variable} font-sans antialiased`}>
         <script
           type="application/ld+json"
@@ -108,12 +116,6 @@ export default function RootLayout({
         {children}
         <Analytics />
         <SpeedInsights />
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3394379644367524"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
       </body>
     </html>
   );
