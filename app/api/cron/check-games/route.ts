@@ -316,17 +316,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const lastDateStr = history?.last_game_date_raw?.slice(0, 10) ?? '';
         const mostRecently = todayMatchCount === 0 ? (lastDateStr === yesterdayPT ? 'yesterday' : `on ${history?.last_game_date}`)
           : todayMatchCount === 1 ? 'earlier today'
-          : null;
-        const includingToday = todayMatchCount === 2 ? 'including twice earlier today'
-          : todayMatchCount > 2 ? `including ${todayMatchCount} times earlier today`
-          : null;
+          : todayMatchCount === 2 ? 'twice earlier today'
+          : `${todayMatchCount} times earlier today`;
         const isRarigami = totalOccurrences < 10;
-        const teamContext = mostRecently && mostRecently !== 'earlier today' && history
+        const teamContext = mostRecently !== 'earlier today' && mostRecently !== 'twice earlier today' && !mostRecently?.includes('times earlier today') && history
           ? ` (${teamAbbr(history.last_visitor_team)} vs. ${teamAbbr(history.last_home_team)})`
           : '';
-        const recencyClause = includingToday
-          ? `, ${includingToday}`
-          : `, most recently ${mostRecently}`;
+        const recencyClause = `, most recently ${mostRecently}`;
         if (isRarigami && history) {
           postText = `${header}\n\nRarigami. This score has happened only ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
         } else {
