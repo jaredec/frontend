@@ -318,7 +318,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           : todayMatchCount === 1 ? 'earlier today'
           : todayMatchCount === 2 ? 'twice earlier today'
           : `${todayMatchCount} times earlier today`;
-        const isRarigami = totalOccurrences < 10;
+        const isRarigami = totalOccurrences < 100;
         const teamContext = mostRecently !== 'earlier today' && mostRecently !== 'twice earlier today' && !mostRecently?.includes('times earlier today') && history
           ? ` (${teamAbbr(history.last_visitor_team)} vs. ${teamAbbr(history.last_home_team)})`
           : '';
