@@ -168,13 +168,6 @@ async function getUniquePlayoffScoreCount(): Promise<number> {
   return result.rows[0]?.count ?? 0;
 }
 
-async function getFranchiseUniqueScoreCount(franchiseIds: number[]): Promise<number> {
-  const result = await pool.query(`
-    SELECT COUNT(DISTINCT CONCAT(GREATEST(home_score, visitor_score), '-', LEAST(home_score, visitor_score)))::int AS count
-    FROM gamelogs WHERE (home_team_id = ANY($1) OR visitor_team_id = ANY($1)) AND EXTRACT(YEAR FROM date) >= ${START_YEAR}
-  `, [franchiseIds]);
-  return result.rows[0]?.count ?? 0;
-}
 
 
 function formatNum(n: number): string {
