@@ -273,20 +273,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       if (isAwayS || isHomeS) {
         const onlyWord = history && history.occurrences < 25 ? 'only ' : '';
-        const historyLine = history ? ` This score has happened ${onlyWord}${formatNum(history.occurrences)} times in MLB history.` : '';
+        const historyLine = history ? ` It's ${onlyWord}happened ${formatNum(history.occurrences)} times in MLB history.` : '';
+
+        const awayShort = TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop();
+        const homeShort = TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop();
 
         let franchiseLine: string;
         if (isAwayS && isHomeS) {
-          const [awayCount, homeCount] = await Promise.all([
-            getFranchiseUniqueScoreCount(franchiseIdsAway),
-            getFranchiseUniqueScoreCount(franchiseIdsHome),
-          ]);
-          franchiseLine = `It's the ${getOrdinal(awayCount + 1)} unique final score in ${away_name} history and the ${getOrdinal(homeCount + 1)} unique final score in ${home_name} history.`;
+          franchiseLine = `It's the first time in both ${awayShort} and ${homeShort} history this score has occurred.`;
         } else {
-          const teamName = isAwayS ? away_name : home_name;
-          const franchiseIds = isAwayS ? franchiseIdsAway : franchiseIdsHome;
-          const franchiseCount = await getFranchiseUniqueScoreCount(franchiseIds);
-          franchiseLine = `It's the ${getOrdinal(franchiseCount + 1)} unique final score in ${teamName} history.`;
+          const teamShort = isAwayS ? awayShort : homeShort;
+          franchiseLine = `It's the first time in ${teamShort} history this score has occurred.`;
         }
 
         postText = `${header}\n\nThat's Franchisigami! ${franchiseLine}${historyLine}`;
