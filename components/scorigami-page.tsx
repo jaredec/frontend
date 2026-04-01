@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import useSWR, { preload } from "swr";
 import { AlertTriangle, ArrowLeftRight, Maximize2, Minimize2 } from "lucide-react";
 
-import TopBar from "@/components/top-bar";
+import NavBar from "@/components/nav-bar";
 import FilterBar from "@/components/filter-bar";
 import ScorigamiHeatmap from "@/components/scorigami-heatmap";
 import PageFooter from "@/components/page-footer";
@@ -201,7 +201,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
 
   return (
     <div className="min-h-screen flex flex-col">
-      <TopBar
+      <NavBar
         totalGames={quickStats?.totalGames}
         uniqueScores={quickStats?.uniqueScores}
       />

@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import TwitterApi from 'twitter-api-v2';
 import { pool } from '@/lib/db';
 
@@ -250,11 +251,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (scorigamiResult.isScorigami) {
       // 1. True Scorigami
       postText = `${header}\n\nThat's Scorigami! It's the ${getOrdinal(scorigamiResult.newCount)} unique final score in MLB history.`;
+      revalidatePath('/history');
 
     } else if (isPostseason && playoffBreakdown && playoffBreakdown.total === 0) {
       // 2. Playoffigami
       const playoffCount = await getUniquePlayoffScoreCount();
       postText = `${header}\n\nThat's Playoffigami! It's the ${getOrdinal(playoffCount + 1)} unique final score in MLB playoff history.`;
+      revalidatePath('/history');
 
     } else {
       // 3. Franchisigami or No Scorigami
@@ -315,6 +318,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const recencyClause = `, most recently ${mostRecently}`;
         if (isRarigami && history) {
           postText = `${header}\n\nRarigami. This score has happened only ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
+          revalidatePath('/history');
         } else {
           postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
         }
