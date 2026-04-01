@@ -17,7 +17,7 @@ export default function AboutPage() {
         <div className="space-y-1.5">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">What is Scorigami?</h2>
           <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
-            A scorigami is a final score that has never happened before in MLB history. The concept was originally created by Jon Bois for the NFL. We made one for baseball. In over 155 years of games, only 358 unique final scores have ever occurred.
+            A scorigami is a final score that has never happened before. The concept was originally created by Jon Bois for the NFL. We made one for baseball. In over 155 years of games, only 358 unique final scores have ever occurred.
           </p>
         </div>
 
@@ -51,9 +51,7 @@ export default function AboutPage() {
           <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">Data & Coverage</h2>
           <div className="space-y-2 text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
             <p>
-              We consider 1871 the start of Major League Baseball. That year saw the founding of the National Association, the first professional baseball league. The game has changed enormously since then, and so has the recordkeeping.
-              Early box scores were kept by hand and preserved imperfectly; what exists today is the result of decades of
-              historical research, much of it done by volunteers.
+              We consider 1871 the start of Major League Baseball. That year saw the founding of the National Association, the first professional baseball league. The game has changed enormously since then, and so has the recordkeeping. Early box scores were kept by hand and preserved imperfectly; what exists today is the result of decades of historical research, much of it done by volunteers.
             </p>
             <p>
               Historical data is sourced from <a href="https://www.retrosheet.org" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 decoration-slate-400 dark:decoration-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">Retrosheet</a>,
@@ -74,16 +72,16 @@ export default function AboutPage() {
           <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">@MLBgami on X</h2>
           <div className="space-y-2 text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
             <p>
-              The <a href="https://x.com/MLBgami" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 decoration-slate-400 dark:decoration-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">@MLBgami</a> account
-              posts automatically after every MLB game, noting what (if anything) makes that final score notable.
+              <a href="https://x.com/MLBgami" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 decoration-slate-400 dark:decoration-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">@MLBgami</a> posts
+              automatically after every MLB game, noting what (if anything) makes that final score notable.
               Posts are checked in priority order:
             </p>
             <ul className="list-disc list-outside ml-4 space-y-1 text-sm sm:text-base">
-              <li>Scorigami: never happened in MLB history.</li>
+              <li>Scorigami: never happened before.</li>
               <li>Playoffigami: never happened in a playoff game.</li>
-              <li>Franchisigami: never involved this franchise before.</li>
+              <li>Franchisigami: a franchise has never played this exact score before.</li>
               <li>Rarigami: fewer than 100 occurrences all time.</li>
-              <li>No scorigami: common score. The post notes how many times it has occurred.</li>
+              <li>No scorigami: the score is common. The post reports how many times it has occurred and when it last happened.</li>
             </ul>
           </div>
         </div>

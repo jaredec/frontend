@@ -47,10 +47,9 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   const isGhostClick = () => Date.now() - dropdownCloseTimeRef.current < 400;
 
   // Load all yearly data once per team+type combo
-  const today = new Date().toISOString().slice(0, 10);
   const apiUrl = useMemo(
-    () => `/api/scorigami?team=${club}&type=${scorigamiType}&mode=yearly&gameFilter=${gameFilter}&d=${today}`,
-    [club, scorigamiType, gameFilter, today]
+    () => `/api/scorigami?team=${club}&type=${scorigamiType}&mode=yearly&gameFilter=${gameFilter}`,
+    [club, scorigamiType, gameFilter]
   );
 
   const {
@@ -108,7 +107,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   useEffect(() => {
     if (!yearlyRows) return;
     const altType = scorigamiType === "traditional" ? "home_away" : "traditional";
-    const altUrl = `/api/scorigami?team=${club}&type=${altType}&mode=yearly&gameFilter=${gameFilter}&d=${today}`;
+    const altUrl = `/api/scorigami?team=${club}&type=${altType}&mode=yearly&gameFilter=${gameFilter}`;
     preload(altUrl, fetcher);
   }, [yearlyRows, club, scorigamiType, gameFilter]);
 
