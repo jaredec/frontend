@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import type { HistoryRow, FilterMode } from "./page";
 
 const FILTER_OPTIONS: { label: string; value: FilterMode }[] = [
-  { label: "All Scorigami", value: "all" },
+  { label: "Scorigami", value: "all" },
   { label: "Rarigami", value: "rarigami" },
   { label: "Playoffigami", value: "playoff" },
 ];
@@ -18,6 +18,25 @@ function formatDate(raw: string): string {
     day: "numeric",
     year: "numeric",
   });
+}
+
+const SHORT_NAME_MAP: Record<string, string> = {
+  "Arizona Diamondbacks": "D-backs",
+  "Boston Red Sox": "Red Sox",
+  "Chicago White Sox": "White Sox",
+  "Toronto Blue Jays": "Blue Jays",
+  "Worcester Ruby Legs": "Ruby Legs",
+  "Boston Red Stockings": "Red Stockings",
+  "St. Louis Brown Stockings": "Brown Stockings",
+  "Philadelphia White Stockings": "White Stockings",
+  "Cincinnati Red Stockings": "Red Stockings",
+  "Chicago White Stockings": "White Stockings",
+};
+
+function shortName(name: string): string {
+  if (SHORT_NAME_MAP[name]) return SHORT_NAME_MAP[name];
+  const words = name.trim().split(" ");
+  return words[words.length - 1];
 }
 
 function FilterDropdown({ value, onChange }: { value: FilterMode; onChange: (v: FilterMode) => void }) {
@@ -113,7 +132,7 @@ export default function HistoryTable({
   return (
     <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 space-y-4">
       {/* Filter + count row */}
-      <div className="flex items-end gap-4">
+      <div className="flex items-end justify-between">
         <div>
           <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Filter</label>
           <FilterDropdown value={filter} onChange={handleFilterChange} />
@@ -124,7 +143,7 @@ export default function HistoryTable({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-[#2d2d30] relative">
+      <div className="rounded-lg border border-slate-200 dark:border-[#2d2d30] relative">
         {isLoading && (
           <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden z-50">
             <div className="h-full w-full bg-gradient-to-r from-transparent via-blue-500/40 to-transparent animate-shimmer" />
@@ -133,11 +152,10 @@ export default function HistoryTable({
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-slate-200 dark:border-[#2d2d30] bg-slate-100/70 dark:bg-[#252526]">
-              <th className="px-2 sm:px-4 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] sm:text-xs whitespace-nowrap">Date</th>
-              <th className="px-2 sm:px-4 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] sm:text-xs whitespace-nowrap">Score</th>
-              <th className="px-2 sm:px-4 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] sm:text-xs whitespace-nowrap">Teams</th>
-              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] sm:text-xs whitespace-nowrap">Occurrences</th>
-              <th className="px-2 sm:px-4 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] sm:text-xs whitespace-nowrap">Box Score</th>
+              <th className="px-1.5 sm:px-4 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[9px] sm:text-xs whitespace-nowrap">Date</th>
+              <th className="px-1.5 sm:px-4 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[9px] sm:text-xs whitespace-nowrap">Score</th>
+              <th className="px-1.5 sm:px-4 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[9px] sm:text-xs whitespace-nowrap">Teams</th>
+              <th className="px-1.5 sm:px-4 py-3 text-right font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[9px] sm:text-xs whitespace-nowrap">Times</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-[#2d2d30]">
@@ -151,35 +169,42 @@ export default function HistoryTable({
                   ? `https://www.mlb.com/gameday/${row.game_id}`
                   : null;
 
-              return (
-                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-[#252526] transition-colors">
-                  <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm text-slate-500 dark:text-slate-400 tabular-nums whitespace-nowrap">
+              const rowContent = (
+                <>
+                  <td className="px-1.5 sm:px-4 py-2 sm:py-2.5 text-[9px] sm:text-sm text-slate-500 dark:text-slate-400 tabular-nums whitespace-nowrap">
                     {formatDate(row.date)}
                   </td>
-                  <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm text-slate-900 dark:text-slate-100 font-medium tabular-nums whitespace-nowrap">
+                  <td className="px-1.5 sm:px-4 py-2 sm:py-2.5 text-[9px] sm:text-sm text-slate-900 dark:text-slate-100 font-medium tabular-nums whitespace-nowrap">
                     {row.win}–{row.lose}
                   </td>
-                  <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                    {winner} vs. {loser}
-                  </td>
-                  <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm text-right tabular-nums text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                    {occurrences.toLocaleString()}
-                  </td>
-                  <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-center whitespace-nowrap">
-                    {boxScoreUrl ? (
-                      <a
-                        href={boxScoreUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-                        aria-label="Box score"
-                      >
-                        <ExternalLink className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
-                      </a>
-                    ) : (
-                      <span className="text-slate-300 dark:text-slate-700">—</span>
+                  <td className="px-1.5 sm:px-4 py-2 sm:py-2.5 text-[9px] sm:text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                    <span className="sm:hidden">{shortName(winner)} vs. {shortName(loser)}</span>
+                    <span className="hidden sm:inline">{winner} vs. {loser}</span>
+                    {boxScoreUrl && (
+                      <ArrowUpRight className="inline-block ml-0.5 sm:ml-1 w-2.5 h-2.5 sm:w-3 sm:h-3 text-slate-300 dark:text-slate-600 flex-shrink-0" />
                     )}
                   </td>
+                  <td className="px-1.5 sm:px-4 py-2 sm:py-2.5 text-[9px] sm:text-sm text-right tabular-nums text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                    {occurrences.toLocaleString()}
+                  </td>
+                </>
+              );
+
+              if (boxScoreUrl) {
+                return (
+                  <tr
+                    key={i}
+                    onClick={() => window.open(boxScoreUrl, "_blank")}
+                    className="hover:bg-slate-50 dark:hover:bg-[#252526] transition-colors cursor-pointer"
+                  >
+                    {rowContent}
+                  </tr>
+                );
+              }
+
+              return (
+                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-[#252526] transition-colors">
+                  {rowContent}
                 </tr>
               );
             })}
