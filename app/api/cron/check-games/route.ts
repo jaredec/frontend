@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import TwitterApi from 'twitter-api-v2';
 import { pool } from '@/lib/db';
 
@@ -333,6 +333,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       details: 'Final Score',
       score_snapshot: `${away_score}-${home_score}`,
     });
+
+    revalidateTag('scorigami');
   }
 
   return NextResponse.json({ success: true });

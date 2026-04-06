@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { pool } from "@/lib/db";
 import type { GameFilter } from "@/lib/mlb-data";
 
@@ -34,11 +35,12 @@ function gameTypeClause(gameFilter: GameFilter): string {
   return "";
 }
 
-export async function getYearlyScorigami(
-  team: string,
-  type: string,
-  gameFilter: GameFilter = "all"
-): Promise<YearlyRow[]> {
+export const getYearlyScorigami = unstable_cache(
+  async (
+    team: string,
+    type: string,
+    gameFilter: GameFilter = "all"
+  ): Promise<YearlyRow[]> => {
   const teamId = team === "ALL" ? 0 : (FRANCHISE_CODE_TO_ID_MAP[team] || 0);
   const isTraditional = type === "traditional";
 
@@ -106,4 +108,7 @@ export async function getYearlyScorigami(
     ORDER BY year, score1, score2
   `, [teamId]);
   return result.rows;
-}
+  },
+  ["yearly-scorigami"],
+  { tags: ["scorigami"], revalidate: 86400 }
+);
