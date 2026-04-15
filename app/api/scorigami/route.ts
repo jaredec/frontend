@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pool } from '@/lib/db';
-import { FRANCHISE_CODE_TO_ID_MAP, getYearlyScorigami } from '@/lib/scorigami-queries';
+import { FRANCHISE_CODE_TO_ID_MAP, getAggregatedHomeAway, getAggregatedTraditional, getYearlyScorigami } from '@/lib/scorigami-queries';
 import type { GameFilter } from '@/lib/mlb-data';
 
 const CACHE_HEADERS = {
@@ -26,55 +25,13 @@ export async function GET(request: NextRequest) {
 
     // Aggregated mode (legacy): return pre-aggregated summary
     if (isTraditional) {
-      const query = `
-        SELECT score1, score2, occurrences,
-               last_date, last_home_team, last_visitor_team,
-               last_game_id, source
-        FROM scorigami_summary
-        WHERE team_id = $1
-        ORDER BY score1, score2
-      `;
-      const result = await pool.query(query, [teamId]);
-      return NextResponse.json(result.rows, { headers: CACHE_HEADERS });
+      const rows = await getAggregatedTraditional(teamId);
+      return NextResponse.json(rows, { headers: CACHE_HEADERS });
     }
 
     // Home/away aggregated fallback
-    let teamFilter = '';
-    const params: number[] = [];
-    if (teamId > 0) {
-      teamFilter = ` WHERE (g.home_team_id = $1 OR g.visitor_team_id = $1)`;
-      params.push(teamId);
-    }
-    const negroLeagueFilter = teamId > 0 ? '' : ' WHERE g.is_negro_league = false';
-
-    const scoreSelect = teamId > 0
-      ? `CASE WHEN g.home_team_id = $1 THEN g.home_score ELSE g.visitor_score END AS score1,
-         CASE WHEN g.home_team_id = $1 THEN g.visitor_score ELSE g.home_score END AS score2`
-      : `g.home_score AS score1, g.visitor_score AS score2`;
-
-    const partitionCols = teamId > 0
-      ? `CASE WHEN g.home_team_id = ${teamId} THEN g.home_score ELSE g.visitor_score END,
-         CASE WHEN g.home_team_id = ${teamId} THEN g.visitor_score ELSE g.home_score END`
-      : `g.home_score, g.visitor_score`;
-
-    const query = `
-      WITH scored AS (
-        SELECT
-          ${scoreSelect},
-          g.date, g.home_team, g.visitor_team, g.game_id, g.source,
-          COUNT(*) OVER (PARTITION BY ${partitionCols}) AS occurrences,
-          ROW_NUMBER() OVER (PARTITION BY ${partitionCols} ORDER BY g.date DESC) AS rn
-        FROM gamelogs g
-        ${teamFilter || negroLeagueFilter}
-      )
-      SELECT score1, score2, occurrences,
-             date AS last_date, home_team AS last_home_team,
-             visitor_team AS last_visitor_team, game_id AS last_game_id, source
-      FROM scored WHERE rn = 1
-      ORDER BY score1, score2
-    `;
-    const result = await pool.query(query, params);
-    return NextResponse.json(result.rows, { headers: CACHE_HEADERS });
+    const rows = await getAggregatedHomeAway(teamId);
+    return NextResponse.json(rows, { headers: CACHE_HEADERS });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });

@@ -337,5 +337,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     revalidateTag('scorigami');
   }
 
+  await pool.query('REFRESH MATERIALIZED VIEW mv_scorigami_summary_ha');
+
   return NextResponse.json({ success: true });
 }

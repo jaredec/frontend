@@ -35,6 +35,65 @@ function gameTypeClause(gameFilter: GameFilter): string {
   return "";
 }
 
+export interface AggregatedRow {
+  score1: number;
+  score2: number;
+  occurrences: number;
+  last_date: string | null;
+  last_home_team: string | null;
+  last_visitor_team: string | null;
+  last_game_id: number | null;
+  source: string | null;
+}
+
+// Fetch all teams at once and cache — filter in JS per request
+// team_id=0 (ALL) comes from mv_global_traditional; per-team from scorigami_summary
+const getAllAggregatedTraditional = unstable_cache(
+  async (): Promise<(AggregatedRow & { team_id: number })[]> => {
+    const result = await pool.query(`
+      SELECT 0 AS team_id, score1, score2, occurrences,
+             last_date, last_home_team, last_visitor_team,
+             last_game_id, source
+      FROM mv_global_traditional
+      UNION ALL
+      SELECT team_id, score1, score2, occurrences,
+             last_date, last_home_team, last_visitor_team,
+             last_game_id, source
+      FROM scorigami_summary
+      ORDER BY team_id, score1, score2
+    `);
+    return result.rows;
+  },
+  ["aggregated-traditional-all"],
+  { tags: ["scorigami"], revalidate: 86400 }
+);
+
+export async function getAggregatedTraditional(teamId: number): Promise<AggregatedRow[]> {
+  const all = await getAllAggregatedTraditional();
+  return all.filter(r => r.team_id === teamId);
+}
+
+// Fetch all teams at once from materialized view and cache — filter in JS per request
+const getAllAggregatedHomeAway = unstable_cache(
+  async (): Promise<(AggregatedRow & { team_id: number })[]> => {
+    const result = await pool.query(`
+      SELECT team_id, score1, score2, occurrences,
+             last_date, last_home_team, last_visitor_team,
+             last_game_id, source
+      FROM mv_scorigami_summary_ha
+      ORDER BY team_id, score1, score2
+    `);
+    return result.rows;
+  },
+  ["aggregated-home-away-all"],
+  { tags: ["scorigami"], revalidate: 86400 }
+);
+
+export async function getAggregatedHomeAway(teamId: number): Promise<AggregatedRow[]> {
+  const all = await getAllAggregatedHomeAway();
+  return all.filter(r => r.team_id === teamId);
+}
+
 export const getYearlyScorigami = unstable_cache(
   async (
     team: string,
