@@ -181,16 +181,66 @@ function getOrdinal(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-async function postTweet(twitterClient: TwitterApi, postText: string, replyText: string | null) {
+async function postTweet(twitterClient: TwitterApi, postText: string, replyText: string | null): Promise<string | null> {
   if (process.env.ENABLE_POSTING === 'true') {
     const tweet = await twitterClient.v2.tweet(postText);
     if (replyText) {
       await twitterClient.v2.tweet(replyText, { reply: { in_reply_to_tweet_id: tweet.data.id } });
     }
+    return tweet.data.id;
   } else {
     console.log("WOULD TWEET:", postText);
     if (replyText) console.log("WOULD REPLY:", replyText);
+    return null;
   }
+}
+
+async function postQuoteTweet(twitterClient: TwitterApi, text: string, quoteTweetId: string): Promise<void> {
+  if (process.env.ENABLE_POSTING === 'true') {
+    await twitterClient.v2.tweet(text, { quote_tweet_id: quoteTweetId });
+  } else {
+    console.log("WOULD QUOTE TWEET:", text, "quoting:", quoteTweetId);
+  }
+}
+
+async function getTeamStreak(supabase: SupabaseClient, teamName: string, todayWon: boolean): Promise<{ type: 'win' | 'loss'; length: number } | null> {
+  // Today's game isn't in gamelogs yet, so we fetch recent history and prepend today's result
+  const { data } = await supabase
+    .from('gamelogs')
+    .select('visitor_team, home_team, visitor_score, home_score')
+    .or(`visitor_team.eq.${teamName},home_team.eq.${teamName}`)
+    .eq('game_type', 'R')
+    .order('date', { ascending: false })
+    .limit(25);
+
+  const todayResult = { won: todayWon };
+  const results: boolean[] = [todayResult.won, ...(data ?? []).map(g => {
+    const isHome = g.home_team === teamName;
+    return isHome ? g.home_score > g.visitor_score : g.visitor_score > g.home_score;
+  })];
+
+  const streakType: 'win' | 'loss' = results[0] ? 'win' : 'loss';
+  let streak = 0;
+  for (const won of results) {
+    if ((streakType === 'win') === won) streak++;
+    else break;
+  }
+
+  if (streak < 12) return null;
+  return { type: streakType, length: streak };
+}
+
+async function getStreakContext(supabase: SupabaseClient, streakType: 'win' | 'loss', length: number): Promise<{ count: number; lastTeam: string; lastDate: string } | null> {
+  const { data } = await supabase
+    .from('mv_streak_context')
+    .select('occurrence_count, last_team, last_date')
+    .eq('streak_type', streakType)
+    .eq('streak_length', length)
+    .single();
+
+  if (!data) return null;
+  const lastDate = new Date(data.last_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  return { count: data.occurrence_count, lastTeam: data.last_team.split(' ').pop()!, lastDate };
 }
 
 // --- MAIN HANDLER ---
@@ -223,7 +273,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const away_name = g.teams.away.team.name;
     const home_name = g.teams.home.team.name;
 
-    const { data: alreadyPosted } = await supabase.from('posted_updates').select('id').eq('game_id', game_id).limit(1);
+    const { data: alreadyPosted } = await supabase.from('posted_updates').select('id').eq('game_id', game_id).eq('post_type', 'Final').limit(1);
     if (alreadyPosted && alreadyPosted.length > 0) continue;
 
     const isPostseason = ['F', 'D', 'L', 'W'].includes(g.gameType);
@@ -325,19 +375,55 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    await postTweet(twitterClient, postText, null);
+    const tweetId = await postTweet(twitterClient, postText, null);
 
     await supabase.from('posted_updates').insert({
       game_id,
       post_type: 'Final',
       details: 'Final Score',
       score_snapshot: `${away_score}-${home_score}`,
+      tweet_id: tweetId,
     });
+
+    // Streak check for both teams
+    if (tweetId) {
+      const teamsToCheck: [string, string, boolean][] = [
+        [away_name, TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop()!, away_score > home_score],
+        [home_name, TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop()!, home_score > away_score],
+      ];
+      for (const [teamName, shortName, todayWon] of teamsToCheck) {
+        const streak = await getTeamStreak(supabase, teamName, todayWon);
+        if (!streak) continue;
+
+        const { count: postedCount } = await supabase
+          .from('posted_updates')
+          .select('id', { count: 'exact', head: true })
+          .eq('game_id', game_id);
+        if (postedCount && postedCount >= 2) continue;
+
+        const ctx = await getStreakContext(supabase, streak.type, streak.length);
+        const streakWord = streak.type === 'win' ? 'won' : 'lost';
+        const streakLabel = streak.type === 'win' ? 'winning' : 'losing';
+        let streakText = `The ${shortName} have ${streakWord} ${streak.length} straight.`;
+        if (ctx) {
+          streakText += ` A ${streak.length}-game ${streakLabel} streak has happened ${ctx.count.toLocaleString('en-US')} times in MLB history, most recently the ${ctx.lastTeam} in ${ctx.lastDate}.`;
+        }
+
+        await postQuoteTweet(twitterClient, streakText, tweetId);
+        await supabase.from('posted_updates').insert({
+          game_id,
+          post_type: 'Streak',
+          details: `${streak.length}-game ${streakLabel} streak`,
+          tweet_id: tweetId,
+        });
+      }
+    }
 
     revalidateTag('scorigami');
   }
 
   await pool.query('REFRESH MATERIALIZED VIEW mv_scorigami_summary_ha');
+  await pool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY mv_streak_context');
 
   return NextResponse.json({ success: true });
 }
