@@ -211,7 +211,7 @@ async function getTeamStreak(supabase: SupabaseClient, teamName: string, todayWo
     .or(`visitor_team.eq.${teamName},home_team.eq.${teamName}`)
     .eq('game_type', 'R')
     .order('date', { ascending: false })
-    .limit(25);
+    .limit(35);
 
   const todayResult = { won: todayWon };
   const results: boolean[] = [todayResult.won, ...(data ?? []).map(g => {
@@ -263,6 +263,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const scheduleGames = scheduleData.dates[0].games;
 
   for (const g of scheduleGames) {
+    try {
     if (g.status.codedGameState !== 'F' && g.status.codedGameState !== 'O') continue;
     if (!['R', 'F', 'D', 'L', 'W'].includes(g.gameType)) continue;
 
@@ -421,6 +422,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     revalidateTag('scorigami');
+    } catch (err) {
+      console.error(`Error processing game ${g.gamePk}:`, err);
+    }
   }
 
   await pool.query('REFRESH MATERIALIZED VIEW mv_scorigami_summary_ha');
