@@ -240,7 +240,8 @@ async function getStreakContext(supabase: SupabaseClient, streakType: 'win' | 'l
 
   if (!data) return null;
   const lastDate = new Date(data.last_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-  return { count: data.occurrence_count, lastTeam: data.last_team.split(' ').pop()!, lastDate };
+  const lastTeam = TEAM_NAME_SHORTENER_MAP[data.last_team] || data.last_team.split(' ').pop()!;
+  return { count: data.occurrence_count, lastTeam, lastDate };
 }
 
 // --- MAIN HANDLER ---
