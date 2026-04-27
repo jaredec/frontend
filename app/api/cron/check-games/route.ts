@@ -82,24 +82,12 @@ async function getFranchiseTeamIds(supabase: SupabaseClient, teamId: number): Pr
   return teamIdsData?.map(t => Number(t.team_id)) || [teamId];
 }
 
-async function checkTrueScorigami(supabase: SupabaseClient, s1: number, s2: number): Promise<{ isScorigami: boolean; newCount: number }> {
-  const win = Math.max(s1, s2);
-  const lose = Math.min(s1, s2);
-
-  const { data } = await supabase.from('gamelogs')
-    .select('game_id')
-    .or(`and(home_score.eq.${win},visitor_score.eq.${lose}),and(home_score.eq.${lose},visitor_score.eq.${win})`)
-    .eq('is_negro_league', false)
-    .gte('date', `${START_YEAR}-01-01`)
-    .limit(1);
-
-  if (data && data.length > 0) return { isScorigami: false, newCount: 0 };
-
+async function getUniqueScoreCount(): Promise<number> {
   const result = await pool.query(`
     SELECT COUNT(DISTINCT CONCAT(GREATEST(home_score, visitor_score), '-', LEAST(home_score, visitor_score)))::int AS count
     FROM gamelogs WHERE is_negro_league = false AND EXTRACT(YEAR FROM date) >= ${START_YEAR}
   `);
-  return { isScorigami: true, newCount: (result.rows[0]?.count ?? 0) + 1 };
+  return result.rows[0]?.count ?? 0;
 }
 
 async function isFranchiseScorigami(supabase: SupabaseClient, franchiseIds: number[], s1: number, s2: number): Promise<boolean> {
@@ -136,28 +124,35 @@ async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number)
   };
 }
 
-async function getPlayoffBreakdown(supabase: SupabaseClient, s1: number, s2: number): Promise<PlayoffBreakdown> {
+async function getPlayoffBreakdown(s1: number, s2: number): Promise<PlayoffBreakdown> {
   const win = Math.max(s1, s2);
   const lose = Math.min(s1, s2);
-  const { data } = await supabase.from('gamelogs')
-    .select('game_type, date')
-    .or(`and(home_score.eq.${win},visitor_score.eq.${lose}),and(home_score.eq.${lose},visitor_score.eq.${win})`)
-    .in('game_type', ['W', 'L', 'D', 'F'])
-    .gte('date', `${START_YEAR}-01-01`)
-    .order('date', { ascending: false });
+  const result = await pool.query(`
+    SELECT game_type, COUNT(*)::int AS count, MAX(date) AS last_date
+    FROM gamelogs
+    WHERE ((home_score = $1 AND visitor_score = $2) OR (home_score = $2 AND visitor_score = $1))
+      AND game_type IN ('W','L','D','F')
+      AND EXTRACT(YEAR FROM date) >= ${START_YEAR}
+    GROUP BY game_type
+  `, [win, lose]);
 
-  if (!data || data.length === 0) return { total: 0, ws: 0, lcs: 0, ds: 0, wc: 0, last_date: null };
+  if (result.rows.length === 0) return { total: 0, ws: 0, lcs: 0, ds: 0, wc: 0, last_date: null };
 
-  let ws = 0, lcs = 0, ds = 0, wc = 0;
-  for (const row of data) {
-    if (row.game_type === 'W') ws++;
-    else if (row.game_type === 'L') lcs++;
-    else if (row.game_type === 'D') ds++;
-    else if (row.game_type === 'F') wc++;
+  let ws = 0, lcs = 0, ds = 0, wc = 0, total = 0;
+  let maxDate: string | null = null;
+  for (const row of result.rows) {
+    const c = row.count as number;
+    total += c;
+    if (row.game_type === 'W') ws = c;
+    else if (row.game_type === 'L') lcs = c;
+    else if (row.game_type === 'D') ds = c;
+    else if (row.game_type === 'F') wc = c;
+    const d = row.last_date instanceof Date ? row.last_date.toISOString().slice(0, 10) : String(row.last_date);
+    if (!maxDate || d > maxDate) maxDate = d;
   }
   return {
-    total: data.length, ws, lcs, ds, wc,
-    last_date: new Date(data[0].date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
+    total, ws, lcs, ds, wc,
+    last_date: maxDate ? new Date(maxDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }) : null,
   };
 }
 
@@ -179,6 +174,11 @@ function getOrdinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function articleFor(n: number): string {
+  // "An" before numbers whose first spoken word starts with a vowel sound: 8, 11, 18, 80-89
+  return (n === 8 || n === 11 || n === 18 || (n >= 80 && n <= 89)) ? 'An' : 'A';
 }
 
 async function postTweet(twitterClient: TwitterApi, postText: string, replyText: string | null): Promise<string | null> {
@@ -209,7 +209,7 @@ async function getTeamStreak(supabase: SupabaseClient, teamName: string, todayWo
     .from('gamelogs')
     .select('visitor_team, home_team, visitor_score, home_score')
     .or(`visitor_team.eq.${teamName},home_team.eq.${teamName}`)
-    .eq('game_type', 'R')
+    .in('game_type', ['R', 'F', 'D', 'L', 'W'])
     .order('date', { ascending: false })
     .limit(35);
 
@@ -230,6 +230,17 @@ async function getTeamStreak(supabase: SupabaseClient, teamName: string, todayWo
   return { type: streakType, length: streak };
 }
 
+// Streak counts come from mv_streak_context. Methodology (locked in 2026-04-25):
+//   * All-time data (no era cutoff)
+//   * No Negro Leagues
+//   * All game types: regular season + all postseason rounds (R, F, D, L, W)
+//   * Streaks span the offseason — only an actual game outcome breaks a streak
+//   * Ties break the streak (a tie ends both win and loss runs)
+//   * Doubleheader-aware ordering: date, game_number, game_id
+//   * Partition by team_id so franchise renames don't fragment a streak
+//   * Counts distinct streaks (not team-seasons)
+// Validated: 1903+ RS-only variant of this query yields 139 team-seasons / 151
+// distinct 12+ losing streaks (matches ESPN's 138 + active Mets = 139 figure).
 async function getStreakContext(supabase: SupabaseClient, streakType: 'win' | 'loss', length: number): Promise<{ count: number; lastTeam: string; lastDate: string } | null> {
   const { data } = await supabase
     .from('mv_streak_context')
@@ -291,18 +302,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const hashtag = isPostseason ? '\n#Postseason' : '';
     const header = `FINAL: ${winnerName} ${Math.max(away_score, home_score)}, ${loserName} ${Math.min(away_score, home_score)}${hashtag}`;
 
-    const [franchiseIdsAway, franchiseIdsHome, scorigamiResult, playoffBreakdown] = await Promise.all([
+    const [franchiseIdsAway, franchiseIdsHome, history, playoffBreakdown] = await Promise.all([
       getFranchiseTeamIds(supabase, away_id),
       getFranchiseTeamIds(supabase, home_id),
-      checkTrueScorigami(supabase, away_score, home_score),
-      isPostseason ? getPlayoffBreakdown(supabase, away_score, home_score) : Promise.resolve(null),
+      getScoreHistory(supabase, away_score, home_score),
+      isPostseason ? getPlayoffBreakdown(away_score, home_score) : Promise.resolve(null),
     ]);
 
+    const isScorigami = history === null;
     let postText = "";
 
-    if (scorigamiResult.isScorigami) {
+    if (isScorigami) {
       // 1. True Scorigami
-      postText = `${header}\n\nThat's Scorigami! It's the ${getOrdinal(scorigamiResult.newCount)} unique final score in MLB history.`;
+      const newCount = (await getUniqueScoreCount()) + 1;
+      postText = `${header}\n\nThat's Scorigami! It's the ${getOrdinal(newCount)} unique final score in MLB history.`;
       revalidatePath('/history');
 
     } else if (isPostseason && playoffBreakdown && playoffBreakdown.total === 0) {
@@ -313,10 +326,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     } else {
       // 3. Franchisigami or No Scorigami
-      const [isAwayS, isHomeS, history] = await Promise.all([
+      const [isAwayS, isHomeS] = await Promise.all([
         isFranchiseScorigami(supabase, franchiseIdsAway, away_score, home_score),
         isFranchiseScorigami(supabase, franchiseIdsHome, home_score, away_score),
-        getScoreHistory(supabase, away_score, home_score),
       ]);
 
       if (isAwayS || isHomeS) {
@@ -408,7 +420,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const streakLabel = streak.type === 'win' ? 'winning' : 'losing';
         let streakText = `The ${shortName} have ${streakWord} ${streak.length} straight.`;
         if (ctx) {
-          streakText += ` A ${streak.length}-game ${streakLabel} streak has happened ${ctx.count.toLocaleString('en-US')} times in MLB history, most recently the ${ctx.lastTeam} in ${ctx.lastDate}.`;
+          streakText += ` ${articleFor(streak.length)} ${streak.length}-game ${streakLabel} streak has happened ${ctx.count.toLocaleString('en-US')} times in MLB history, most recently the ${ctx.lastTeam} in ${ctx.lastDate}.`;
         }
 
         await postQuoteTweet(twitterClient, streakText, tweetId);
@@ -427,7 +439,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  await pool.query('REFRESH MATERIALIZED VIEW mv_scorigami_summary_ha');
+  await pool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY mv_scorigami_summary_ha');
   await pool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY mv_streak_context');
 
   return NextResponse.json({ success: true });
