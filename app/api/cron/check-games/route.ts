@@ -333,18 +333,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const scheduleData = await res.json();
   if (!scheduleData.dates || scheduleData.dates.length === 0) return NextResponse.json({ message: "No games" });
 
-  const scheduleGames = scheduleData.dates[0].games;
+  type ScheduleGame = {
+    gamePk: number;
+    gameType: string;
+    status: { codedGameState: string };
+    teams: {
+      away: { team: { id: number; name: string }; score: number };
+      home: { team: { id: number; name: string }; score: number };
+    };
+  };
+  const scheduleGames: ScheduleGame[] = scheduleData.dates[0].games;
 
   // Filter to candidates first, then fetch ended_at for each, then sort by ended_at
   // ascending. This guarantees that if multiple games end inside the same cron window,
   // they post in the order they actually finished — so "less than five minutes ago"
   // is always relative to a strictly-earlier-ending game.
-  const candidates = scheduleGames.filter((g: any) =>
+  const candidates = scheduleGames.filter((g) =>
     (g.status.codedGameState === 'F' || g.status.codedGameState === 'O') &&
     ['R', 'F', 'D', 'L', 'W'].includes(g.gameType)
   );
   const enriched = await Promise.all(
-    candidates.map(async (g: any) => ({ g, endedAt: await fetchGameEndedAt(g.gamePk) }))
+    candidates.map(async (g) => ({ g, endedAt: await fetchGameEndedAt(g.gamePk) }))
   );
   enriched.sort((a, b) => {
     const ta = a.endedAt ? new Date(a.endedAt).getTime() : Number.MAX_SAFE_INTEGER;
