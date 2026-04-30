@@ -71,6 +71,7 @@ interface ScoreHistory {
   last_visitor_team: string;
   last_home_score: number;
   last_visitor_score: number;
+  last_ended_at: string | null;
 }
 
 // --- DATABASE HELPERS ---
@@ -105,7 +106,7 @@ async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number)
   const win = Math.max(s1, s2);
   const lose = Math.min(s1, s2);
   const { count, data } = await supabase.from('gamelogs')
-    .select('date, home_team, visitor_team, home_score, visitor_score', { count: 'exact' })
+    .select('date, home_team, visitor_team, home_score, visitor_score, ended_at', { count: 'exact' })
     .or(`and(home_score.eq.${win},visitor_score.eq.${lose}),and(home_score.eq.${lose},visitor_score.eq.${win})`)
     .eq('is_negro_league', false)
     .gte('date', `${START_YEAR}-01-01`)
@@ -121,7 +122,68 @@ async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number)
     last_visitor_team: data[0].visitor_team,
     last_home_score: data[0].home_score,
     last_visitor_score: data[0].visitor_score,
+    last_ended_at: data[0].ended_at ?? null,
   };
+}
+
+async function fetchGameEndedAt(gamePk: number): Promise<string | null> {
+  try {
+    const res = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const d = await res.json();
+    const plays = d?.liveData?.plays?.allPlays;
+    if (Array.isArray(plays) && plays.length > 0) {
+      const endTime = plays[plays.length - 1]?.about?.endTime;
+      if (endTime) return endTime;
+    }
+    const gi = d?.gameData?.gameInfo;
+    if (gi?.firstPitch && typeof gi.gameDurationMinutes === 'number') {
+      const fp = new Date(gi.firstPitch);
+      return new Date(fp.getTime() + gi.gameDurationMinutes * 60_000).toISOString();
+    }
+  } catch {}
+  return null;
+}
+
+const COUNT_WORD: Record<number, string> = {
+  2: 'twice', 3: 'three times', 4: 'four times', 5: 'five times',
+  6: 'six times', 7: 'seven times', 8: 'eight times', 9: 'nine times',
+};
+function timesEarlierToday(n: number): string {
+  return n === 1 ? 'earlier today' : `${COUNT_WORD[n] ?? `${n} times`} earlier today`;
+}
+
+function formatRecency(
+  priorEndedAtIso: string | null,
+  currentEndedAtIso: string | null,
+  lastDateRaw: string,
+  yesterdayPT: string,
+  lastGameDate: string,
+  todayMatchCount: number,
+): string {
+  // Sub-hour precision only for the most recent prior occurrence
+  if (priorEndedAtIso && currentEndedAtIso) {
+    const diffMs = new Date(currentEndedAtIso).getTime() - new Date(priorEndedAtIso).getTime();
+    if (diffMs >= 0) {
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+      if (diffSec < 60) return `about ${diffSec} seconds ago`;
+      if (diffMin < 2) return 'less than two minutes ago';
+      if (diffMin < 5) return 'less than five minutes ago';
+      if (diffMin < 10) return 'less than ten minutes ago';
+      if (diffMin < 60) return 'less than an hour ago';
+    }
+  }
+  // 1+ hour, fall back to date phrasing — preserve "twice/three times earlier today" for repeats.
+  // Prefer ended_at-derived PT date when available: it reflects when the game *actually finished*,
+  // sidestepping MLB's official-date quirks for suspended/resumed games.
+  const effectiveDate = priorEndedAtIso
+    ? new Date(priorEndedAtIso).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
+    : lastDateRaw;
+  if (effectiveDate === yesterdayPT) return 'yesterday';
+  const todayPT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  if (effectiveDate === todayPT) return timesEarlierToday(todayMatchCount > 0 ? todayMatchCount : 1);
+  return `on ${lastGameDate}`;
 }
 
 async function getPlayoffBreakdown(s1: number, s2: number): Promise<PlayoffBreakdown> {
@@ -273,11 +335,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const scheduleGames = scheduleData.dates[0].games;
 
-  for (const g of scheduleGames) {
-    try {
-    if (g.status.codedGameState !== 'F' && g.status.codedGameState !== 'O') continue;
-    if (!['R', 'F', 'D', 'L', 'W'].includes(g.gameType)) continue;
+  // Filter to candidates first, then fetch ended_at for each, then sort by ended_at
+  // ascending. This guarantees that if multiple games end inside the same cron window,
+  // they post in the order they actually finished — so "less than five minutes ago"
+  // is always relative to a strictly-earlier-ending game.
+  const candidates = scheduleGames.filter((g: any) =>
+    (g.status.codedGameState === 'F' || g.status.codedGameState === 'O') &&
+    ['R', 'F', 'D', 'L', 'W'].includes(g.gameType)
+  );
+  const enriched = await Promise.all(
+    candidates.map(async (g: any) => ({ g, endedAt: await fetchGameEndedAt(g.gamePk) }))
+  );
+  enriched.sort((a, b) => {
+    const ta = a.endedAt ? new Date(a.endedAt).getTime() : Number.MAX_SAFE_INTEGER;
+    const tb = b.endedAt ? new Date(b.endedAt).getTime() : Number.MAX_SAFE_INTEGER;
+    return ta - tb;
+  });
 
+  for (const { g, endedAt } of enriched) {
+    try {
     const game_id = g.gamePk;
     const away_id = g.teams.away.team.id;
     const home_id = g.teams.home.team.id;
@@ -350,33 +426,35 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       } else {
         const win = Math.max(away_score, home_score);
         const lose = Math.min(away_score, home_score);
-        // Use PT dates: cron can cross midnight UTC during US evening, so UTC midnight
-        // cutoff misses same-PT-day games posted before midnight UTC.
-        const todayPT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+        // Use PT dates so cron crossing midnight UTC during US evening doesn't
+        // mis-bucket same-PT-day games.
         const yesterdayPT = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-        // Look back 30h so we never miss same-day games regardless of UTC rollover
+        // Look back 30h to catch any same-day prior posts regardless of UTC rollover.
+        // Also pulls each prior post's ended_at so we can compute precise minute/second
+        // recency rather than relying on cron-jittery created_at.
         const { data: recentPosts } = await supabase
           .from('posted_updates')
-          .select('score_snapshot, created_at')
+          .select('score_snapshot, created_at, ended_at')
           .gte('created_at', new Date(Date.now() - 30 * 3600000).toISOString())
-          .neq('game_id', game_id);
-        const todayMatchCount = recentPosts?.filter(p => {
-          const postDatePT = new Date(p.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-          return postDatePT === todayPT && (
-            p.score_snapshot === `${win}-${lose}` ||
-            p.score_snapshot === `${lose}-${win}` ||
-            p.score_snapshot === `${away_score}-${home_score}` ||
-            p.score_snapshot === `${home_score}-${away_score}`
-          );
-        }).length ?? 0;
+          .neq('game_id', game_id)
+          .order('created_at', { ascending: false });
+        const sameScoreToday = (recentPosts ?? []).filter(p =>
+          p.score_snapshot === `${win}-${lose}` ||
+          p.score_snapshot === `${lose}-${win}` ||
+          p.score_snapshot === `${away_score}-${home_score}` ||
+          p.score_snapshot === `${home_score}-${away_score}`
+        );
+        const todayMatchCount = sameScoreToday.length;
+        const priorEndedAt = sameScoreToday[0]?.ended_at ?? history?.last_ended_at ?? null;
         const totalOccurrences = (history?.occurrences ?? 0) + todayMatchCount;
-        const lastDateStr = history?.last_game_date_raw?.slice(0, 10) ?? '';
-        const mostRecently = todayMatchCount === 0 ? (lastDateStr === yesterdayPT ? 'yesterday' : `on ${history?.last_game_date}`)
-          : todayMatchCount === 1 ? 'earlier today'
-          : todayMatchCount === 2 ? 'twice earlier today'
-          : `${todayMatchCount} times earlier today`;
+        const lastDateRaw = todayMatchCount > 0
+          ? new Date(sameScoreToday[0].ended_at ?? sameScoreToday[0].created_at).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
+          : (history?.last_game_date_raw?.slice(0, 10) ?? '');
+        const mostRecently = formatRecency(priorEndedAt, endedAt, lastDateRaw, yesterdayPT, history?.last_game_date ?? '', todayMatchCount);
         const isRarigami = totalOccurrences < 100;
-        const teamContext = mostRecently !== 'earlier today' && mostRecently !== 'twice earlier today' && !mostRecently?.includes('times earlier today') && history
+        // Only show team context for older (non-same-day) prior occurrences from history
+        const showTeamContext = todayMatchCount === 0 && history && !mostRecently.endsWith('earlier today');
+        const teamContext = showTeamContext && history
           ? ` (${teamAbbr(history.last_visitor_team)} vs. ${teamAbbr(history.last_home_team)})`
           : '';
         const recencyClause = `, most recently ${mostRecently}`;
@@ -397,6 +475,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       details: 'Final Score',
       score_snapshot: `${away_score}-${home_score}`,
       tweet_id: tweetId,
+      ended_at: endedAt,
     });
 
     // Streak check for both teams
