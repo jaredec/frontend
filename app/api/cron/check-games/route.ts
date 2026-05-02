@@ -447,12 +447,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           .gte('created_at', new Date(Date.now() - 30 * 3600000).toISOString())
           .neq('game_id', game_id)
           .order('created_at', { ascending: false });
-        const sameScoreToday = (recentPosts ?? []).filter(p =>
-          p.score_snapshot === `${win}-${lose}` ||
-          p.score_snapshot === `${lose}-${win}` ||
-          p.score_snapshot === `${away_score}-${home_score}` ||
-          p.score_snapshot === `${home_score}-${away_score}`
-        );
+        const todayPT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+        const sameScoreToday = (recentPosts ?? []).filter(p => {
+          const scoreMatches =
+            p.score_snapshot === `${win}-${lose}` ||
+            p.score_snapshot === `${lose}-${win}` ||
+            p.score_snapshot === `${away_score}-${home_score}` ||
+            p.score_snapshot === `${home_score}-${away_score}`;
+          if (!scoreMatches) return false;
+          // Confirm the prior post actually happened today in PT — the 30h lookback
+          // window catches yesterday too, so without this filter a same-score game
+          // from yesterday would inflate today's count.
+          const postPT = new Date(p.ended_at ?? p.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+          return postPT === todayPT;
+        });
         const todayMatchCount = sameScoreToday.length;
         const priorEndedAt = sameScoreToday[0]?.ended_at ?? history?.last_ended_at ?? null;
         const totalOccurrences = (history?.occurrences ?? 0) + todayMatchCount;
