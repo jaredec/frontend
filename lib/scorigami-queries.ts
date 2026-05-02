@@ -94,16 +94,14 @@ export async function getAggregatedHomeAway(teamId: number): Promise<AggregatedR
   return all.filter(r => r.team_id === teamId);
 }
 
-export const getYearlyScorigami = unstable_cache(
-  async (
-    team: string,
-    type: string,
-    gameFilter: GameFilter = "all"
-  ): Promise<YearlyRow[]> => {
+async function fetchYearlyScorigami(
+  team: string,
+  type: string,
+  gameFilter: GameFilter
+): Promise<YearlyRow[]> {
   const teamId = team === "ALL" ? 0 : (FRANCHISE_CODE_TO_ID_MAP[team] || 0);
   const isTraditional = type === "traditional";
 
-  // No game filter: use fast materialized views (all teams and per-team)
   if (gameFilter === "all") {
     const view = isTraditional ? "scorigami_by_year" : "scorigami_by_year_ha";
     const result = await pool.query(`
@@ -117,7 +115,6 @@ export const getYearlyScorigami = unstable_cache(
     return result.rows;
   }
 
-  // All teams + game filter: fall back to direct gamelogs query
   if (teamId === 0) {
     const gameClause = gameTypeClause(gameFilter);
     const scoreSelect = isTraditional
@@ -143,7 +140,6 @@ export const getYearlyScorigami = unstable_cache(
     return result.rows;
   }
 
-  // Per-team query
   const gameClause = gameTypeClause(gameFilter);
   const scoreSelect = isTraditional
     ? `GREATEST(g.home_score, g.visitor_score) AS score1, LEAST(g.home_score, g.visitor_score) AS score2`
@@ -167,7 +163,19 @@ export const getYearlyScorigami = unstable_cache(
     ORDER BY year, score1, score2
   `, [teamId]);
   return result.rows;
-  },
-  ["yearly-scorigami"],
-  { tags: ["scorigami"], revalidate: 86400 }
-);
+}
+
+// Per-team cache tagging: each team's cache is invalidated independently when
+// that team plays a game. Reduces unnecessary cache busts vs a single shared tag.
+export function getYearlyScorigami(
+  team: string,
+  type: string,
+  gameFilter: GameFilter = "all"
+): Promise<YearlyRow[]> {
+  const teamId = team === "ALL" ? 0 : (FRANCHISE_CODE_TO_ID_MAP[team] || 0);
+  return unstable_cache(
+    () => fetchYearlyScorigami(team, type, gameFilter),
+    ["yearly-scorigami", team, type, gameFilter],
+    { tags: [`team-${teamId}`], revalidate: 86400 }
+  )();
+}

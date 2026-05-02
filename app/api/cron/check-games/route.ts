@@ -529,6 +529,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Bust per-team yearly caches only for the teams that actually played, plus
+    // the ALL view (team_id=0). The 'scorigami' tag handles the aggregated blobs
+    // that contain all teams in one cached payload.
+    revalidateTag(`team-${away_id}`);
+    revalidateTag(`team-${home_id}`);
+    revalidateTag('team-0');
     revalidateTag('scorigami');
     } catch (err) {
       console.error(`Error processing game ${g.gamePk}:`, err);
