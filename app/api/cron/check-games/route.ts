@@ -171,7 +171,8 @@ function formatRecency(
       if (diffMin < 2) return 'less than two minutes ago';
       if (diffMin < 5) return 'less than five minutes ago';
       if (diffMin < 10) return 'less than ten minutes ago';
-      if (diffMin < 60) return 'less than an hour ago';
+      // 10-60 min: defer to "twice/three times earlier today" if it'd apply — punchier phrasing.
+      if (diffMin < 60 && todayMatchCount < 2) return 'less than an hour ago';
     }
   }
   // 1+ hour, fall back to date phrasing — preserve "twice/three times earlier today" for repeats.
