@@ -11,6 +11,50 @@ const TEAM_NAME_SHORTENER_MAP: { [key: string]: string } = {
   'Arizona Diamondbacks': 'D-backs',
 };
 
+// Per-team Franchisigami labels. "Diamondbacksigami" reads clunky, so D-backs
+// drops the hyphen for "Dbacksigami". Two-word nicknames keep the space
+// (e.g., "Red Soxigami") since "Redsoxigami" reads worse than the spaced form.
+const TEAM_IGAMI_MAP: { [key: string]: string } = {
+  'Arizona Diamondbacks': 'Dbacksigami',
+  'Atlanta Braves': 'Bravesigami',
+  'Baltimore Orioles': 'Oriolesigami',
+  'Boston Red Sox': 'Red Soxigami',
+  'Chicago Cubs': 'Cubsigami',
+  'Chicago White Sox': 'White Soxigami',
+  'Cincinnati Reds': 'Redsigami',
+  'Cleveland Guardians': 'Guardiansigami',
+  'Colorado Rockies': 'Rockiesigami',
+  'Detroit Tigers': 'Tigersigami',
+  'Houston Astros': 'Astrosigami',
+  'Kansas City Royals': 'Royalsigami',
+  'Los Angeles Angels': 'Angelsigami',
+  'Los Angeles Dodgers': 'Dodgersigami',
+  'Miami Marlins': 'Marlinsigami',
+  'Milwaukee Brewers': 'Brewersigami',
+  'Minnesota Twins': 'Twinsigami',
+  'New York Mets': 'Metsigami',
+  'New York Yankees': 'Yankeesigami',
+  'Athletics': 'Athleticsigami',
+  'Oakland Athletics': 'Athleticsigami',
+  'Philadelphia Phillies': 'Philliesigami',
+  'Pittsburgh Pirates': 'Piratesigami',
+  'San Diego Padres': 'Padresigami',
+  'San Francisco Giants': 'Giantsigami',
+  'Seattle Mariners': 'Marinersigami',
+  'St. Louis Cardinals': 'Cardinalsigami',
+  'Tampa Bay Rays': 'Raysigami',
+  'Texas Rangers': 'Rangersigami',
+  'Toronto Blue Jays': 'Blue Jaysigami',
+  'Washington Nationals': 'Nationalsigami',
+};
+
+function teamIgami(name: string): string {
+  if (TEAM_IGAMI_MAP[name]) return TEAM_IGAMI_MAP[name];
+  // Fallback for unmapped (e.g., historical) teams: shorten then suffix.
+  const short = TEAM_NAME_SHORTENER_MAP[name] ?? name.split(' ').pop() ?? name;
+  return `${short}igami`;
+}
+
 const TEAM_ABBR_MAP: { [key: string]: string } = {
   // Modern
   'Arizona Diamondbacks': 'ARI', 'Atlanta Braves': 'ATL', 'Baltimore Orioles': 'BAL',
@@ -417,65 +461,83 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         isFranchiseScorigami(supabase, franchiseIdsHome, home_score, away_score),
       ]);
 
+      // Same-day recency lookup applies to both branches: Franchisigami now also
+      // surfaces "most recently …" using the same-PT-day prior + history record.
+      const win = Math.max(away_score, home_score);
+      const lose = Math.min(away_score, home_score);
+      // Use PT dates so cron crossing midnight UTC during US evening doesn't
+      // mis-bucket same-PT-day games.
+      const yesterdayPT = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+      // Look back 30h to catch any same-day prior posts regardless of UTC rollover.
+      // Also pulls each prior post's ended_at so we can compute precise minute/second
+      // recency rather than relying on cron-jittery created_at.
+      const { data: recentPosts } = await supabase
+        .from('posted_updates')
+        .select('score_snapshot, created_at, ended_at')
+        .gte('created_at', new Date(Date.now() - 30 * 3600000).toISOString())
+        .neq('game_id', game_id)
+        .order('created_at', { ascending: false });
+      const todayPT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+      const sameScoreToday = (recentPosts ?? []).filter(p => {
+        const scoreMatches =
+          p.score_snapshot === `${win}-${lose}` ||
+          p.score_snapshot === `${lose}-${win}` ||
+          p.score_snapshot === `${away_score}-${home_score}` ||
+          p.score_snapshot === `${home_score}-${away_score}`;
+        if (!scoreMatches) return false;
+        // Confirm the prior post actually happened today in PT — the 30h lookback
+        // window catches yesterday too, so without this filter a same-score game
+        // from yesterday would inflate today's count.
+        const postPT = new Date(p.ended_at ?? p.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+        return postPT === todayPT;
+      });
+      const todayMatchCount = sameScoreToday.length;
+      const priorEndedAt = sameScoreToday[0]?.ended_at ?? history?.last_ended_at ?? null;
+      const totalOccurrences = (history?.occurrences ?? 0) + todayMatchCount;
+      const lastDateRaw = todayMatchCount > 0
+        ? new Date(sameScoreToday[0].ended_at ?? sameScoreToday[0].created_at).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
+        : (history?.last_game_date_raw?.slice(0, 10) ?? '');
+      const mostRecently = formatRecency(priorEndedAt, endedAt, lastDateRaw, yesterdayPT, history?.last_game_date ?? '', todayMatchCount);
+      // Only show team context for older (non-same-day) prior occurrences from history
+      const showTeamContext = todayMatchCount === 0 && history && !mostRecently.endsWith('earlier today');
+      // Use 3-letter abbreviations only when both teams are current MLB franchises
+      // (TEAM_IGAMI_MAP doubles as the modern-team set). For matchups involving
+      // historical teams (Brooklyn Bridegrooms, Cleveland Naps, etc.) the abbr
+      // map has gaps, so fall back to full team names — clearer than guessing codes.
+      let teamContext = '';
+      if (showTeamContext && history) {
+        const visitorModern = history.last_visitor_team in TEAM_IGAMI_MAP;
+        const homeModern = history.last_home_team in TEAM_IGAMI_MAP;
+        const visitorDisplay = visitorModern && homeModern ? teamAbbr(history.last_visitor_team) : history.last_visitor_team;
+        const homeDisplay = visitorModern && homeModern ? teamAbbr(history.last_home_team) : history.last_home_team;
+        teamContext = ` (${visitorDisplay} vs. ${homeDisplay})`;
+      }
+      const recencyClause = `, most recently ${mostRecently}`;
+
       if (isAwayS || isHomeS) {
-        const onlyWord = history && history.occurrences < 25 ? 'only ' : '';
-        const historyLine = history ? ` It's ${onlyWord}happened ${formatNum(history.occurrences)} times in MLB history.` : '';
+        const onlyWord = totalOccurrences < 25 ? 'only ' : '';
+        const historyText = history ? `It's ${onlyWord}happened ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.` : '';
 
         const awayShort = TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop();
         const homeShort = TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop();
 
         let franchiseLine: string;
+        let igamiLabel: string;
         if (isAwayS && isHomeS) {
-          franchiseLine = `It's the first time in both ${awayShort} and ${homeShort} history this score has occurred.`;
+          franchiseLine = `It's the first time this score has occurred for both franchises.`;
+          igamiLabel = `${teamIgami(away_name)} and ${teamIgami(home_name)}`;
         } else {
           const teamShort = isAwayS ? awayShort : homeShort;
+          const teamFull = isAwayS ? away_name : home_name;
           franchiseLine = `It's the first time in ${teamShort} history this score has occurred.`;
+          igamiLabel = teamIgami(teamFull);
         }
 
-        postText = `${header}\n\nThat's Franchisigami! ${franchiseLine}${historyLine}`;
+        // Both single and dual Franchisigami posts put the MLB-history line on its own paragraph.
+        const historyLine = historyText ? `\n\n${historyText}` : '';
+        postText = `${header}\n\nThat's ${igamiLabel}! ${franchiseLine}${historyLine}`;
       } else {
-        const win = Math.max(away_score, home_score);
-        const lose = Math.min(away_score, home_score);
-        // Use PT dates so cron crossing midnight UTC during US evening doesn't
-        // mis-bucket same-PT-day games.
-        const yesterdayPT = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-        // Look back 30h to catch any same-day prior posts regardless of UTC rollover.
-        // Also pulls each prior post's ended_at so we can compute precise minute/second
-        // recency rather than relying on cron-jittery created_at.
-        const { data: recentPosts } = await supabase
-          .from('posted_updates')
-          .select('score_snapshot, created_at, ended_at')
-          .gte('created_at', new Date(Date.now() - 30 * 3600000).toISOString())
-          .neq('game_id', game_id)
-          .order('created_at', { ascending: false });
-        const todayPT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-        const sameScoreToday = (recentPosts ?? []).filter(p => {
-          const scoreMatches =
-            p.score_snapshot === `${win}-${lose}` ||
-            p.score_snapshot === `${lose}-${win}` ||
-            p.score_snapshot === `${away_score}-${home_score}` ||
-            p.score_snapshot === `${home_score}-${away_score}`;
-          if (!scoreMatches) return false;
-          // Confirm the prior post actually happened today in PT — the 30h lookback
-          // window catches yesterday too, so without this filter a same-score game
-          // from yesterday would inflate today's count.
-          const postPT = new Date(p.ended_at ?? p.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-          return postPT === todayPT;
-        });
-        const todayMatchCount = sameScoreToday.length;
-        const priorEndedAt = sameScoreToday[0]?.ended_at ?? history?.last_ended_at ?? null;
-        const totalOccurrences = (history?.occurrences ?? 0) + todayMatchCount;
-        const lastDateRaw = todayMatchCount > 0
-          ? new Date(sameScoreToday[0].ended_at ?? sameScoreToday[0].created_at).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
-          : (history?.last_game_date_raw?.slice(0, 10) ?? '');
-        const mostRecently = formatRecency(priorEndedAt, endedAt, lastDateRaw, yesterdayPT, history?.last_game_date ?? '', todayMatchCount);
         const isRarigami = totalOccurrences < 100;
-        // Only show team context for older (non-same-day) prior occurrences from history
-        const showTeamContext = todayMatchCount === 0 && history && !mostRecently.endsWith('earlier today');
-        const teamContext = showTeamContext && history
-          ? ` (${teamAbbr(history.last_visitor_team)} vs. ${teamAbbr(history.last_home_team)})`
-          : '';
-        const recencyClause = `, most recently ${mostRecently}`;
         if (isRarigami && history) {
           postText = `${header}\n\nRarigami. This score has happened only ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
           revalidatePath('/history');
