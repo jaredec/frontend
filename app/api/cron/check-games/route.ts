@@ -194,23 +194,43 @@ async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number)
   };
 }
 
-async function fetchGameEndedAt(gamePk: number): Promise<string | null> {
+interface GameSnapshot {
+  endedAt: string | null;
+  abstractGameState: string | null;
+  awayScore: number | null;
+  homeScore: number | null;
+}
+
+async function fetchGameSnapshot(gamePk: number): Promise<GameSnapshot> {
+  const empty: GameSnapshot = { endedAt: null, abstractGameState: null, awayScore: null, homeScore: null };
   try {
     const res = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`, { cache: 'no-store' });
-    if (!res.ok) return null;
+    if (!res.ok) return empty;
     const d = await res.json();
+
+    let endedAt: string | null = null;
     const plays = d?.liveData?.plays?.allPlays;
     if (Array.isArray(plays) && plays.length > 0) {
       const endTime = plays[plays.length - 1]?.about?.endTime;
-      if (endTime) return endTime;
+      if (endTime) endedAt = endTime;
     }
-    const gi = d?.gameData?.gameInfo;
-    if (gi?.firstPitch && typeof gi.gameDurationMinutes === 'number') {
-      const fp = new Date(gi.firstPitch);
-      return new Date(fp.getTime() + gi.gameDurationMinutes * 60_000).toISOString();
+    if (!endedAt) {
+      const gi = d?.gameData?.gameInfo;
+      if (gi?.firstPitch && typeof gi.gameDurationMinutes === 'number') {
+        const fp = new Date(gi.firstPitch);
+        endedAt = new Date(fp.getTime() + gi.gameDurationMinutes * 60_000).toISOString();
+      }
     }
-  } catch {}
-  return null;
+
+    const abstractGameState = d?.gameData?.status?.abstractGameState ?? null;
+    const linescoreTeams = d?.liveData?.linescore?.teams;
+    const awayScore = typeof linescoreTeams?.away?.runs === 'number' ? linescoreTeams.away.runs : null;
+    const homeScore = typeof linescoreTeams?.home?.runs === 'number' ? linescoreTeams.home.runs : null;
+
+    return { endedAt, abstractGameState, awayScore, homeScore };
+  } catch {
+    return empty;
+  }
 }
 
 const COUNT_WORD: Record<number, string> = {
@@ -422,21 +442,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     ['R', 'F', 'D', 'L', 'W'].includes(g.gameType)
   );
   const enriched = await Promise.all(
-    candidates.map(async (g) => ({ g, endedAt: await fetchGameEndedAt(g.gamePk) }))
+    candidates.map(async (g) => ({ g, snapshot: await fetchGameSnapshot(g.gamePk) }))
   );
   enriched.sort((a, b) => {
-    const ta = a.endedAt ? new Date(a.endedAt).getTime() : Number.MAX_SAFE_INTEGER;
-    const tb = b.endedAt ? new Date(b.endedAt).getTime() : Number.MAX_SAFE_INTEGER;
+    const ta = a.snapshot.endedAt ? new Date(a.snapshot.endedAt).getTime() : Number.MAX_SAFE_INTEGER;
+    const tb = b.snapshot.endedAt ? new Date(b.snapshot.endedAt).getTime() : Number.MAX_SAFE_INTEGER;
     return ta - tb;
   });
 
-  for (const { g, endedAt } of enriched) {
+  for (const { g, snapshot } of enriched) {
     try {
     const game_id = g.gamePk;
     const away_id = g.teams.away.team.id;
     const home_id = g.teams.home.team.id;
-    const away_score = g.teams.away.score || 0;
-    const home_score = g.teams.home.score || 0;
+
+    // Trust the live feed over the schedule API. The schedule endpoint can
+    // briefly mark a game Final with stale (regulation-end) scores during the
+    // flip to extras — the live feed always has the truth. Skip until both
+    // endpoints converge.
+    if (snapshot.abstractGameState !== 'Final' || snapshot.awayScore === null || snapshot.homeScore === null) {
+      continue;
+    }
+    const away_score = snapshot.awayScore;
+    const home_score = snapshot.homeScore;
+    const endedAt = snapshot.endedAt;
     const away_name = g.teams.away.team.name;
     const home_name = g.teams.home.team.name;
 
