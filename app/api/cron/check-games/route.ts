@@ -94,6 +94,30 @@ function teamAbbr(name: string): string {
   return TEAM_ABBR_MAP[name] ?? name.split(' ').pop() ?? name;
 }
 
+// Historical names of franchises that still exist today. Used to recognize a
+// historical record (e.g., 1986 "Cleveland Indians") as belonging to a current
+// MLB franchise so we use the modern abbreviation (CLE) instead of the full name.
+const RENAMED_FRANCHISES: Record<string, string> = {
+  'Cleveland Indians': 'Cleveland Guardians',
+  'Tampa Bay Devil Rays': 'Tampa Bay Rays',
+  'Florida Marlins': 'Miami Marlins',
+  'Anaheim Angels': 'Los Angeles Angels',
+  'California Angels': 'Los Angeles Angels',
+  'Los Angeles Angels of Anaheim': 'Los Angeles Angels',
+  'Houston Colt .45s': 'Houston Astros',
+  'Brooklyn Dodgers': 'Los Angeles Dodgers',
+  'New York Giants': 'San Francisco Giants',
+  'Montreal Expos': 'Washington Nationals',
+  'Philadelphia Athletics': 'Athletics',
+  'Kansas City Athletics': 'Athletics',
+  'Oakland Athletics': 'Athletics',
+  'Seattle Pilots': 'Milwaukee Brewers',
+};
+
+function canonicalFranchise(name: string): string {
+  return RENAMED_FRANCHISES[name] ?? name;
+}
+
 const START_YEAR = 1871;
 
 // --- TYPES ---
@@ -506,10 +530,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // map has gaps, so fall back to full team names — clearer than guessing codes.
       let teamContext = '';
       if (showTeamContext && history) {
-        const visitorModern = history.last_visitor_team in TEAM_IGAMI_MAP;
-        const homeModern = history.last_home_team in TEAM_IGAMI_MAP;
-        const visitorDisplay = visitorModern && homeModern ? teamAbbr(history.last_visitor_team) : history.last_visitor_team;
-        const homeDisplay = visitorModern && homeModern ? teamAbbr(history.last_home_team) : history.last_home_team;
+        const visitorCanonical = canonicalFranchise(history.last_visitor_team);
+        const homeCanonical = canonicalFranchise(history.last_home_team);
+        const visitorModern = visitorCanonical in TEAM_IGAMI_MAP;
+        const homeModern = homeCanonical in TEAM_IGAMI_MAP;
+        const visitorDisplay = visitorModern && homeModern ? teamAbbr(visitorCanonical) : history.last_visitor_team;
+        const homeDisplay = visitorModern && homeModern ? teamAbbr(homeCanonical) : history.last_home_team;
         teamContext = ` (${visitorDisplay} vs. ${homeDisplay})`;
       }
       const recencyClause = `, most recently ${mostRecently}`;
