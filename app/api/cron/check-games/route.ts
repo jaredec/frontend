@@ -119,6 +119,7 @@ function canonicalFranchise(name: string): string {
 }
 
 const START_YEAR = 1871;
+const MODERN_ERA_YEAR = 1901;
 
 // --- TYPES ---
 
@@ -157,6 +158,17 @@ async function getUniqueScoreCount(): Promise<number> {
     FROM gamelogs WHERE is_negro_league = false AND EXTRACT(YEAR FROM date) >= ${START_YEAR}
   `);
   return result.rows[0]?.count ?? 0;
+}
+
+async function isModernEraScorigami(supabase: SupabaseClient, s1: number, s2: number): Promise<boolean> {
+  const win = Math.max(s1, s2);
+  const lose = Math.min(s1, s2);
+  const { data } = await supabase.from('gamelogs').select('game_id')
+    .or(`and(home_score.eq.${win},visitor_score.eq.${lose}),and(home_score.eq.${lose},visitor_score.eq.${win})`)
+    .eq('is_negro_league', false)
+    .gte('date', `${MODERN_ERA_YEAR}-01-01`)
+    .limit(1);
+  return !data || data.length === 0;
 }
 
 async function isFranchiseScorigami(supabase: SupabaseClient, franchiseIds: number[], s1: number, s2: number): Promise<boolean> {
@@ -507,8 +519,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       postText = `${header}\n\nThat's Playoffigami! It's the ${getOrdinal(playoffCount + 1)} unique final score in MLB playoff history.`;
       revalidatePath('/history');
 
+    } else if (await isModernEraScorigami(supabase, away_score, home_score)) {
+      // 3. Modern Era Scorigami — first time this score has occurred since 1901
+      const lastVisitorCanonical = canonicalFranchise(history.last_visitor_team);
+      const lastHomeCanonical = canonicalFranchise(history.last_home_team);
+      const visitorModern = lastVisitorCanonical in TEAM_IGAMI_MAP;
+      const homeModern = lastHomeCanonical in TEAM_IGAMI_MAP;
+      const visitorDisplay = visitorModern && homeModern ? teamAbbr(lastVisitorCanonical) : history.last_visitor_team;
+      const homeDisplay = visitorModern && homeModern ? teamAbbr(lastHomeCanonical) : history.last_home_team;
+      const occurrencesPhrase = history.occurrences === 1 ? 'only once' : `only ${formatNum(history.occurrences)} times`;
+      postText = `${header}\n\nThat's Modern Era Scorigami! It's the first time this score has occurred in MLB's modern era.\n\nIt's happened ${occurrencesPhrase} in MLB history, most recently on ${history.last_game_date} (${visitorDisplay} vs. ${homeDisplay}).`;
+      revalidatePath('/history');
+
     } else {
-      // 3. Franchisigami or No Scorigami
+      // 4. Franchisigami or No Scorigami
       const [isAwayS, isHomeS] = await Promise.all([
         isFranchiseScorigami(supabase, franchiseIdsAway, away_score, home_score),
         isFranchiseScorigami(supabase, franchiseIdsHome, home_score, away_score),
@@ -571,7 +595,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       if (isAwayS || isHomeS) {
         const onlyWord = totalOccurrences < 25 ? 'only ' : '';
-        const historyText = history ? `It's ${onlyWord}happened ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.` : '';
+        const historyText = history ? `It's happened ${onlyWord}${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.` : '';
 
         const awayShort = TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop();
         const homeShort = TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop();
