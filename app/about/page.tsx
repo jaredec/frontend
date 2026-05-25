@@ -43,7 +43,6 @@ export default function AboutPage() {
           <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
             The <Link href="/history" className="underline underline-offset-2 decoration-slate-400 dark:decoration-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">Archive</Link> logs
             every unique score in MLB history: when it first occurred, the teams involved, and total occurrences since.
-            Filter by Rarigami to see every game played with a rare score, or by Playoffigami to browse postseason firsts.
           </p>
         </div>
 

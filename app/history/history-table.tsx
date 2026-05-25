@@ -1,14 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import type { HistoryRow, FilterMode } from "./page";
-
-const FILTER_OPTIONS: { label: string; value: FilterMode }[] = [
-  { label: "Scorigami", value: "all" },
-  { label: "Rarigami", value: "rarigami" },
-  { label: "Playoffigami", value: "playoff" },
-];
+import { useState } from "react";
+import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
+import type { HistoryRow } from "./page";
 
 function formatDate(raw: string): string {
   const d = new Date(raw);
@@ -39,106 +33,54 @@ function shortName(name: string): string {
   return words[words.length - 1];
 }
 
-function FilterDropdown({ value, onChange }: { value: FilterMode; onChange: (v: FilterMode) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const label = FILTER_OPTIONS.find((o) => o.value === value)?.label ?? "All Scorigami";
-  const itemCls = "w-full text-left px-3 py-2 text-sm text-slate-800 dark:text-slate-200 hover:bg-blue-500 hover:text-white rounded cursor-pointer";
-
-  return (
-    <div ref={ref} className="relative w-44">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-      >
-        <span className="flex-1 truncate">{label}</span>
-        <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0 ml-1" />
-      </button>
-      {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] p-1 shadow-lg">
-          {FILTER_OPTIONS.map((opt) => (
-            <button key={opt.value} onClick={() => { onChange(opt.value); setOpen(false); }} className={itemCls}>
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function HistoryTable({
   rows: initialRows,
-  filter: initialFilter,
   total: initialTotal,
   currentPage: initialPage,
   totalPages: initialTotalPages,
 }: {
   rows: HistoryRow[];
-  filter: FilterMode;
   total: number;
   currentPage: number;
   totalPages: number;
 }) {
-  const [filter, setFilter] = useState<FilterMode>(initialFilter);
   const [rows, setRows] = useState<HistoryRow[]>(initialRows);
   const [total, setTotal] = useState(initialTotal);
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(initialTotalPages);
   const [isLoading, setIsLoading] = useState(false);
 
-  async function fetchData(f: FilterMode, p: number) {
+  async function fetchData(p: number) {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams({ filter: f, page: String(p) });
+      const params = new URLSearchParams({ page: String(p) });
       const res = await fetch(`/api/history?${params}`);
       const data = await res.json();
       setRows(data.rows);
       setTotal(data.total);
       setTotalPages(data.totalPages);
       setCurrentPage(p);
-      const url = f === "all" && p === 1 ? "/history"
-        : f === "all" ? `/history?page=${p}`
-        : p === 1 ? `/history?filter=${f}`
-        : `/history?filter=${f}&page=${p}`;
+      const url = p === 1 ? "/history" : `/history?page=${p}`;
       window.history.pushState({}, "", url);
     } finally {
       setIsLoading(false);
     }
   }
 
-  function handleFilterChange(v: FilterMode) {
-    setFilter(v);
-    fetchData(v, 1);
-  }
-
   function goToPage(p: number) {
     window.scrollTo({ top: 0, behavior: "smooth" });
-    fetchData(filter, p);
+    fetchData(p);
   }
-
-  const rowLabel = filter === "rarigami" ? "game" : "score";
 
   return (
     <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 space-y-4">
-      {/* Filter + count row */}
+      {/* Title + count row */}
       <div className="flex items-end justify-between">
-        <div>
-          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Filter</label>
-          <FilterDropdown value={filter} onChange={handleFilterChange} />
-        </div>
-        <span className="pb-1.5 text-xs text-slate-400 dark:text-slate-500 tabular-nums">
-          {total.toLocaleString()} {rowLabel}{total !== 1 ? "s" : ""}
+        <h1 className="text-[9px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          Scorigami Archive
+        </h1>
+        <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">
+          {total.toLocaleString()} score{total !== 1 ? "s" : ""}
         </span>
       </div>
 
