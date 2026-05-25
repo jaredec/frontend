@@ -41,7 +41,7 @@ export default function AboutPage() {
         <div className="space-y-1.5">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">The Archive</h2>
           <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
-            The <Link href="/history" className="underline underline-offset-2 decoration-slate-400 dark:decoration-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">Archive</Link> logs
+            The <Link href="/archive" className="underline underline-offset-2 decoration-slate-400 dark:decoration-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">Archive</Link> logs
             every unique score in MLB history: when it first occurred, the teams involved, and total occurrences since.
           </p>
         </div>
@@ -89,7 +89,7 @@ export default function AboutPage() {
           <Link href="/" className="text-sm text-slate-500 dark:text-slate-400 underline underline-offset-2 decoration-slate-300 dark:decoration-slate-600 hover:text-slate-800 dark:hover:text-slate-100 transition-colors">
             Explore the heatmap
           </Link>
-          <Link href="/history" className="text-sm text-slate-500 dark:text-slate-400 underline underline-offset-2 decoration-slate-300 dark:decoration-slate-600 hover:text-slate-800 dark:hover:text-slate-100 transition-colors">
+          <Link href="/archive" className="text-sm text-slate-500 dark:text-slate-400 underline underline-offset-2 decoration-slate-300 dark:decoration-slate-600 hover:text-slate-800 dark:hover:text-slate-100 transition-colors">
             Browse the Archive
           </Link>
           <a href="https://x.com/MLBgami" target="_blank" rel="noopener noreferrer" className="text-sm text-slate-500 dark:text-slate-400 underline underline-offset-2 decoration-slate-300 dark:decoration-slate-600 hover:text-slate-800 dark:hover:text-slate-100 transition-colors">

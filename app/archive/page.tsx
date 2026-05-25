@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import PageFooter from "@/components/page-footer";
 import NavBar from "@/components/nav-bar";
 import { pool } from "@/lib/db";
-import HistoryTable from "./history-table";
+import ArchiveTable from "./archive-table";
 
 export const metadata: Metadata = {
   title: "Scorigami Archive",
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export const revalidate = false; // revalidated on-demand from cron when a new scorigami type occurs
 
-export interface HistoryRow {
+export interface ArchiveRow {
   date: string;
   home_team: string;
   visitor_team: string;
@@ -28,10 +28,10 @@ export interface HistoryRow {
 
 const PAGE_SIZE = 100;
 
-async function getScorigamiHistory(page: number): Promise<{ rows: HistoryRow[]; total: number }> {
+async function getScorigamiArchive(page: number): Promise<{ rows: ArchiveRow[]; total: number }> {
   const offset = (page - 1) * PAGE_SIZE;
   const [{ rows }, { rows: countRows }] = await Promise.all([
-    pool.query<HistoryRow>(`
+    pool.query<ArchiveRow>(`
       WITH first_occurrences AS (
         SELECT
           GREATEST(home_score, visitor_score) AS win,
@@ -73,7 +73,7 @@ async function getScorigamiHistory(page: number): Promise<{ rows: HistoryRow[]; 
   return { rows, total: Number(countRows[0].total) };
 }
 
-export default async function HistoryPage({
+export default async function ArchivePage({
   searchParams,
 }: {
   searchParams: Promise<{ page?: string }>;
@@ -81,14 +81,14 @@ export default async function HistoryPage({
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
 
-  const { rows, total } = await getScorigamiHistory(page);
+  const { rows, total } = await getScorigamiArchive(page);
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#1e1e1e] flex flex-col">
       <NavBar />
 
-      <HistoryTable
+      <ArchiveTable
         rows={rows}
         total={total}
         currentPage={page}

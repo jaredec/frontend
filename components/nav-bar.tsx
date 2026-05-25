@@ -59,7 +59,7 @@ export default function NavBar({ totalGames, uniqueScores }: NavBarProps) {
               </div>
             )}
             {hasStats && <div className="hidden sm:block w-px h-4 bg-slate-200 dark:bg-[#3e3e42]" />}
-            {navLink("/history", "Archive")}
+            {navLink("/archive", "Archive")}
             <span className="text-slate-300 dark:text-[#3e3e42]">·</span>
             {navLink("/about", "About")}
           </div>

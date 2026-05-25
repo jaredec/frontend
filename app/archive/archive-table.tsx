@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
-import type { HistoryRow } from "./page";
+import type { ArchiveRow } from "./page";
 
 function formatDate(raw: string): string {
   const d = new Date(raw);
@@ -33,18 +33,18 @@ function shortName(name: string): string {
   return words[words.length - 1];
 }
 
-export default function HistoryTable({
+export default function ArchiveTable({
   rows: initialRows,
   total: initialTotal,
   currentPage: initialPage,
   totalPages: initialTotalPages,
 }: {
-  rows: HistoryRow[];
+  rows: ArchiveRow[];
   total: number;
   currentPage: number;
   totalPages: number;
 }) {
-  const [rows, setRows] = useState<HistoryRow[]>(initialRows);
+  const [rows, setRows] = useState<ArchiveRow[]>(initialRows);
   const [total, setTotal] = useState(initialTotal);
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(initialTotalPages);
@@ -54,13 +54,13 @@ export default function HistoryTable({
     setIsLoading(true);
     try {
       const params = new URLSearchParams({ page: String(p) });
-      const res = await fetch(`/api/history?${params}`);
+      const res = await fetch(`/api/archive?${params}`);
       const data = await res.json();
       setRows(data.rows);
       setTotal(data.total);
       setTotalPages(data.totalPages);
       setCurrentPage(p);
-      const url = p === 1 ? "/history" : `/history?page=${p}`;
+      const url = p === 1 ? "/archive" : `/archive?page=${p}`;
       window.history.pushState({}, "", url);
     } finally {
       setIsLoading(false);

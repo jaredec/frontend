@@ -511,13 +511,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // 1. True Scorigami
       const newCount = (await getUniqueScoreCount()) + 1;
       postText = `${header}\n\nThat's Scorigami! It's the ${getOrdinal(newCount)} unique final score in MLB history.`;
-      revalidatePath('/history');
+      revalidatePath('/archive');
 
     } else if (isPostseason && playoffBreakdown && playoffBreakdown.total === 0) {
       // 2. Playoffigami
       const playoffCount = await getUniquePlayoffScoreCount();
       postText = `${header}\n\nThat's Playoffigami! It's the ${getOrdinal(playoffCount + 1)} unique final score in MLB playoff history.`;
-      revalidatePath('/history');
+      revalidatePath('/archive');
 
     } else if (await isModernEraScorigami(supabase, away_score, home_score)) {
       // 3. Modern Era Scorigami — first time this score has occurred since 1901
@@ -529,7 +529,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const homeDisplay = visitorModern && homeModern ? teamAbbr(lastHomeCanonical) : history.last_home_team;
       const occurrencesPhrase = history.occurrences === 1 ? 'only once' : `only ${formatNum(history.occurrences)} times`;
       postText = `${header}\n\nThat's Modern Era Scorigami! It's the first time this score has occurred in MLB's modern era.\n\nIt's happened ${occurrencesPhrase} in MLB history, most recently on ${history.last_game_date} (${visitorDisplay} vs. ${homeDisplay}).`;
-      revalidatePath('/history');
+      revalidatePath('/archive');
 
     } else {
       // 4. Franchisigami or No Scorigami
@@ -619,7 +619,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const isRarigami = totalOccurrences < 100;
         if (isRarigami && history) {
           postText = `${header}\n\nRarigami. This score has happened only ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
-          revalidatePath('/history');
+          revalidatePath('/archive');
         } else {
           postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
         }
