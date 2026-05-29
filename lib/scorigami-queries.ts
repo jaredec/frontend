@@ -127,10 +127,10 @@ async function fetchYearlyScorigami(
         ${scoreSelect},
         COUNT(*)::int AS occurrences,
         MAX(g.date)::text AS last_date,
-        (ARRAY_AGG(g.home_team  ORDER BY g.date DESC))[1] AS last_home_team,
-        (ARRAY_AGG(g.visitor_team ORDER BY g.date DESC))[1] AS last_visitor_team,
-        (ARRAY_AGG(g.game_id    ORDER BY g.date DESC))[1] AS last_game_id,
-        (ARRAY_AGG(g.source     ORDER BY g.date DESC))[1] AS source
+        (ARRAY_AGG(g.home_team    ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_home_team,
+        (ARRAY_AGG(g.visitor_team ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_visitor_team,
+        (ARRAY_AGG(g.game_id      ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_game_id,
+        (ARRAY_AGG(g.source       ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS source
       FROM gamelogs g
       WHERE g.is_negro_league = false
         ${gameClause}
@@ -152,10 +152,10 @@ async function fetchYearlyScorigami(
       ${scoreSelect},
       COUNT(*)::int AS occurrences,
       MAX(g.date)::text AS last_date,
-      (ARRAY_AGG(g.home_team  ORDER BY g.date DESC))[1] AS last_home_team,
-      (ARRAY_AGG(g.visitor_team ORDER BY g.date DESC))[1] AS last_visitor_team,
-      (ARRAY_AGG(g.game_id    ORDER BY g.date DESC))[1] AS last_game_id,
-      (ARRAY_AGG(g.source     ORDER BY g.date DESC))[1] AS source
+      (ARRAY_AGG(g.home_team    ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_home_team,
+      (ARRAY_AGG(g.visitor_team ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_visitor_team,
+      (ARRAY_AGG(g.game_id      ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_game_id,
+      (ARRAY_AGG(g.source       ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS source
     FROM gamelogs g
     WHERE (g.home_team_id = $1 OR g.visitor_team_id = $1)
       ${gameClause}
