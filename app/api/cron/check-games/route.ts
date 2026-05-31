@@ -550,7 +550,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // recency rather than relying on cron-jittery created_at.
       const { data: recentPosts } = await supabase
         .from('posted_updates')
-        .select('score_snapshot, created_at, ended_at')
+        .select('score_snapshot, created_at, ended_at, game_id')
         .gte('created_at', new Date(Date.now() - 30 * 3600000).toISOString())
         .neq('game_id', game_id)
         .order('created_at', { ascending: false });
@@ -575,6 +575,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         ? new Date(sameScoreToday[0].ended_at ?? sameScoreToday[0].created_at).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
         : (history?.last_game_date_raw?.slice(0, 10) ?? '');
       const mostRecently = formatRecency(priorEndedAt, endedAt, lastDateRaw, yesterdayPT, history?.last_game_date ?? '', todayMatchCount);
+      // Doubleheader rematch: a prior same-score post today involves these same
+      // two teams. Two teams only play twice on one day in a doubleheader, so this
+      // is sufficient — no need to inspect the API's doubleHeader field.
+      const isDoubleheaderRematch = sameScoreToday.some((p) => {
+        const priorGame = scheduleGames.find((sg) => sg.gamePk === p.game_id);
+        if (!priorGame) return false;
+        const priorAwayId = priorGame.teams.away.team.id;
+        const priorHomeId = priorGame.teams.home.team.id;
+        return (priorAwayId === away_id && priorHomeId === home_id)
+            || (priorAwayId === home_id && priorHomeId === away_id);
+      });
       // Only show team context for older (non-same-day) prior occurrences from history
       const showTeamContext = todayMatchCount === 0 && history && !mostRecently.endsWith('earlier today');
       // Use 3-letter abbreviations only when both teams are current MLB franchises
@@ -591,7 +602,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const homeDisplay = visitorModern && homeModern ? teamAbbr(homeCanonical) : history.last_home_team;
         teamContext = ` (${visitorDisplay} vs. ${homeDisplay})`;
       }
-      const recencyClause = `, most recently ${mostRecently}`;
+      const recencyClause = isDoubleheaderRematch
+        ? `, most recently in the first game of today's doubleheader`
+        : `, most recently ${mostRecently}`;
 
       if (isAwayS || isHomeS) {
         const onlyWord = totalOccurrences < 25 ? 'only ' : '';
