@@ -1,0 +1,44 @@
+name: Dump Scorigami Static Data
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 13:30 UTC daily — runs ~30 min after backend cron (13:00 UTC) finishes its
+    # gamelog fetch + materialized view refresh, so we always dump fresh data.
+    - cron: '30 13 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Dump materialized views to JSON
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node scripts/dump-scorigami-data.js
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/scorigami-data
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: refresh scorigami static data [skip ci]"
+            git push
+          fi

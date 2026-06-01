@@ -20,12 +20,44 @@ import type { YearlyRow } from "@/lib/scorigami-queries";
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = 1871;
 
-const fetcher = async (u: string) => {
-  const r = await fetch(u);
+// Flip to false to immediately revert to API-only behavior.
+const USE_STATIC_JSON = true;
+
+const STATIC_TYPE_DIR: Record<string, string> = {
+  traditional: "traditional",
+  home_away: "homeaway",
+};
+
+// Two-URL fetcher: try the primary, fall back to the secondary on any failure.
+// Encoded as "primary|fallback" in the SWR key. SWR keys remain unique per
+// (team, type, gameFilter) combo, so caching still works.
+const fetcher = async (key: string) => {
+  const [primary, fallback] = key.includes("|") ? key.split("|") : [key, null];
+  try {
+    const r = await fetch(primary);
+    if (r.ok) return await r.json();
+    if (!fallback) {
+      const json = await r.json().catch(() => ({}));
+      throw new Error(json.error || `HTTP ${r.status}`);
+    }
+  } catch (e) {
+    if (!fallback) throw e;
+  }
+  const r = await fetch(fallback);
   const json = await r.json();
   if (!r.ok) throw new Error(json.error || "API error");
   return json;
 };
+
+function buildDataKey(club: string, scorigamiType: string, gameFilter: string): string {
+  const apiUrl = `/api/scorigami?team=${club}&type=${scorigamiType}&mode=yearly&gameFilter=${gameFilter}`;
+  // Static JSON only covers the "all games" case — game filters still hit the API.
+  if (!USE_STATIC_JSON || gameFilter !== "all") return apiUrl;
+  const dir = STATIC_TYPE_DIR[scorigamiType];
+  if (!dir) return apiUrl;
+  const staticUrl = `/scorigami-data/${dir}/${club}.json`;
+  return `${staticUrl}|${apiUrl}`;
+}
 
 export type GridSize = 36 | 51;
 
@@ -47,8 +79,8 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   const isGhostClick = () => Date.now() - dropdownCloseTimeRef.current < 400;
 
   // Load all yearly data once per team+type combo
-  const apiUrl = useMemo(
-    () => `/api/scorigami?team=${club}&type=${scorigamiType}&mode=yearly&gameFilter=${gameFilter}`,
+  const dataKey = useMemo(
+    () => buildDataKey(club, scorigamiType, gameFilter),
     [club, scorigamiType, gameFilter]
   );
 
@@ -57,7 +89,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     error,
     isLoading,
     isValidating,
-  } = useSWR<YearlyRow[]>(apiUrl, fetcher, {
+  } = useSWR<YearlyRow[]>(dataKey, fetcher, {
     revalidateOnFocus: false,
     revalidateIfStale: false,
     dedupingInterval: 3600000,
@@ -107,8 +139,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   useEffect(() => {
     if (!yearlyRows) return;
     const altType = scorigamiType === "traditional" ? "home_away" : "traditional";
-    const altUrl = `/api/scorigami?team=${club}&type=${altType}&mode=yearly&gameFilter=${gameFilter}`;
-    preload(altUrl, fetcher);
+    preload(buildDataKey(club, altType, gameFilter), fetcher);
   }, [yearlyRows, club, scorigamiType, gameFilter]);
 
   // Client-side: filter by year range and aggregate by score pair
