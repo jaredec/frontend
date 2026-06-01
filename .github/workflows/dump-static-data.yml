@@ -3,9 +3,9 @@ name: Dump Scorigami Static Data
 on:
   workflow_dispatch:
   schedule:
-    # 13:30 UTC daily — runs ~30 min after backend cron (13:00 UTC) finishes its
-    # gamelog fetch + materialized view refresh, so we always dump fresh data.
-    - cron: '30 13 * * *'
+    # 14:13 UTC = 7:13 AM PDT. ~4 hours after the backend cron (10:13 UTC),
+    # giving plenty of buffer in case GitHub's scheduler delays that run.
+    - cron: '13 14 * * *'
 
 permissions:
   contents: write
