@@ -2,9 +2,12 @@ name: Dump Scorigami Static Data
 
 on:
   workflow_dispatch:
+  # Backend workflow fires this immediately after its DB refresh completes —
+  # way more reliable than cron-on-cron.
+  repository_dispatch:
+    types: [backend-completed]
   schedule:
-    # 14:13 UTC = 7:13 AM PDT. ~4 hours after the backend cron (10:13 UTC),
-    # giving plenty of buffer in case GitHub's scheduler delays that run.
+    # Safety net only — runs daily in case the repository_dispatch ever fails.
     - cron: '13 14 * * *'
 
 permissions:
