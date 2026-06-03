@@ -238,7 +238,7 @@ export default function ScorigamiHeatmap({
               </div>
             </div>
             <div
-              className="relative border border-slate-200 dark:border-[#2d2d30] rounded-sm overflow-hidden bg-slate-200 dark:bg-[#1c1c1e]"
+              className="relative overflow-hidden"
               style={{
                 width: `${headerCellSize + GRID_DIMENSION * cellSize}px`,
                 height: `${headerCellSize + GRID_DIMENSION * cellSize}px`,
@@ -252,15 +252,15 @@ export default function ScorigamiHeatmap({
                 }}
               >
                 {/* Empty Top-Left Corner */}
-                <div className="bg-slate-50 dark:bg-[#2d2d30]"></div>
+                <div></div>
 
                 {/* Column Headers */}
                 {Array.from({ length: GRID_DIMENSION }).map((_, i) => (
                   <div
                     key={`ch-${i}`}
-                    className={`flex items-center justify-center font-medium bg-slate-50 dark:bg-[#2d2d30] transition-colors overflow-hidden ${
+                    className={`flex items-center justify-center font-medium transition-colors overflow-hidden ${
                       activeX === i
-                        ? "bg-slate-200 dark:bg-[#3e3e42] text-slate-600 dark:text-slate-300"
+                        ? "text-slate-700 dark:text-slate-200"
                         : "text-slate-400 dark:text-slate-500"
                     }`}
                     style={{ fontSize: `${dynamicFontSize}px` }}
@@ -275,9 +275,9 @@ export default function ScorigamiHeatmap({
                     <React.Fragment key={`rf-${score2_iterator}`}>
                       {/* Row Header */}
                       <div
-                        className={`flex items-center justify-center font-medium bg-slate-50 dark:bg-[#2d2d30] transition-colors overflow-hidden ${
+                        className={`flex items-center justify-center font-medium transition-colors overflow-hidden ${
                           activeY === score2_iterator
-                            ? "bg-slate-200 dark:bg-[#3e3e42] text-slate-600 dark:text-slate-300"
+                            ? "text-slate-700 dark:text-slate-200"
                             : "text-slate-400 dark:text-slate-500"
                         }`}
                         style={{ fontSize: `${dynamicFontSize}px` }}
