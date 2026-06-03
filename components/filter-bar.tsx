@@ -59,14 +59,14 @@ function GameTypeDropdown({
       <button
         type="button"
         onClick={() => { setOpen(o => !o); onOpenChange?.(!open); }}
-        className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className="flex w-full items-center justify-between rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
       >
         <span className="flex-1 truncate">{triggerLabel}</span>
         <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0 ml-1" />
       </button>
 
       {open && (
-        <div className="absolute z-[99] mt-1 w-full min-w-[180px] rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] p-1 shadow-lg">
+        <div className="absolute z-[99] mt-1 w-full min-w-[180px] rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] p-1 shadow-lg">
           <button onClick={() => select("all")} className={itemCls}>All Games</button>
           <button onClick={() => select("regular")} className={itemCls}>Regular Season</button>
 
@@ -171,7 +171,7 @@ export default function FilterBar({
             onValueChange={(val: string) => setClub(val as FranchiseCode | "ALL")}
             onOpenChange={onDropdownOpenChange}
           >
-            <Select.Trigger className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] px-3 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 overflow-hidden">
+            <Select.Trigger className="flex w-full items-center justify-between rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] px-3 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 overflow-hidden">
               <span className="flex-1 min-w-0 overflow-hidden">
                 <Select.Value>
                   <span className="flex items-center gap-2 min-w-0">
@@ -190,7 +190,7 @@ export default function FilterBar({
             </Select.Trigger>
             <Select.Portal>
               <Select.Content
-                className="z-[99] max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] p-1 text-sm shadow-lg"
+                className="z-[99] max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] p-1 text-sm shadow-lg"
                 position="popper"
                 sideOffset={4}
               >

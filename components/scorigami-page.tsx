@@ -243,7 +243,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
         </div>
 
         {/* Heatmap — full width */}
-        <div className="relative bg-white dark:bg-[#252526] border border-slate-200/80 dark:border-[#2d2d30] rounded-lg overflow-hidden min-h-[400px] md:min-h-[500px]">
+        <div className="relative bg-white dark:bg-[#252526] rounded-lg overflow-hidden min-h-[400px] md:min-h-[500px]">
 
           {/* Icon buttons: type toggle + expand/collapse */}
           <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
