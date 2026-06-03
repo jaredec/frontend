@@ -143,6 +143,18 @@ export default function FilterBar({
     setYearRange([Math.min(cLo, cHi), Math.max(cLo, cHi)]);
   };
 
+  // Warm the browser cache for all team logos so the dropdown paints
+  // instantly on first open instead of fetching each SVG on demand.
+  useEffect(() => {
+    sortedTeamsForDropdown.forEach(({ code }) => {
+      const url = getTeamLogoUrl(code, isDark);
+      if (url) {
+        const img = new window.Image();
+        img.src = url;
+      }
+    });
+  }, [sortedTeamsForDropdown, isDark]);
+
   return (
     <div className="space-y-3 md:space-y-0 md:flex md:items-end md:gap-5">
 
@@ -213,7 +225,6 @@ export default function FilterBar({
                             <img
                               src={getTeamLogoUrl(team.code, isDark)!}
                               alt=""
-                              loading="lazy"
                               className="w-5 h-5 object-contain flex-shrink-0"
                             />
                           )}
