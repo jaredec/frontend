@@ -3,31 +3,45 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 interface NavBarProps {
   totalGames?: number;
   uniqueScores?: number;
 }
 
+const MENU_ITEMS = [
+  { href: "/archive", label: "Archive" },
+  { href: "/about", label: "About" },
+];
+
 export default function NavBar({ totalGames, uniqueScores }: NavBarProps) {
   const hasStats = totalGames !== undefined && uniqueScores !== undefined;
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const navLink = (href: string, label: string) => {
-    const active = pathname === href;
-    return (
-      <Link
-        href={href}
-        className={`text-xs sm:text-sm font-medium transition-colors ${
-          active
-            ? "text-slate-900 dark:text-slate-100"
-            : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100"
-        }`}
-      >
-        {label}
-      </Link>
-    );
-  };
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
 
   return (
     <header className="border-b border-slate-200/60 dark:border-[#2d2d30] py-3">
@@ -59,9 +73,54 @@ export default function NavBar({ totalGames, uniqueScores }: NavBarProps) {
               </div>
             )}
             {hasStats && <div className="hidden sm:block w-px h-4 bg-slate-200 dark:bg-[#3e3e42]" />}
-            {navLink("/archive", "Archive")}
-            <span className="text-slate-300 dark:text-[#3e3e42]">·</span>
-            {navLink("/about", "About")}
+
+            <div ref={menuRef} className="relative">
+              <button
+                type="button"
+                aria-label="Open menu"
+                aria-expanded={open}
+                aria-haspopup="menu"
+                onClick={() => setOpen((v) => !v)}
+                className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-[#2d2d30] transition-colors"
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
+                  <circle cx="3" cy="3" r="1.5" />
+                  <circle cx="9" cy="3" r="1.5" />
+                  <circle cx="15" cy="3" r="1.5" />
+                  <circle cx="3" cy="9" r="1.5" />
+                  <circle cx="9" cy="9" r="1.5" />
+                  <circle cx="15" cy="9" r="1.5" />
+                  <circle cx="3" cy="15" r="1.5" />
+                  <circle cx="9" cy="15" r="1.5" />
+                  <circle cx="15" cy="15" r="1.5" />
+                </svg>
+              </button>
+
+              {open && (
+                <div
+                  role="menu"
+                  className="absolute right-0 mt-2 w-40 rounded-md border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] shadow-lg py-1 z-50"
+                >
+                  {MENU_ITEMS.map((item) => {
+                    const active = pathname === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        role="menuitem"
+                        className={`block px-3 py-2 text-sm transition-colors ${
+                          active
+                            ? "text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-[#2d2d30]"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#2d2d30] hover:text-slate-900 dark:hover:text-slate-100"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
