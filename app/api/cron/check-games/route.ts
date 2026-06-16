@@ -607,8 +607,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         : `, most recently ${mostRecently}`;
 
       if (isAwayS || isHomeS) {
-        const onlyWord = totalOccurrences < 25 ? 'only ' : '';
-        const historyText = history ? `It's happened ${onlyWord}${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.` : '';
+        const occurrenceNumber = totalOccurrences + 1;
+        const onlyWord = occurrenceNumber < 26 ? 'only ' : '';
+        const historySuffix = history ? ` and ${onlyWord}the ${getOrdinal(occurrenceNumber)} time in MLB history${recencyClause}${teamContext}` : '';
 
         const awayShort = TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop();
         const homeShort = TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop();
@@ -616,18 +617,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         let franchiseLine: string;
         let igamiLabel: string;
         if (isAwayS && isHomeS) {
-          franchiseLine = `It's the first time this score has occurred for both franchises.`;
+          franchiseLine = `It's the first time this score has happened for either franchise${historySuffix}.`;
           igamiLabel = `${teamIgami(away_name)} and ${teamIgami(home_name)}`;
         } else {
           const teamShort = isAwayS ? awayShort : homeShort;
           const teamFull = isAwayS ? away_name : home_name;
-          franchiseLine = `It's the first time in ${teamShort} history this score has occurred.`;
+          franchiseLine = `It's the first time in ${teamShort} history this score has happened${historySuffix}.`;
           igamiLabel = teamIgami(teamFull);
         }
 
-        // Both single and dual Franchisigami posts put the MLB-history line on its own paragraph.
-        const historyLine = historyText ? `\n\n${historyText}` : '';
-        postText = `${header}\n\nThat's ${igamiLabel}! ${franchiseLine}${historyLine}`;
+        postText = `${header}\n\nThat's ${igamiLabel}!\n\n${franchiseLine}`;
       } else {
         const isRarigami = totalOccurrences < 100;
         if (isRarigami && history) {
