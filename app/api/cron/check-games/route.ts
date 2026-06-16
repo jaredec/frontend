@@ -568,6 +568,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const postPT = new Date(p.ended_at ?? p.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
         return postPT === todayPT;
       });
+      // Re-sort by ended_at (when the game actually finished), not created_at
+      // (when the cron posted). Those can drift apart when the MLB API lags on
+      // flipping a game to Final — and we want sameScoreToday[0] to be the
+      // truly most-recently-finished prior for both the recency clause and
+      // the (TEAM vs. TEAM) context.
+      sameScoreToday.sort((a, b) => {
+        const ta = new Date(a.ended_at ?? a.created_at).getTime();
+        const tb = new Date(b.ended_at ?? b.created_at).getTime();
+        return tb - ta;
+      });
       const todayMatchCount = sameScoreToday.length;
       const priorEndedAt = sameScoreToday[0]?.ended_at ?? history?.last_ended_at ?? null;
       const totalOccurrences = (history?.occurrences ?? 0) + todayMatchCount;
@@ -586,24 +596,36 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         return (priorAwayId === away_id && priorHomeId === home_id)
             || (priorAwayId === home_id && priorHomeId === away_id);
       });
-      // Only show team context for older (non-same-day) prior occurrences from history
-      const showTeamContext = todayMatchCount === 0 && history && !mostRecently.endsWith('earlier today');
+      // Team context for the prior occurrence. Sources, in priority order:
+      //   1. Doubleheader rematch — skip; the recency clause is already self-explanatory.
+      //   2. Same-day prior — look up the prior game's teams in today's schedule.
+      //   3. Older historical prior — use the names stored on the history row.
       // Use 3-letter abbreviations only when both teams are current MLB franchises
       // (TEAM_IGAMI_MAP doubles as the modern-team set). For matchups involving
       // historical teams (Brooklyn Bridegrooms, Cleveland Naps, etc.) the abbr
       // map has gaps, so fall back to full team names — clearer than guessing codes.
-      let teamContext = '';
-      if (showTeamContext && history) {
-        const visitorCanonical = canonicalFranchise(history.last_visitor_team);
-        const homeCanonical = canonicalFranchise(history.last_home_team);
+      const buildTeamContext = (visitorName: string, homeName: string): string => {
+        const visitorCanonical = canonicalFranchise(visitorName);
+        const homeCanonical = canonicalFranchise(homeName);
         const visitorModern = visitorCanonical in TEAM_IGAMI_MAP;
         const homeModern = homeCanonical in TEAM_IGAMI_MAP;
-        const visitorDisplay = visitorModern && homeModern ? teamAbbr(visitorCanonical) : history.last_visitor_team;
-        const homeDisplay = visitorModern && homeModern ? teamAbbr(homeCanonical) : history.last_home_team;
-        teamContext = ` (${visitorDisplay} vs. ${homeDisplay})`;
+        const visitorDisplay = visitorModern && homeModern ? teamAbbr(visitorCanonical) : visitorName;
+        const homeDisplay = visitorModern && homeModern ? teamAbbr(homeCanonical) : homeName;
+        return ` (${visitorDisplay} vs. ${homeDisplay})`;
+      };
+      let teamContext = '';
+      if (isDoubleheaderRematch) {
+        // skip
+      } else if (todayMatchCount > 0) {
+        const priorGame = scheduleGames.find((sg) => sg.gamePk === sameScoreToday[0].game_id);
+        if (priorGame) {
+          teamContext = buildTeamContext(priorGame.teams.away.team.name, priorGame.teams.home.team.name);
+        }
+      } else if (history) {
+        teamContext = buildTeamContext(history.last_visitor_team, history.last_home_team);
       }
       const recencyClause = isDoubleheaderRematch
-        ? `, most recently in the first game of today's doubleheader`
+        ? `, most recently when these same two teams played earlier today`
         : `, most recently ${mostRecently}`;
 
       if (isAwayS || isHomeS) {
