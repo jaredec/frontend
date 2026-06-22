@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import NavBar from "@/components/nav-bar";
+import PageFooter from "@/components/page-footer";
 import AboutContent from "./about-content";
 
 export const metadata: Metadata = {
@@ -13,6 +14,7 @@ export default function AboutPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-[#1e1e1e] flex flex-col">
       <NavBar />
       <AboutContent />
+      <PageFooter />
     </div>
   );
 }
