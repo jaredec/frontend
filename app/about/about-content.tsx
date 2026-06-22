@@ -85,7 +85,7 @@ const sections: Section[] = [
           <dt className="font-semibold text-slate-900 dark:text-slate-100">Modern Era Scorigami</dt>
           <dd>Never happened in the modern era (since 1901).</dd>
           <dt className="font-semibold text-slate-900 dark:text-slate-100">Franchisigami</dt>
-          <dd>Never happened in the history of one (or both) teams.</dd>
+          <dd>Never happened before for at least one of the two teams.</dd>
           <dt className="font-semibold text-slate-900 dark:text-slate-100">Rarigami</dt>
           <dd>Happened fewer than 100 times ever.</dd>
           <dt className="font-semibold text-slate-900 dark:text-slate-100">No scorigami</dt>
