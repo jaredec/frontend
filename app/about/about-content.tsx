@@ -21,7 +21,7 @@ const sections: Section[] = [
     title: "The heatmap",
     body: (
       <p>
-        Each cell is a possible final score: winner on one axis, loser on the other. Empty cells have never happened. Filled cells deepen in color the more often that score has occurred. Tap any cell for the count, the most recent occurrence, and a link to that game&apos;s box score. Filter by team, era, or game type.
+        Each cell is a possible final score: winner on one axis, loser on the other. Empty cells have never happened. Tap any cell for the count, the most recent occurrence, and a link to that game&apos;s box score. Filter by team, era, or game type.
       </p>
     ),
   },
@@ -85,7 +85,7 @@ const sections: Section[] = [
           <dt className="font-semibold text-slate-900 dark:text-slate-100">Modern Era Scorigami</dt>
           <dd>Never happened in the modern era (since 1901).</dd>
           <dt className="font-semibold text-slate-900 dark:text-slate-100">Franchisigami</dt>
-          <dd>Never happened for either franchise.</dd>
+          <dd>Never happened in the history of one (or both) teams.</dd>
           <dt className="font-semibold text-slate-900 dark:text-slate-100">Rarigami</dt>
           <dd>Happened fewer than 100 times ever.</dd>
           <dt className="font-semibold text-slate-900 dark:text-slate-100">No scorigami</dt>
