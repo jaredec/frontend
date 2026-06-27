@@ -521,14 +521,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     } else if (await isModernEraScorigami(supabase, away_score, home_score)) {
       // 3. Modern Era Scorigami — first time this score has occurred since 1901
-      const lastVisitorCanonical = canonicalFranchise(history.last_visitor_team);
-      const lastHomeCanonical = canonicalFranchise(history.last_home_team);
-      const visitorModern = lastVisitorCanonical in TEAM_IGAMI_MAP;
-      const homeModern = lastHomeCanonical in TEAM_IGAMI_MAP;
-      const visitorDisplay = visitorModern && homeModern ? teamAbbr(lastVisitorCanonical) : history.last_visitor_team;
-      const homeDisplay = visitorModern && homeModern ? teamAbbr(lastHomeCanonical) : history.last_home_team;
+      // Winner-first ordering to match header convention.
+      const homeWon = history.last_home_score > history.last_visitor_score;
+      const lastWinner = homeWon ? history.last_home_team : history.last_visitor_team;
+      const lastLoser  = homeWon ? history.last_visitor_team : history.last_home_team;
+      const winnerCanonical = canonicalFranchise(lastWinner);
+      const loserCanonical = canonicalFranchise(lastLoser);
+      const winnerModern = winnerCanonical in TEAM_IGAMI_MAP;
+      const loserModern = loserCanonical in TEAM_IGAMI_MAP;
+      const winnerDisplay = winnerModern && loserModern ? teamAbbr(winnerCanonical) : lastWinner;
+      const loserDisplay = winnerModern && loserModern ? teamAbbr(loserCanonical) : lastLoser;
       const occurrencesPhrase = history.occurrences === 1 ? 'only once' : `only ${formatNum(history.occurrences)} times`;
-      postText = `${header}\n\nThat's Modern Era Scorigami! It's the first time this score has occurred in MLB's modern era.\n\nIt's happened ${occurrencesPhrase} in MLB history, most recently on ${history.last_game_date} (${visitorDisplay} vs. ${homeDisplay}).`;
+      postText = `${header}\n\nThat's Modern Era Scorigami! It's the first time this score has occurred in MLB's modern era.\n\nIt's happened ${occurrencesPhrase} in MLB history, most recently on ${history.last_game_date} (${winnerDisplay} vs. ${loserDisplay}).`;
       revalidatePath('/archive');
 
     } else {
@@ -604,14 +608,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // (TEAM_IGAMI_MAP doubles as the modern-team set). For matchups involving
       // historical teams (Brooklyn Bridegrooms, Cleveland Naps, etc.) the abbr
       // map has gaps, so fall back to full team names — clearer than guessing codes.
-      const buildTeamContext = (visitorName: string, homeName: string): string => {
-        const visitorCanonical = canonicalFranchise(visitorName);
-        const homeCanonical = canonicalFranchise(homeName);
-        const visitorModern = visitorCanonical in TEAM_IGAMI_MAP;
-        const homeModern = homeCanonical in TEAM_IGAMI_MAP;
-        const visitorDisplay = visitorModern && homeModern ? teamAbbr(visitorCanonical) : visitorName;
-        const homeDisplay = visitorModern && homeModern ? teamAbbr(homeCanonical) : homeName;
-        return ` (${visitorDisplay} vs. ${homeDisplay})`;
+      // Winner-first ordering: matches the header ("White Sox 22, Royals 1")
+      // and avoids the confusion of naming the loser first as the away team.
+      const buildTeamContext = (winnerName: string, loserName: string): string => {
+        const winnerCanonical = canonicalFranchise(winnerName);
+        const loserCanonical = canonicalFranchise(loserName);
+        const winnerModern = winnerCanonical in TEAM_IGAMI_MAP;
+        const loserModern = loserCanonical in TEAM_IGAMI_MAP;
+        const winnerDisplay = winnerModern && loserModern ? teamAbbr(winnerCanonical) : winnerName;
+        const loserDisplay = winnerModern && loserModern ? teamAbbr(loserCanonical) : loserName;
+        return ` (${winnerDisplay} vs. ${loserDisplay})`;
       };
       let teamContext = '';
       if (isDoubleheaderRematch) {
@@ -619,10 +625,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       } else if (todayMatchCount > 0) {
         const priorGame = scheduleGames.find((sg) => sg.gamePk === sameScoreToday[0].game_id);
         if (priorGame) {
-          teamContext = buildTeamContext(priorGame.teams.away.team.name, priorGame.teams.home.team.name);
+          // score_snapshot is `${away_score}-${home_score}` — decide winner from that.
+          const [priorAwayStr, priorHomeStr] = (sameScoreToday[0].score_snapshot ?? '').split('-');
+          const priorAwayScore = Number(priorAwayStr);
+          const priorHomeScore = Number(priorHomeStr);
+          const awayWon = priorAwayScore > priorHomeScore;
+          const winner = awayWon ? priorGame.teams.away.team.name : priorGame.teams.home.team.name;
+          const loser  = awayWon ? priorGame.teams.home.team.name : priorGame.teams.away.team.name;
+          teamContext = buildTeamContext(winner, loser);
         }
       } else if (history) {
-        teamContext = buildTeamContext(history.last_visitor_team, history.last_home_team);
+        const homeWon = history.last_home_score > history.last_visitor_score;
+        const winner = homeWon ? history.last_home_team : history.last_visitor_team;
+        const loser  = homeWon ? history.last_visitor_team : history.last_home_team;
+        teamContext = buildTeamContext(winner, loser);
       }
       const recencyClause = isDoubleheaderRematch
         ? `, most recently when these same two teams played earlier today`
