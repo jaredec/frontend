@@ -640,7 +640,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         let igamiLabel: string;
         if (isAwayS && isHomeS) {
           franchiseLine = `It's the first time this score has happened for either franchise${historySuffix}.`;
-          igamiLabel = `${teamIgami(away_name)} and ${teamIgami(home_name)}`;
+          igamiLabel = 'Franchisigami';
         } else {
           const teamShort = isAwayS ? awayShort : homeShort;
           const teamFull = isAwayS ? away_name : home_name;
