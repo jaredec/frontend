@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
-import type { ArchiveRow } from "./page";
+import type { ArchiveRow } from "@/lib/archive-queries";
 
 function formatDate(raw: string): string {
   const d = new Date(raw);

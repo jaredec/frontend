@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath, revalidateTag } from 'next/cache';
+import { revalidateTag } from 'next/cache';
 import TwitterApi from 'twitter-api-v2';
 import { pool } from '@/lib/db';
 
@@ -511,13 +511,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // 1. True Scorigami
       const newCount = (await getUniqueScoreCount()) + 1;
       postText = `${header}\n\nThat's Scorigami! It's the ${getOrdinal(newCount)} unique final score in MLB history.`;
-      revalidatePath('/archive');
+      revalidateTag('archive');
 
     } else if (isPostseason && playoffBreakdown && playoffBreakdown.total === 0) {
       // 2. Playoffigami
       const playoffCount = await getUniquePlayoffScoreCount();
       postText = `${header}\n\nThat's Playoffigami! It's the ${getOrdinal(playoffCount + 1)} unique final score in MLB playoff history.`;
-      revalidatePath('/archive');
+      revalidateTag('archive');
 
     } else if (await isModernEraScorigami(supabase, away_score, home_score)) {
       // 3. Modern Era Scorigami — first time this score has occurred since 1901
@@ -533,7 +533,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const loserDisplay = winnerModern && loserModern ? teamAbbr(loserCanonical) : lastLoser;
       const occurrencesPhrase = history.occurrences === 1 ? 'only once' : `only ${formatNum(history.occurrences)} times`;
       postText = `${header}\n\nThat's Modern Era Scorigami! It's the first time this score has occurred in MLB's modern era.\n\nIt's happened ${occurrencesPhrase} in MLB history, most recently on ${history.last_game_date} (${winnerDisplay} vs. ${loserDisplay}).`;
-      revalidatePath('/archive');
+      revalidateTag('archive');
 
     } else {
       // 4. Franchisigami or No Scorigami
@@ -669,7 +669,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const isRarigami = totalOccurrences < 100;
         if (isRarigami && history) {
           postText = `${header}\n\nRarigami. This score has happened only ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
-          revalidatePath('/archive');
+          revalidateTag('archive');
         } else {
           postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
         }
