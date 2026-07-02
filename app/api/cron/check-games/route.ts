@@ -733,8 +733,5 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  await pool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY mv_scorigami_summary_ha');
-  await pool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY mv_streak_context');
-
   return NextResponse.json({ success: true });
 }
