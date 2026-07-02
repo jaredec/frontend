@@ -339,83 +339,14 @@ function getOrdinal(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-function articleFor(n: number): string {
-  // "An" before numbers whose first spoken word starts with a vowel sound: 8, 11, 18, 80-89
-  return (n === 8 || n === 11 || n === 18 || (n >= 80 && n <= 89)) ? 'An' : 'A';
-}
-
-async function postTweet(twitterClient: TwitterApi, postText: string, replyText: string | null): Promise<string | null> {
+async function postTweet(twitterClient: TwitterApi, postText: string): Promise<string | null> {
   if (process.env.ENABLE_POSTING === 'true') {
     const tweet = await twitterClient.v2.tweet(postText);
-    if (replyText) {
-      await twitterClient.v2.tweet(replyText, { reply: { in_reply_to_tweet_id: tweet.data.id } });
-    }
     return tweet.data.id;
   } else {
     console.log("WOULD TWEET:", postText);
-    if (replyText) console.log("WOULD REPLY:", replyText);
     return null;
   }
-}
-
-async function postQuoteTweet(twitterClient: TwitterApi, text: string, quoteTweetId: string): Promise<void> {
-  if (process.env.ENABLE_POSTING === 'true') {
-    await twitterClient.v2.tweet(text, { quote_tweet_id: quoteTweetId });
-  } else {
-    console.log("WOULD QUOTE TWEET:", text, "quoting:", quoteTweetId);
-  }
-}
-
-async function getTeamStreak(supabase: SupabaseClient, teamName: string, todayWon: boolean): Promise<{ type: 'win' | 'loss'; length: number } | null> {
-  // Today's game isn't in gamelogs yet, so we fetch recent history and prepend today's result
-  const { data } = await supabase
-    .from('gamelogs')
-    .select('visitor_team, home_team, visitor_score, home_score')
-    .or(`visitor_team.eq.${teamName},home_team.eq.${teamName}`)
-    .in('game_type', ['R', 'F', 'D', 'L', 'W'])
-    .order('date', { ascending: false })
-    .limit(35);
-
-  const todayResult = { won: todayWon };
-  const results: boolean[] = [todayResult.won, ...(data ?? []).map(g => {
-    const isHome = g.home_team === teamName;
-    return isHome ? g.home_score > g.visitor_score : g.visitor_score > g.home_score;
-  })];
-
-  const streakType: 'win' | 'loss' = results[0] ? 'win' : 'loss';
-  let streak = 0;
-  for (const won of results) {
-    if ((streakType === 'win') === won) streak++;
-    else break;
-  }
-
-  if (streak < 12) return null;
-  return { type: streakType, length: streak };
-}
-
-// Streak counts come from mv_streak_context. Methodology (locked in 2026-04-25):
-//   * All-time data (no era cutoff)
-//   * No Negro Leagues
-//   * All game types: regular season + all postseason rounds (R, F, D, L, W)
-//   * Streaks span the offseason — only an actual game outcome breaks a streak
-//   * Ties break the streak (a tie ends both win and loss runs)
-//   * Doubleheader-aware ordering: date, game_number, game_id
-//   * Partition by team_id so franchise renames don't fragment a streak
-//   * Counts distinct streaks (not team-seasons)
-// Validated: 1903+ RS-only variant of this query yields 139 team-seasons / 151
-// distinct 12+ losing streaks (matches ESPN's 138 + active Mets = 139 figure).
-async function getStreakContext(supabase: SupabaseClient, streakType: 'win' | 'loss', length: number): Promise<{ count: number; lastTeam: string; lastDate: string } | null> {
-  const { data } = await supabase
-    .from('mv_streak_context')
-    .select('occurrence_count, last_team, last_date')
-    .eq('streak_type', streakType)
-    .eq('streak_length', length)
-    .single();
-
-  if (!data) return null;
-  const lastDate = new Date(data.last_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-  const lastTeam = TEAM_NAME_SHORTENER_MAP[data.last_team] || data.last_team.split(' ').pop()!;
-  return { count: data.occurrence_count, lastTeam, lastDate };
 }
 
 // --- MAIN HANDLER ---
@@ -676,7 +607,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    const tweetId = await postTweet(twitterClient, postText, null);
+    const tweetId = await postTweet(twitterClient, postText);
 
     await supabase.from('posted_updates').insert({
       game_id,
@@ -686,40 +617,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       tweet_id: tweetId,
       ended_at: endedAt,
     });
-
-    // Streak check for both teams
-    if (tweetId) {
-      const teamsToCheck: [string, string, boolean][] = [
-        [away_name, TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop()!, away_score > home_score],
-        [home_name, TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop()!, home_score > away_score],
-      ];
-      for (const [teamName, shortName, todayWon] of teamsToCheck) {
-        const streak = await getTeamStreak(supabase, teamName, todayWon);
-        if (!streak) continue;
-
-        const { count: postedCount } = await supabase
-          .from('posted_updates')
-          .select('id', { count: 'exact', head: true })
-          .eq('game_id', game_id);
-        if (postedCount && postedCount >= 2) continue;
-
-        const ctx = await getStreakContext(supabase, streak.type, streak.length);
-        const streakWord = streak.type === 'win' ? 'won' : 'lost';
-        const streakLabel = streak.type === 'win' ? 'winning' : 'losing';
-        let streakText = `The ${shortName} have ${streakWord} ${streak.length} straight.`;
-        if (ctx) {
-          streakText += ` ${articleFor(streak.length)} ${streak.length}-game ${streakLabel} streak has happened ${ctx.count.toLocaleString('en-US')} times in MLB history, most recently the ${ctx.lastTeam} in ${ctx.lastDate}.`;
-        }
-
-        await postQuoteTweet(twitterClient, streakText, tweetId);
-        await supabase.from('posted_updates').insert({
-          game_id,
-          post_type: 'Streak',
-          details: `${streak.length}-game ${streakLabel} streak`,
-          tweet_id: tweetId,
-        });
-      }
-    }
 
     // Bust per-team yearly caches only for the teams that actually played, plus
     // the ALL view (team_id=0). The 'scorigami' tag handles the aggregated blobs
