@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "About",
   description:
     "What is MLB Scorigami? Learn about the project, the heatmap, the @MLBgami bot, and how data is sourced going back to 1871.",
+  alternates: { canonical: "/about" },
 };
 
 export default function AboutPage() {

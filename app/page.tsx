@@ -16,5 +16,12 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  return <ScorigamiPage />;
+  return (
+    <>
+      <h1 className="sr-only">
+        MLB Scorigami — every unique final score in Major League Baseball history
+      </h1>
+      <ScorigamiPage />
+    </>
+  );
 }

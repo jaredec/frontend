@@ -20,9 +20,6 @@ export const metadata: Metadata = {
   },
   description: DESCRIPTION,
   metadataBase: new URL(SITE_URL),
-  alternates: {
-    canonical: "/",
-  },
   keywords: [
     "scorigami",
     "MLB",
