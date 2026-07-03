@@ -599,7 +599,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       } else {
         const isRarigami = totalOccurrences < 100;
         if (isRarigami && history) {
-          postText = `${header}\n\nRarigami. This score has happened only ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
+          const rarePhrase = totalOccurrences === 1 ? 'only once' : `only ${formatNum(totalOccurrences)} times`;
+          postText = `${header}\n\nRarigami. This score has happened ${rarePhrase} in MLB history${recencyClause}${teamContext}.`;
           revalidateTag('archive');
         } else {
           postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
