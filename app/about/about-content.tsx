@@ -77,20 +77,14 @@ const sections: Section[] = [
           </a>{" "}
           posts after every MLB game, checked in priority order:
         </p>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 pt-1">
-          <dt className="font-semibold text-slate-900 dark:text-slate-100">Scorigami</dt>
-          <dd>Never happened before, ever.</dd>
-          <dt className="font-semibold text-slate-900 dark:text-slate-100">Playoffigami</dt>
-          <dd>Never happened in a playoff game.</dd>
-          <dt className="font-semibold text-slate-900 dark:text-slate-100">Modern Era Scorigami</dt>
-          <dd>Never happened in the modern era (since 1901).</dd>
-          <dt className="font-semibold text-slate-900 dark:text-slate-100">Franchisigami</dt>
-          <dd>Never happened before for at least one of the two teams.</dd>
-          <dt className="font-semibold text-slate-900 dark:text-slate-100">Rarigami</dt>
-          <dd>Happened fewer than 100 times ever.</dd>
-          <dt className="font-semibold text-slate-900 dark:text-slate-100">No scorigami</dt>
-          <dd>A common score; the post reports how many times it&apos;s happened and the most recent occurrence.</dd>
-        </dl>
+        <ul className="space-y-2 pt-1">
+          <li><span className="font-semibold text-slate-900 dark:text-slate-100">Scorigami:</span> never happened before, ever.</li>
+          <li><span className="font-semibold text-slate-900 dark:text-slate-100">Playoffigami:</span> never happened in a playoff game.</li>
+          <li><span className="font-semibold text-slate-900 dark:text-slate-100">Modern Era Scorigami:</span> never happened in the modern era (since 1901).</li>
+          <li><span className="font-semibold text-slate-900 dark:text-slate-100">Franchisigami:</span> never happened before for at least one of the two teams.</li>
+          <li><span className="font-semibold text-slate-900 dark:text-slate-100">Rarigami:</span> happened fewer than 100 times ever.</li>
+          <li><span className="font-semibold text-slate-900 dark:text-slate-100">No scorigami:</span> a common score; the post reports how many times it&apos;s happened and the most recent occurrence.</li>
+        </ul>
       </>
     ),
   },
@@ -98,16 +92,16 @@ const sections: Section[] = [
 
 export default function AboutContent() {
   return (
-    <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
-      <h1 className="text-[9px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+    <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
+      <h1 className="text-[9px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 pb-2">
         About
       </h1>
 
-      <div className="rounded-lg border border-slate-200 dark:border-[#2d2d30] bg-white dark:bg-[#252526] p-6 sm:p-8">
-        <div className="space-y-7 text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
+      <div className="rounded-lg border border-slate-200 dark:border-[#2d2d30] bg-white dark:bg-[#252526] px-5 py-2 sm:px-8 sm:py-3">
+        <div className="divide-y divide-slate-100 dark:divide-[#2d2d30] text-sm sm:text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed">
           {sections.map((s) => (
-            <section key={s.id} className="space-y-2">
-              <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <section key={s.id} className="py-6">
+              <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-3">
                 {s.title}
               </h2>
               <div className="space-y-3">{s.body}</div>
