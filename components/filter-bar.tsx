@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as Select from "@radix-ui/react-select";
 import * as Slider from "@radix-ui/react-slider";
-import { ChevronDown, RotateCcw } from "lucide-react";
+import { ChevronDown, Pencil, RotateCcw } from "lucide-react";
 import { TEAM_NAMES, FranchiseCode, GameFilter, getTeamLogoUrl } from "@/lib/mlb-data";
 
 const POSTSEASON_ROUNDS: { value: GameFilter; label: string }[] = [
@@ -99,6 +99,60 @@ const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = 1871;
 const MODERN_ERA_START = 1901;
 
+// Compact year field shown only while editing. Commits on blur/Enter;
+// anything that isn't a full 4-digit year reverts. Escape cancels.
+function YearInput({
+  value,
+  min,
+  max,
+  onCommit,
+  ariaLabel,
+  autoFocus,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onCommit: (year: number) => void;
+  ariaLabel: string;
+  autoFocus?: boolean;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+
+  const commit = () => {
+    const n = parseInt(draft, 10);
+    if (draft.length !== 4 || Number.isNaN(n)) {
+      setDraft(String(value));
+      return;
+    }
+    const clamped = Math.max(min, Math.min(max, n));
+    setDraft(String(clamped));
+    onCommit(clamped);
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      maxLength={4}
+      autoFocus={autoFocus}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value.replace(/\D/g, ""))}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") {
+          setDraft(String(value));
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+      onFocus={(e) => e.target.select()}
+      aria-label={ariaLabel}
+      className="w-10 h-5 rounded bg-slate-100 dark:bg-[#2d2d30] px-0.5 text-xs font-medium text-center tabular-nums text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+    />
+  );
+}
+
 interface FilterBarProps {
   gameFilter: GameFilter;
   setGameFilter: (value: GameFilter) => void;
@@ -129,6 +183,23 @@ export default function FilterBar({
 
   const [dataMin, dataMax] = dataYearBounds;
   const isSingleYear = yearRange[0] === yearRange[1];
+  const [editingYears, setEditingYears] = useState(false);
+
+  // The pencil hint stays hidden until the user works the slider, then fades
+  // in (they're pinpointing a year — typing is easier) and fades back out
+  // a few seconds after they stop.
+  const [showEditHint, setShowEditHint] = useState(false);
+  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pingEditHint = () => {
+    setShowEditHint(true);
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = setTimeout(() => setShowEditHint(false), 4000);
+  };
+  useEffect(() => {
+    return () => {
+      if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    };
+  }, []);
 
   const modernStartPct = ((MODERN_ERA_START - MIN_YEAR) / (CURRENT_YEAR - MIN_YEAR)) * 100;
   const trackGradient = isDark
@@ -244,9 +315,51 @@ export default function FilterBar({
       {/* Row 2 on mobile: Year range slider — full width */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums">
-            {isSingleYear ? yearRange[0] : `${yearRange[0]} – ${yearRange[1]}`}
-          </span>
+          {editingYears ? (
+            <span
+              className="flex h-5 items-center gap-1"
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setEditingYears(false);
+                }
+              }}
+            >
+              <YearInput
+                value={yearRange[0]}
+                min={dataMin}
+                max={dataMax}
+                autoFocus
+                onCommit={(n) => (isSingleYear ? clampedSet(n, n) : clampedSet(n, yearRange[1]))}
+                ariaLabel={isSingleYear ? "Year" : "Start year"}
+              />
+              {!isSingleYear && (
+                <>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">–</span>
+                  <YearInput
+                    value={yearRange[1]}
+                    min={dataMin}
+                    max={dataMax}
+                    onCommit={(n) => clampedSet(yearRange[0], n)}
+                    ariaLabel="End year"
+                  />
+                </>
+              )}
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingYears(true)}
+              title="Type exact years"
+              className="group flex h-5 items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums"
+            >
+              <span>{isSingleYear ? yearRange[0] : `${yearRange[0]} – ${yearRange[1]}`}</span>
+              <Pencil
+                className={`w-3 h-3 text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-opacity duration-300 ${
+                  showEditHint ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            </button>
+          )}
           {onReset && (
             <>
               <button
@@ -262,7 +375,7 @@ export default function FilterBar({
           <label className={`flex items-center gap-1.5 ${onReset ? "" : "ml-auto"} cursor-pointer select-none`}>
             <input
               type="checkbox"
-              checked={!isSingleYear}
+              checked={isSingleYear}
               onChange={() =>
                 isSingleYear
                   ? setYearRange([Math.max(dataMin, MIN_YEAR), dataMax])
@@ -270,7 +383,7 @@ export default function FilterBar({
               }
               className="accent-blue-500 cursor-pointer"
             />
-            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">Range</span>
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">Single season</span>
           </label>
         </div>
         <div className="relative">
@@ -278,7 +391,7 @@ export default function FilterBar({
           <Slider.Root
             key="single"
             value={[yearRange[0]]}
-            onValueChange={(val: number[]) => clampedSet(val[0], val[0])}
+            onValueChange={(val: number[]) => { pingEditHint(); clampedSet(val[0], val[0]); }}
             min={MIN_YEAR}
             max={CURRENT_YEAR}
             step={1}
@@ -293,7 +406,7 @@ export default function FilterBar({
           <Slider.Root
             key="range"
             value={yearRange}
-            onValueChange={(val: number[]) => clampedSet(val[0], val[1])}
+            onValueChange={(val: number[]) => { pingEditHint(); clampedSet(val[0], val[1]); }}
             min={MIN_YEAR}
             max={CURRENT_YEAR}
             step={1}
