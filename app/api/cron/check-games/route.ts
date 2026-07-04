@@ -727,11 +727,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         homeFranchiseSet: toSet(homeRes.rows),
       });
 
-      // Nothing worth saying — don't post, and don't record, so the next
-      // inning gets a fresh look.
+      // No reachable scorigami at all (e.g. a leading home team frozen on a
+      // score whose every continuation has happened) — the story is over.
+      if (!prob.mostLikelyScorigami) continue;
+
       const scorigamiPct = prob.scorigami * 100;
       const franchisePct = prob.franchisigami * 100;
-      if (franchisePct < 0.1 && scorigamiPct < 0.005) continue;
 
       // Repost only when the odds meaningfully improved on the last update:
       // Scorigami at least 1.5x higher (and up ≥0.05 points), or
@@ -746,20 +747,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       const awayAbbr = teamAbbr(canonicalFranchise(g.teams.away.team.name));
       const homeAbbr = teamAbbr(canonicalFranchise(g.teams.home.team.name));
+      // Leader first, matching the Final post convention (ties: away first).
+      const awayLeadsOrTied = awayScore >= homeScore;
+      const scoreLine = awayLeadsOrTied
+        ? `${awayAbbr} ${awayScore} - ${homeScore} ${homeAbbr}`
+        : `${homeAbbr} ${homeScore} - ${awayScore} ${awayAbbr}`;
       const stateWord = inningState.toLowerCase().startsWith('mid') ? 'Mid' : inningState;
       const inningLine = `${stateWord} ${inningOrdinal ?? inning}`;
 
       const fStr = formatPct(prob.franchisigami);
-      let sentence: string;
-      if (scorigamiPct >= 0.005) {
-        const sStr = formatPct(prob.scorigami);
-        sentence = `This game has ${articleForPct(sStr)} ${sStr} chance of ending in Scorigami and ${articleForPct(fStr)} ${fStr} chance of ending in Franchisigami.`;
-      } else {
-        sentence = `This game has ${articleForPct(fStr)} ${fStr} chance of ending in Franchisigami.`;
-      }
+      const sStr = formatPct(prob.scorigami);
+      const sentence = `This game has ${articleForPct(sStr)} ${sStr} chance of ending in Scorigami and ${articleForPct(fStr)} ${fStr} chance of ending in Franchisigami.`;
 
-      let postText = `Score Update\n${awayAbbr} ${awayScore} - ${homeScore} ${homeAbbr}\n${inningLine}\n\n${sentence}`;
-      if (prob.mostLikelyScorigami && scorigamiPct >= 0.005) {
+      let postText = `Score Update\n${scoreLine}\n${inningLine}\n\n${sentence}`;
+      if (prob.mostLikelyScorigami) {
         const m = prob.mostLikelyScorigami;
         postText += `\nMost likely Scorigami: ${m.win}-${m.lose} (${formatPct(m.probability)})`;
       }

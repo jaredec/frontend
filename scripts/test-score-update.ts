@@ -73,19 +73,22 @@ const HOME_FRANCHISE_ID = 118; // Royals
 
   const fStr = formatPct(prob.franchisigami);
   const sStr = formatPct(prob.scorigami);
-  let sentence: string;
-  if (prob.scorigami * 100 >= 0.005) {
-    sentence = `This game has ${articleForPct(sStr)} ${sStr} chance of ending in Scorigami and ${articleForPct(fStr)} ${fStr} chance of ending in Franchisigami.`;
-  } else {
-    sentence = `This game has ${articleForPct(fStr)} ${fStr} chance of ending in Franchisigami.`;
-  }
-  let postText = `Score Update\nCWS ${awayScore} - ${homeScore} KC\n${state} ${inning}th\n\n${sentence}`;
-  if (prob.mostLikelyScorigami && prob.scorigami * 100 >= 0.005) {
+  const sentence = `This game has ${articleForPct(sStr)} ${sStr} chance of ending in Scorigami and ${articleForPct(fStr)} ${fStr} chance of ending in Franchisigami.`;
+  const scoreLine = awayScore >= homeScore
+    ? `CWS ${awayScore} - ${homeScore} KC`
+    : `KC ${homeScore} - ${awayScore} CWS`;
+  let postText = `Score Update\n${scoreLine}\n${state} ${inning}th\n\n${sentence}`;
+  if (prob.mostLikelyScorigami) {
     const m = prob.mostLikelyScorigami;
     postText += `\nMost likely Scorigami: ${m.win}-${m.lose} (${formatPct(m.probability)})`;
   }
 
-  console.log("\n--- WOULD POST ---\n" + postText + "\n------------------");
+  if (!prob.mostLikelyScorigami) {
+    console.log("\n--- WOULD SKIP: no reachable scorigami (0%) ---");
+    console.log("(text that would have been):\n" + postText);
+  } else {
+    console.log("\n--- WOULD POST ---\n" + postText + "\n------------------");
+  }
   console.log(`\nraw: scorigami=${(prob.scorigami * 100).toFixed(4)}%  franchisigami=${(prob.franchisigami * 100).toFixed(4)}%`);
   await pool.end();
 })();

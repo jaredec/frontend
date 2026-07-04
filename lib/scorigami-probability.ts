@@ -118,12 +118,15 @@ export function calculateScoreProbabilities(opts: {
 
 export function formatPct(p: number): string {
   const pct = p * 100;
+  if (pct === 0) return "0%";
   if (pct >= 99.995) return "100%";
   // Never round a non-certain probability up to "100%".
   if (pct >= 99) return "99%";
   if (pct >= 10) return `${Math.round(pct)}%`;
   if (pct >= 1) return `${pct.toFixed(1)}%`;
-  return `${pct.toFixed(2)}%`;
+  if (pct >= 0.01) return `${pct.toFixed(2)}%`;
+  if (pct >= 0.0005) return `${pct.toFixed(3)}%`;
+  return "<0.001%";
 }
 
 // "an 8% chance" / "an 11% chance" / "an 18% chance" / "an 80% chance",

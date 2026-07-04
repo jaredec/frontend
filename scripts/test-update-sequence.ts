@@ -96,7 +96,7 @@ async function simulate(states: State[], label: string) {
 
     const o = await odds(st);
     const oddsStr = `s=${o.s.toFixed(2)}% f=${o.f.toFixed(1)}%`;
-    if (o.f < 0.1 && o.s < 0.005) { console.log(`${prefix} SKIP — nothing to say (${oddsStr})`); continue; }
+    if (!o.best) { console.log(`${prefix} SKIP — no reachable scorigami (${oddsStr})`); continue; }
 
     const last = posted[posted.length - 1];
     if (last) {
