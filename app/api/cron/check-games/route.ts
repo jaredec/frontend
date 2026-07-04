@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
 import TwitterApi from 'twitter-api-v2';
 import { pool } from '@/lib/db';
+import {
+  calculateScoreProbabilities,
+  lambdasFor,
+  formatPct,
+  articleForPct,
+} from '@/lib/scorigami-probability';
 
 const TEAM_NAME_SHORTENER_MAP: { [key: string]: string } = {
   'Chicago White Sox': 'White Sox',
@@ -211,10 +217,16 @@ interface GameSnapshot {
   abstractGameState: string | null;
   awayScore: number | null;
   homeScore: number | null;
+  inning: number | null;
+  inningState: string | null;
+  inningOrdinal: string | null;
 }
 
 async function fetchGameSnapshot(gamePk: number): Promise<GameSnapshot> {
-  const empty: GameSnapshot = { endedAt: null, abstractGameState: null, awayScore: null, homeScore: null };
+  const empty: GameSnapshot = {
+    endedAt: null, abstractGameState: null, awayScore: null, homeScore: null,
+    inning: null, inningState: null, inningOrdinal: null,
+  };
   try {
     const res = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`, { cache: 'no-store' });
     if (!res.ok) return empty;
@@ -235,11 +247,17 @@ async function fetchGameSnapshot(gamePk: number): Promise<GameSnapshot> {
     }
 
     const abstractGameState = d?.gameData?.status?.abstractGameState ?? null;
-    const linescoreTeams = d?.liveData?.linescore?.teams;
+    const linescore = d?.liveData?.linescore;
+    const linescoreTeams = linescore?.teams;
     const awayScore = typeof linescoreTeams?.away?.runs === 'number' ? linescoreTeams.away.runs : null;
     const homeScore = typeof linescoreTeams?.home?.runs === 'number' ? linescoreTeams.home.runs : null;
 
-    return { endedAt, abstractGameState, awayScore, homeScore };
+    return {
+      endedAt, abstractGameState, awayScore, homeScore,
+      inning: typeof linescore?.currentInning === 'number' ? linescore.currentInning : null,
+      inningState: linescore?.inningState ?? null,
+      inningOrdinal: linescore?.currentInningOrdinal ?? null,
+    };
   } catch {
     return empty;
   }
@@ -487,6 +505,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         .from('posted_updates')
         .select('score_snapshot, created_at, ended_at, game_id')
         .gte('created_at', new Date(Date.now() - 30 * 3600000).toISOString())
+        .eq('post_type', 'Final')
         .neq('game_id', game_id)
         .order('created_at', { ascending: false });
       const todayPT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
@@ -628,6 +647,134 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     revalidateTag('scorigami');
     } catch (err) {
       console.error(`Error processing game ${g.gamePk}:`, err);
+    }
+  }
+
+  // --- In-progress Score Updates: scorigami probability for blowouts ---
+  // Trigger: live game, one team at 20+ runs or 30+ combined, 4th inning
+  // through the TOP of the 9th. Top 9 only posts if the home team isn't
+  // leading — a leading home team never bats again, so the odds are dead.
+  // At most one post per game per inning, only when the score changed
+  // since the last update, and never more than 3 per game.
+  const meetsScoreTrigger = (away: number, home: number) =>
+    away >= 20 || home >= 20 || away + home >= 30;
+  const liveCandidates = scheduleGames.filter((g) =>
+    g.status.codedGameState === 'I' &&
+    ['R', 'F', 'D', 'L', 'W'].includes(g.gameType) &&
+    meetsScoreTrigger(g.teams.away.score ?? 0, g.teams.home.score ?? 0)
+  );
+
+  for (const g of liveCandidates) {
+    try {
+      const snapshot = await fetchGameSnapshot(g.gamePk);
+      const { inning, inningState, inningOrdinal, awayScore, homeScore } = snapshot;
+      if (inning === null || awayScore === null || homeScore === null || !inningState) continue;
+      const inWindow =
+        inning >= 4 &&
+        (inning <= 8 ||
+          (inning === 9 &&
+            inningState.toLowerCase().startsWith('top') &&
+            homeScore <= awayScore));
+      if (!inWindow) continue;
+      if (!meetsScoreTrigger(awayScore, homeScore)) continue;
+
+      const details = `In-Progress Update - Inning ${inning}`;
+      const { count: updateCount, data: priorUpdates } = await supabase.from('posted_updates')
+        .select('details', { count: 'exact' })
+        .eq('game_id', g.gamePk).eq('post_type', 'Score_Update');
+      if (updateCount && updateCount >= 3) continue;
+      if (priorUpdates?.some((p) => p.details === details)) continue;
+
+      const scoreSnapshot = `${awayScore}-${homeScore}`;
+      const { data: lastUpdate } = await supabase.from('posted_updates')
+        .select('score_snapshot, prob_snapshot').eq('game_id', g.gamePk).eq('post_type', 'Score_Update')
+        .order('created_at', { ascending: false }).limit(1);
+      if (lastUpdate && lastUpdate[0]?.score_snapshot === scoreSnapshot) continue;
+      const lastProbs = (lastUpdate?.[0]?.prob_snapshot ?? null) as { s: number; f: number } | null;
+
+      // Score-pair history, fetched in three bulk queries. Scores only go up,
+      // so candidate finals live in a bounded rectangle above the current score.
+      const K = 25;
+      const winCur = Math.max(awayScore, homeScore);
+      const loseCur = Math.min(awayScore, homeScore);
+      const [everRes, awayIds, homeIds] = await Promise.all([
+        pool.query(`
+          SELECT DISTINCT GREATEST(home_score, visitor_score) AS w, LEAST(home_score, visitor_score) AS l
+          FROM gamelogs
+          WHERE is_negro_league = false
+            AND GREATEST(home_score, visitor_score) BETWEEN $1 AND $2
+            AND LEAST(home_score, visitor_score) BETWEEN $3 AND $4
+        `, [winCur, winCur + K, loseCur, loseCur + K]),
+        getFranchiseTeamIds(supabase, g.teams.away.team.id),
+        getFranchiseTeamIds(supabase, g.teams.home.team.id),
+      ]);
+      const franchisePairsSql = `
+        SELECT DISTINCT GREATEST(home_score, visitor_score) AS w, LEAST(home_score, visitor_score) AS l
+        FROM gamelogs WHERE home_team_id = ANY($1) OR visitor_team_id = ANY($1)
+      `;
+      const [awayRes, homeRes] = await Promise.all([
+        pool.query(franchisePairsSql, [awayIds]),
+        pool.query(franchisePairsSql, [homeIds]),
+      ]);
+      const toSet = (rows: { w: number; l: number }[]) => new Set(rows.map((r) => `${r.w}-${r.l}`));
+
+      const lambdas = lambdasFor(inning, inningState, homeScore > awayScore);
+      const prob = calculateScoreProbabilities({
+        awayScore, homeScore,
+        awayLambda: lambdas.away, homeLambda: lambdas.home,
+        everSet: toSet(everRes.rows),
+        awayFranchiseSet: toSet(awayRes.rows),
+        homeFranchiseSet: toSet(homeRes.rows),
+      });
+
+      // Nothing worth saying — don't post, and don't record, so the next
+      // inning gets a fresh look.
+      const scorigamiPct = prob.scorigami * 100;
+      const franchisePct = prob.franchisigami * 100;
+      if (franchisePct < 0.1 && scorigamiPct < 0.005) continue;
+
+      // Repost only when the odds meaningfully improved on the last update:
+      // Scorigami at least 1.5x higher (and up ≥0.05 points), or
+      // Franchisigami up ≥10 points. Flat or falling odds — e.g. the score
+      // drifting from 20-1 to 20-6, or plain time decay — stay silent.
+      if (lastProbs) {
+        const scorigamiJump =
+          scorigamiPct >= lastProbs.s * 1.5 && scorigamiPct >= lastProbs.s + 0.05;
+        const franchiseJump = franchisePct >= lastProbs.f + 10;
+        if (!scorigamiJump && !franchiseJump) continue;
+      }
+
+      const awayAbbr = teamAbbr(canonicalFranchise(g.teams.away.team.name));
+      const homeAbbr = teamAbbr(canonicalFranchise(g.teams.home.team.name));
+      const stateWord = inningState.toLowerCase().startsWith('mid') ? 'Mid' : inningState;
+      const inningLine = `${stateWord} ${inningOrdinal ?? inning}`;
+
+      const fStr = formatPct(prob.franchisigami);
+      let sentence: string;
+      if (scorigamiPct >= 0.005) {
+        const sStr = formatPct(prob.scorigami);
+        sentence = `This game has ${articleForPct(sStr)} ${sStr} chance of ending in Scorigami and ${articleForPct(fStr)} ${fStr} chance of ending in Franchisigami.`;
+      } else {
+        sentence = `This game has ${articleForPct(fStr)} ${fStr} chance of ending in Franchisigami.`;
+      }
+
+      let postText = `Score Update\n${awayAbbr} ${awayScore} - ${homeScore} ${homeAbbr}\n${inningLine}\n\n${sentence}`;
+      if (prob.mostLikelyScorigami && scorigamiPct >= 0.005) {
+        const m = prob.mostLikelyScorigami;
+        postText += `\nMost likely Scorigami: ${m.win}-${m.lose} (${formatPct(m.probability)})`;
+      }
+
+      const tweetId = await postTweet(twitterClient, postText);
+      await supabase.from('posted_updates').insert({
+        game_id: g.gamePk,
+        post_type: 'Score_Update',
+        details,
+        score_snapshot: scoreSnapshot,
+        prob_snapshot: { s: scorigamiPct, f: franchisePct },
+        tweet_id: tweetId,
+      });
+    } catch (err) {
+      console.error(`Error processing live game ${g.gamePk}:`, err);
     }
   }
 
