@@ -163,7 +163,7 @@ export default function ArchiveTable({
               const boxScoreUrl =
                 row.game_id && row.source === "mlb_api"
                   ? `https://www.mlb.com/gameday/${row.game_id}`
-                  : null;
+                  : row.box_url ?? null;
 
               const rowContent = (
                 <>

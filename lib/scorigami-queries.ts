@@ -21,6 +21,7 @@ export interface YearlyRow {
   last_visitor_team: string | null;
   last_game_id: number | null;
   source: string | null;
+  box_url: string | null;
 }
 
 const PLAYOFF_TYPES = `('W','L','D','F')`;
@@ -104,13 +105,15 @@ async function fetchYearlyScorigami(
 
   if (gameFilter === "all") {
     const view = isTraditional ? "scorigami_by_year" : "scorigami_by_year_ha";
+    // box_url joined live from gamelogs so the MVs don't need rebuilding.
     const result = await pool.query(`
-      SELECT year, score1, score2, occurrences::int,
-             last_date::text, last_home_team, last_visitor_team,
-             last_game_id, source
-      FROM ${view}
-      WHERE team_id = $1
-      ORDER BY year, score1, score2
+      SELECT v.year, v.score1, v.score2, v.occurrences::int,
+             v.last_date::text, v.last_home_team, v.last_visitor_team,
+             v.last_game_id, v.source, bx.box_url
+      FROM ${view} v
+      LEFT JOIN gamelogs bx ON bx.game_id = v.last_game_id
+      WHERE v.team_id = $1
+      ORDER BY v.year, v.score1, v.score2
     `, [teamId]);
     return result.rows;
   }
@@ -130,7 +133,8 @@ async function fetchYearlyScorigami(
         (ARRAY_AGG(g.home_team    ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_home_team,
         (ARRAY_AGG(g.visitor_team ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_visitor_team,
         (ARRAY_AGG(g.game_id      ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_game_id,
-        (ARRAY_AGG(g.source       ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS source
+        (ARRAY_AGG(g.source       ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS source,
+        (ARRAY_AGG(g.box_url      ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS box_url
       FROM gamelogs g
       WHERE g.is_negro_league = false
         ${gameClause}
@@ -155,7 +159,8 @@ async function fetchYearlyScorigami(
       (ARRAY_AGG(g.home_team    ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_home_team,
       (ARRAY_AGG(g.visitor_team ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_visitor_team,
       (ARRAY_AGG(g.game_id      ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_game_id,
-      (ARRAY_AGG(g.source       ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS source
+      (ARRAY_AGG(g.source       ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS source,
+      (ARRAY_AGG(g.box_url      ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS box_url
     FROM gamelogs g
     WHERE (g.home_team_id = $1 OR g.visitor_team_id = $1)
       ${gameClause}

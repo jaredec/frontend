@@ -17,7 +17,17 @@ interface ApiRow {
   last_visitor_team: string | null;
   last_game_id: number | null;
   source: string | null;
+  box_url: string | null;
 }
+
+// Modern games link to MLB Gameday; Retrosheet-era games link to the
+// Retrosheet box score page when one exists.
+const boxScoreHref = (row: ApiRow): string | null => {
+  if (row.last_game_id && row.source === "mlb_api") {
+    return `https://www.mlb.com/gameday/${row.last_game_id}`;
+  }
+  return row.box_url ?? null;
+};
 
 const formatDisplayDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", {
@@ -355,9 +365,9 @@ export default function ScorigamiHeatmap({
                                         <div className="text-slate-500 dark:text-slate-400">
                                           {rowData.last_home_team} vs {rowData.last_visitor_team}
                                         </div>
-                                        {rowData.last_game_id && rowData.source === "mlb_api" && (
+                                        {boxScoreHref(rowData) && (
                                           <a
-                                            href={`https://www.mlb.com/gameday/${rowData.last_game_id}`}
+                                            href={boxScoreHref(rowData)!}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             onClick={(e) => e.stopPropagation()}

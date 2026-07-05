@@ -155,6 +155,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
       last_visitor_team: string | null;
       last_game_id: number | null;
       source: string | null;
+      box_url: string | null;
     }>();
 
     for (const row of yearlyRows) {
@@ -173,6 +174,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
           last_visitor_team: row.last_visitor_team,
           last_game_id: row.last_game_id,
           source: row.source,
+          box_url: row.box_url ?? null,
         });
       } else {
         existing.occurrences += Number(row.occurrences);
@@ -182,6 +184,7 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
           existing.last_visitor_team = row.last_visitor_team;
           existing.last_game_id = row.last_game_id;
           existing.source = row.source;
+          existing.box_url = row.box_url ?? null;
         }
       }
     }

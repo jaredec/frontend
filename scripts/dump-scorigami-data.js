@@ -39,12 +39,13 @@ function fmtBytes(n) {
 
 async function fetchView(view, teamId) {
   const { rows } = await pool.query(
-    `SELECT year, score1, score2, occurrences::int,
-            last_date::text, last_home_team, last_visitor_team,
-            last_game_id, source
-     FROM ${view}
-     WHERE team_id = $1
-     ORDER BY year, score1, score2`,
+    `SELECT v.year, v.score1, v.score2, v.occurrences::int,
+            v.last_date::text, v.last_home_team, v.last_visitor_team,
+            v.last_game_id, v.source, bx.box_url
+     FROM ${view} v
+     LEFT JOIN gamelogs bx ON bx.game_id = v.last_game_id
+     WHERE v.team_id = $1
+     ORDER BY v.year, v.score1, v.score2`,
     [teamId]
   );
   return rows;
