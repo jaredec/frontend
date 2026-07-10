@@ -134,4 +134,8 @@ const png = new Resvg(svg, {
 
 const outName = gridOnly ? "og.png" : "og-card.png";
 fs.writeFileSync(path.resolve(__dirname, `../public/${outName}`), png);
+if (gridOnly) {
+  // Same image under a descriptive filename for on-page embedding / image SEO.
+  fs.writeFileSync(path.resolve(__dirname, "../public/mlb-scorigami-heatmap.png"), png);
+}
 console.log(`${outName} written (${(png.length / 1024).toFixed(0)} KB) — ${fmt(totalGames)} games, ${uniqueScores} scores`);

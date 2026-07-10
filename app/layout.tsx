@@ -80,6 +80,7 @@ export default function RootLayout({
                 name: "MLB Scorigami",
                 url: SITE_URL,
                 description: DESCRIPTION,
+                image: `${SITE_URL}/mlb-scorigami-heatmap.png`,
                 author: { "@type": "Person", name: "Jared Connolly" },
                 potentialAction: {
                   "@type": "SearchAction",
@@ -93,6 +94,7 @@ export default function RootLayout({
                 name: "MLB Scorigami",
                 url: SITE_URL,
                 description: DESCRIPTION,
+                image: `${SITE_URL}/mlb-scorigami-heatmap.png`,
                 applicationCategory: "SportsApplication",
                 operatingSystem: "Any",
                 offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },

@@ -15,6 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1,
+      images: ["https://mlbscorigami.com/mlb-scorigami-heatmap.png"],
     },
     {
       url: "https://mlbscorigami.com/archive",

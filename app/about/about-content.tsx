@@ -20,9 +20,20 @@ const sections: Section[] = [
     id: "heatmap",
     title: "The heatmap",
     body: (
-      <p>
-        Each cell is a possible final score: winner on one axis, loser on the other. Empty cells have never happened. Tap any cell for the count, the most recent occurrence, and a link to that game&apos;s box score. Filter by team, era, or game type.
-      </p>
+      <>
+        <p>
+          Each cell is a possible final score: winner on one axis, loser on the other. Empty cells have never happened. Tap any cell for the count, the most recent occurrence, and a link to that game&apos;s box score. Filter by team, era, or game type.
+        </p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/mlb-scorigami-heatmap.png"
+          alt="MLB Scorigami heatmap: every final score in MLB history since 1871, common scores in dark blue, rare scores in light blue, never-seen scores in gray"
+          width={1200}
+          height={630}
+          loading="lazy"
+          className="w-full h-auto rounded-md border border-slate-200 dark:border-[#3e3e42]"
+        />
+      </>
     ),
   },
   {
