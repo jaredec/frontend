@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
 
+const XLogoIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 1200 1227" xmlns="http://www.w3.org/2000/svg" className={className} fill="currentColor" aria-hidden="true">
+    <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.163 519.284ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.828Z" />
+  </svg>
+);
+
 interface Section {
   id: string;
   title: string;
@@ -76,17 +82,24 @@ const sections: Section[] = [
     title: "@MLBgami on X",
     body: (
       <>
+        <a
+          href="https://x.com/MLBgami"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group flex items-center gap-3 rounded-lg border border-slate-200 dark:border-[#3e3e42] bg-slate-50 dark:bg-[#2d2d30] px-4 py-3 transition-colors hover:border-slate-300 dark:hover:border-slate-500"
+        >
+          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white dark:bg-[#1e1e1e]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo3.svg" alt="" className="h-6 w-auto dark:invert" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100">MLB Scorigami</span>
+            <span className="block text-xs text-slate-500 dark:text-slate-400 truncate">@MLBgami</span>
+          </span>
+          <XLogoIcon className="h-4 w-4 flex-none text-slate-400 transition-colors group-hover:text-slate-700 dark:group-hover:text-slate-200" />
+        </a>
         <p>
-          The{" "}
-          <a
-            href="https://x.com/MLBgami"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline underline-offset-2 decoration-slate-400 dark:decoration-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
-          >
-            bot
-          </a>{" "}
-          posts after every MLB game, checked in priority order:
+          The bot posts after every MLB game, checked in priority order:
         </p>
         <ul className="space-y-2 pt-1">
           <li><span className="font-semibold text-slate-900 dark:text-slate-100">Scorigami:</span> never happened before, ever.</li>
