@@ -7,7 +7,7 @@ import ArchiveTable from "./archive-table";
 export const metadata: Metadata = {
   title: "Scorigami Archive",
   description:
-    "Every unique final score in MLB history — the date it first occurred, the teams involved, and how many times it has happened since.",
+    "Every unique final score in MLB history: the date it first occurred, the teams involved, and how many times it has happened since.",
   alternates: { canonical: "/archive" },
 };
 

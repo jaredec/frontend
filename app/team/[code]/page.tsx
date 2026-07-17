@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: TeamPageProps): Promise<Metad
   const name = TEAM_NAMES[upper];
   if (!name) return {};
 
-  const title = `${name} Scorigami — Every Final Score in Franchise History`;
+  const title = `${name} Scorigami | Every Final Score in Franchise History`;
   const description = `Explore every unique final score in ${name} history. See which scores have never happened, when each result last occurred, and browse box scores.`;
 
   return {
@@ -50,7 +50,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
   return (
     <>
       <h1 className="sr-only">
-        {TEAM_NAMES[upper]} Scorigami — every final score in franchise history
+        {TEAM_NAMES[upper]} Scorigami: every final score in franchise history
       </h1>
       <ScorigamiPage initialClub={upper as FranchiseCode} />
     </>
