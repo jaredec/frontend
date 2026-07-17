@@ -345,6 +345,51 @@ async function getUniquePlayoffScoreCount(): Promise<number> {
   return result.rows[0]?.count ?? 0;
 }
 
+// Games posted tonight aren't in gamelogs until the nightly refresh, so the
+// "Nth unique score" ordinals above undercount when an earlier game tonight was
+// itself a scorigami. Count distinct recently-posted score pairs that are still
+// missing from gamelogs and bump the ordinal by that many. The 30h lookback is
+// self-correcting: once the nightly refresh ingests a game, its pair is no
+// longer "missing" and drops out of the count.
+async function countPendingNewScorePairs(
+  supabase: SupabaseClient,
+  excludeGameId: number,
+  playoffOnly: boolean,
+  scheduleGames: { gamePk: number; gameType: string }[],
+): Promise<number> {
+  const { data } = await supabase.from('posted_updates')
+    .select('game_id, score_snapshot')
+    .eq('post_type', 'Final')
+    .neq('game_id', excludeGameId)
+    .gte('created_at', new Date(Date.now() - 30 * 3600000).toISOString());
+  if (!data || data.length === 0) return 0;
+
+  const pairs = new Set<string>();
+  for (const p of data) {
+    if (playoffOnly) {
+      const sg = scheduleGames.find((s) => s.gamePk === p.game_id);
+      if (!sg || !['W', 'L', 'D', 'F'].includes(sg.gameType)) continue;
+    }
+    const [a, b] = (p.score_snapshot ?? '').split('-').map(Number);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+    pairs.add(`${Math.max(a, b)}-${Math.min(a, b)}`);
+  }
+
+  let pending = 0;
+  for (const pair of pairs) {
+    const [w, l] = pair.split('-').map(Number);
+    let query = supabase.from('gamelogs').select('game_id')
+      .or(`and(home_score.eq.${w},visitor_score.eq.${l}),and(home_score.eq.${l},visitor_score.eq.${w})`)
+      .limit(1);
+    query = playoffOnly
+      ? query.in('game_type', ['W', 'L', 'D', 'F'])
+      : query.eq('is_negro_league', false);
+    const { data: hit } = await query;
+    if (!hit || hit.length === 0) pending++;
+  }
+  return pending;
+}
+
 
 
 function formatNum(n: number): string {
@@ -458,14 +503,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (isScorigami) {
       // 1. True Scorigami
-      const newCount = (await getUniqueScoreCount()) + 1;
+      const [baseCount, pendingPairs] = await Promise.all([
+        getUniqueScoreCount(),
+        countPendingNewScorePairs(supabase, game_id, false, scheduleGames),
+      ]);
+      const newCount = baseCount + pendingPairs + 1;
       postText = `${header}\n\nThat's Scorigami! It's the ${getOrdinal(newCount)} unique final score in MLB history.`;
       revalidateTag('archive');
 
     } else if (isPostseason && playoffBreakdown && playoffBreakdown.total === 0) {
       // 2. Playoffigami
-      const playoffCount = await getUniquePlayoffScoreCount();
-      postText = `${header}\n\nThat's Playoffigami! It's the ${getOrdinal(playoffCount + 1)} unique final score in MLB playoff history.`;
+      const [playoffCount, pendingPlayoffPairs] = await Promise.all([
+        getUniquePlayoffScoreCount(),
+        countPendingNewScorePairs(supabase, game_id, true, scheduleGames),
+      ]);
+      postText = `${header}\n\nThat's Playoffigami! It's the ${getOrdinal(playoffCount + pendingPlayoffPairs + 1)} unique final score in MLB playoff history.`;
       revalidateTag('archive');
 
     } else if (await isModernEraScorigami(supabase, away_score, home_score)) {
