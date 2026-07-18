@@ -51,7 +51,7 @@ const TEAM_IGAMI_MAP: { [key: string]: string } = {
   'Tampa Bay Rays': 'Raysigami',
   'Texas Rangers': 'Rangersigami',
   'Toronto Blue Jays': 'Blue Jaysigami',
-  'Washington Nationals': 'Nationalsigami',
+  'Washington Nationals': 'Natsigami',
 };
 
 function teamIgami(name: string): string {
@@ -533,7 +533,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const winnerDisplay = winnerModern && loserModern ? teamAbbr(winnerCanonical) : lastWinner;
       const loserDisplay = winnerModern && loserModern ? teamAbbr(loserCanonical) : lastLoser;
       const occurrencesPhrase = history.occurrences === 1 ? 'only once' : `only ${formatNum(history.occurrences)} times`;
-      postText = `${header}\n\nThat's Modern Era Scorigami! It's the first time this score has occurred in MLB's modern era.\n\nIt's happened ${occurrencesPhrase} in MLB history, most recently on ${history.last_game_date} (${winnerDisplay} vs. ${loserDisplay}).`;
+      postText = `${header}\n\nThat's Modern Era Scorigami! It's the first time this score has occurred in MLB's modern era.\n\nIt's happened ${occurrencesPhrase} before, most recently on ${history.last_game_date} (${winnerDisplay} vs. ${loserDisplay}).`;
       revalidateTag('archive');
 
     } else {
@@ -647,34 +647,38 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         : `, most recently ${mostRecently}`;
 
       if (isAwayS || isHomeS) {
-        const occurrenceNumber = totalOccurrences + 1;
-        const onlyWord = occurrenceNumber < 26 ? 'only ' : '';
-        const historySuffix = history ? ` and ${onlyWord}the ${getOrdinal(occurrenceNumber)} time in MLB history${recencyClause}${teamContext}` : '';
+        const onlyWord = totalOccurrences < 25 ? 'only ' : '';
+        const occurrencesPhrase = totalOccurrences === 1
+          ? 'only once'
+          : `${onlyWord}${formatNum(totalOccurrences)} times`;
+        const historyLine = history
+          ? `\n\nIt's happened ${occurrencesPhrase} before${recencyClause}${teamContext}.`
+          : '';
 
         const awayShort = TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop();
         const homeShort = TEAM_NAME_SHORTENER_MAP[home_name] || home_name.split(' ').pop();
 
-        let franchiseLine: string;
+        let firstLine: string;
         let igamiLabel: string;
         if (isAwayS && isHomeS) {
-          franchiseLine = `It's the first time this score has happened for either franchise${historySuffix}.`;
+          firstLine = `It's the first time this score has occurred for either franchise.`;
           igamiLabel = 'Franchisigami';
         } else {
           const teamShort = isAwayS ? awayShort : homeShort;
           const teamFull = isAwayS ? away_name : home_name;
-          franchiseLine = `It's the first time in ${teamShort} history this score has happened${historySuffix}.`;
+          firstLine = `It's the first time this score has occurred in ${teamShort} history.`;
           igamiLabel = teamIgami(teamFull);
         }
 
-        postText = `${header}\n\nThat's ${igamiLabel}!\n\n${franchiseLine}`;
+        postText = `${header}\n\nThat's ${igamiLabel}! ${firstLine}${historyLine}`;
       } else {
         const isRarigami = totalOccurrences < 100;
         if (isRarigami && history) {
           const rarePhrase = totalOccurrences === 1 ? 'only once' : `only ${formatNum(totalOccurrences)} times`;
-          postText = `${header}\n\nRarigami. This score has happened ${rarePhrase} in MLB history${recencyClause}${teamContext}.`;
+          postText = `${header}\n\nRarigami. This score has happened ${rarePhrase} before${recencyClause}${teamContext}.`;
           revalidateTag('archive');
         } else {
-          postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
+          postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times before${recencyClause}${teamContext}.`;
         }
       }
     }
