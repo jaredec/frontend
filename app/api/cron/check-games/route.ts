@@ -533,7 +533,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const winnerDisplay = winnerModern && loserModern ? teamAbbr(winnerCanonical) : lastWinner;
       const loserDisplay = winnerModern && loserModern ? teamAbbr(loserCanonical) : lastLoser;
       const occurrencesPhrase = history.occurrences === 1 ? 'only once' : `only ${formatNum(history.occurrences)} times`;
-      postText = `${header}\n\nThat's Modern Era Scorigami! It's the first time this score has occurred in MLB's modern era.\n\nIt's happened ${occurrencesPhrase} before, most recently on ${history.last_game_date} (${winnerDisplay} vs. ${loserDisplay}).`;
+      postText = `${header}\n\nThat's Modern Era Scorigami! It's the first time this score has occurred in MLB's modern era.\n\nIt's happened ${occurrencesPhrase} in MLB history, most recently on ${history.last_game_date} (${winnerDisplay} vs. ${loserDisplay}).`;
       revalidateTag('archive');
 
     } else {
@@ -652,7 +652,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           ? 'only once'
           : `${onlyWord}${formatNum(totalOccurrences)} times`;
         const historyLine = history
-          ? `\n\nIt's happened ${occurrencesPhrase} before${recencyClause}${teamContext}.`
+          ? `\n\nIt's happened ${occurrencesPhrase} in MLB history${recencyClause}${teamContext}.`
           : '';
 
         const awayShort = TEAM_NAME_SHORTENER_MAP[away_name] || away_name.split(' ').pop();
@@ -675,10 +675,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const isRarigami = totalOccurrences < 100;
         if (isRarigami && history) {
           const rarePhrase = totalOccurrences === 1 ? 'only once' : `only ${formatNum(totalOccurrences)} times`;
-          postText = `${header}\n\nRarigami. This score has happened ${rarePhrase} before${recencyClause}${teamContext}.`;
+          postText = `${header}\n\nRarigami. This score has happened ${rarePhrase} in MLB history${recencyClause}${teamContext}.`;
           revalidateTag('archive');
         } else {
-          postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times before${recencyClause}${teamContext}.`;
+          postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
         }
       }
     }
