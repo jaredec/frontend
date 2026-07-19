@@ -9,6 +9,13 @@ export const metadata: Metadata = {
   description:
     "Every unique final score in MLB history: the date it first occurred, the teams involved, and how many times it has happened since.",
   alternates: { canonical: "/archive" },
+  openGraph: {
+    images: [{ url: "/og-archive.png", width: 1200, height: 630, alt: "Scorigami Archive: the most recent first-time final scores in MLB history" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og-archive.png"],
+  },
 };
 
 export default async function ArchivePage({

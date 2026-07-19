@@ -139,3 +139,62 @@ if (gridOnly) {
   fs.writeFileSync(path.resolve(__dirname, "../public/mlb-scorigami-heatmap.png"), png);
 }
 console.log(`${outName} written (${(png.length / 1024).toFixed(0)} KB) — ${fmt(totalGames)} games, ${uniqueScores} scores`);
+
+// --- Archive card (og-archive.png): table of the most recent first-time scores,
+// matching the /archive page's plain sharp-cornered table design.
+if (gridOnly) {
+  const firstByPair = new Map();
+  for (const r of rows) {
+    const key = `${r.score1}-${r.score2}`;
+    const cur = firstByPair.get(key);
+    if (!cur || r.year < cur.year) firstByPair.set(key, r);
+  }
+  const recentFirsts = [...firstByPair.values()]
+    .filter((r) => r.last_date)
+    .sort((a, b) => String(b.last_date).localeCompare(String(a.last_date)))
+    .slice(0, 5);
+
+  const fmtDate = (iso) =>
+    new Date(iso).toLocaleDateString("en-US", {
+      timeZone: "UTC", month: "short", day: "numeric", year: "numeric",
+    });
+  const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+  const TX = 60, TW = 1080, TY = 185;
+  const HEADER_H = 46, ROW_H = 66;
+  const tableH = HEADER_H + recentFirsts.length * ROW_H;
+
+  let table = `<rect x="${TX}" y="${TY}" width="${TW}" height="${tableH}" fill="#252526" stroke="#3e3e42" stroke-width="1"/>`;
+  table += `<line x1="${TX}" y1="${TY + HEADER_H}" x2="${TX + TW}" y2="${TY + HEADER_H}" stroke="#3e3e42" stroke-width="1"/>`;
+  const cDate = TX + 28, cScore = TX + 300, cTeams = TX + 470;
+  table += `<g font-size="17" fill="#94a3b8" font-weight="600" letter-spacing="1.5">
+    <text x="${cDate}" y="${TY + 30}">FIRST SCORED</text>
+    <text x="${cScore}" y="${TY + 30}">SCORE</text>
+    <text x="${cTeams}" y="${TY + 30}">TEAMS</text>
+  </g>`;
+  recentFirsts.forEach((r, i) => {
+    const rowTop = TY + HEADER_H + i * ROW_H;
+    const base = rowTop + 42;
+    if (i > 0) table += `<line x1="${TX}" y1="${rowTop}" x2="${TX + TW}" y2="${rowTop}" stroke="#2d2d30" stroke-width="1"/>`;
+    table += `<text x="${cDate}" y="${base}" font-size="22" fill="#cbd5e1">${fmtDate(r.last_date)}</text>`;
+    table += `<text x="${cScore}" y="${base}" font-size="24" font-weight="600" fill="#f1f5f9">${r.score1}\u2013${r.score2}</text>`;
+    table += `<text x="${cTeams}" y="${base}" font-size="22" fill="#cbd5e1">${esc(r.last_visitor_team)} vs. ${esc(r.last_home_team)}</text>`;
+  });
+
+  const archiveSvg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${W}" height="${H}" fill="${BG}"/>
+  ${logoMarkup(60, 42, 60, "#f1f5f9", 1)}
+  <g font-family="Geist, 'DejaVu Sans', Arial, sans-serif">
+    <text x="140" y="88" font-size="42" font-weight="700" fill="#f1f5f9">Scorigami Archive</text>
+    <text x="60" y="152" font-size="24" fill="#94a3b8">${uniqueScores} unique final scores since 1871</text>
+    ${table}
+  </g>
+</svg>`;
+
+  const archivePng = new Resvg(archiveSvg, {
+    fitTo: { mode: "width", value: W },
+    font: { loadSystemFonts: true, fontFiles, defaultFontFamily: "Geist" },
+  }).render().asPng();
+  fs.writeFileSync(path.resolve(__dirname, "../public/og-archive.png"), archivePng);
+  console.log(`og-archive.png written (${(archivePng.length / 1024).toFixed(0)} KB) — ${recentFirsts.length} recent firsts`);
+}

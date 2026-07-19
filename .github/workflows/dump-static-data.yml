@@ -41,7 +41,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/scorigami-data public/og.png public/mlb-scorigami-heatmap.png
+          git add public/scorigami-data public/og.png public/og-archive.png public/mlb-scorigami-heatmap.png
           if git diff --staged --quiet; then
             echo "No changes to commit."
           else

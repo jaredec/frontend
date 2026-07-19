@@ -70,7 +70,9 @@ async function fetchScorigamiArchive(page: number): Promise<{ rows: ArchiveRow[]
 export function getScorigamiArchive(page: number): Promise<{ rows: ArchiveRow[]; total: number }> {
   return unstable_cache(
     () => fetchScorigamiArchive(page),
-    ["archive", String(page)],
+    // v2: rows gained venue_name — new key so deploys never serve pre-Ballpark
+    // cache entries with blank cells.
+    ["archive-v2", String(page)],
     { tags: ["archive"], revalidate: 3600 }
   )();
 }
