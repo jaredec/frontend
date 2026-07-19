@@ -661,16 +661,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         let firstLine: string;
         let igamiLabel: string;
         if (isAwayS && isHomeS) {
-          firstLine = `It's the first time this score has occurred for either franchise.`;
+          firstLine = `It's the first time either franchise has played a game with this score.`;
           igamiLabel = 'Franchisigami';
         } else {
           const teamShort = isAwayS ? awayShort : homeShort;
           const teamFull = isAwayS ? away_name : home_name;
-          firstLine = `It's the first time this score has occurred in ${teamShort} history.`;
+          firstLine = `It's the first time the ${teamShort} have played a game with this score.`;
           igamiLabel = teamIgami(teamFull);
         }
 
-        postText = `${header}\n\nThat's ${igamiLabel}! ${firstLine}${historyLine}`;
+        postText = `${header}\n\n🚨 That's ${igamiLabel}!\n${firstLine}${historyLine}`;
       } else {
         const isRarigami = totalOccurrences < 100;
         if (isRarigami && history) {
