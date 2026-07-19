@@ -169,29 +169,31 @@ async function getUniqueScoreCount(): Promise<number> {
 async function isModernEraScorigami(supabase: SupabaseClient, s1: number, s2: number): Promise<boolean> {
   const win = Math.max(s1, s2);
   const lose = Math.min(s1, s2);
-  const { data } = await supabase.from('gamelogs').select('game_id')
+  const { data, error } = await supabase.from('gamelogs').select('game_id')
     .or(`and(home_score.eq.${win},visitor_score.eq.${lose}),and(home_score.eq.${lose},visitor_score.eq.${win})`)
     .eq('is_negro_league', false)
     .gte('date', `${MODERN_ERA_YEAR}-01-01`)
     .limit(1);
+  if (error) throw new Error(`isModernEraScorigami(${win}-${lose}) failed: ${error.message}`);
   return !data || data.length === 0;
 }
 
 async function isFranchiseScorigami(supabase: SupabaseClient, franchiseIds: number[], s1: number, s2: number): Promise<boolean> {
   const ids = `(${franchiseIds.join(',')})`;
-  const { data } = await supabase.from('gamelogs').select('game_id').or(
+  const { data, error } = await supabase.from('gamelogs').select('game_id').or(
     `and(home_team_id.in.${ids},home_score.eq.${s1},visitor_score.eq.${s2}),` +
     `and(visitor_team_id.in.${ids},visitor_score.eq.${s1},home_score.eq.${s2}),` +
     `and(home_team_id.in.${ids},home_score.eq.${s2},visitor_score.eq.${s1}),` +
     `and(visitor_team_id.in.${ids},visitor_score.eq.${s2},home_score.eq.${s1})`
   ).gte('date', `${START_YEAR}-01-01`).limit(1);
+  if (error) throw new Error(`isFranchiseScorigami(${s1}-${s2}) failed: ${error.message}`);
   return !data || data.length === 0;
 }
 
 async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number): Promise<ScoreHistory | null> {
   const win = Math.max(s1, s2);
   const lose = Math.min(s1, s2);
-  const { count, data } = await supabase.from('gamelogs')
+  const { count, data, error } = await supabase.from('gamelogs')
     .select('date, home_team, visitor_team, home_score, visitor_score, ended_at', { count: 'exact' })
     .or(`and(home_score.eq.${win},visitor_score.eq.${lose}),and(home_score.eq.${lose},visitor_score.eq.${win})`)
     .eq('is_negro_league', false)
@@ -199,6 +201,9 @@ async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number)
     .order('date', { ascending: false })
     .limit(1);
 
+  // A failed query MUST NOT look like "score never happened" — that's how a
+  // false Scorigami gets posted. Throw so this game is skipped and retried.
+  if (error) throw new Error(`getScoreHistory(${win}-${lose}) failed: ${error.message}`);
   if (!data || data.length === 0) return null;
   return {
     occurrences: count || 0,
@@ -502,7 +507,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     let postText = "";
 
     if (isScorigami) {
-      // 1. True Scorigami
+      // 1. True Scorigami — verify over the direct Postgres connection before
+      // posting. A dropped/failed REST query upstream must never survive this.
+      const verify = await pool.query(
+        `SELECT COUNT(*)::int AS n FROM gamelogs WHERE is_negro_league = false
+           AND GREATEST(home_score, visitor_score) = $1 AND LEAST(home_score, visitor_score) = $2`,
+        [Math.max(away_score, home_score), Math.min(away_score, home_score)]
+      );
+      const priorN = verify.rows[0]?.n ?? -1;
+      if (priorN !== 0) {
+        throw new Error(`Scorigami verification failed for ${away_score}-${home_score}: pg reports ${priorN} prior occurrences — skipping game`);
+      }
       const [baseCount, pendingPairs] = await Promise.all([
         getUniqueScoreCount(),
         countPendingNewScorePairs(supabase, game_id, false, scheduleGames),
