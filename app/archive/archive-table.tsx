@@ -123,15 +123,7 @@ export default function ArchiveTable({
 
   return (
     <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 space-y-4">
-      {/* Title + count row */}
-      <div className="flex items-end justify-between">
-        <h1 className="text-[9px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          Scorigami Archive
-        </h1>
-        <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">
-          {total.toLocaleString()} score{total !== 1 ? "s" : ""}
-        </span>
-      </div>
+      <h1 className="sr-only">Scorigami Archive</h1>
 
       {/* Table */}
       <div className="border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] relative overflow-hidden">
