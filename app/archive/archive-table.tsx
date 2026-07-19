@@ -119,7 +119,7 @@ export default function ArchiveTable({
   const thisYear = new Date().getFullYear();
 
   const navBtn =
-    "p-1.5 rounded text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors";
+    "p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors";
 
   return (
     <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 space-y-4">
@@ -134,7 +134,7 @@ export default function ArchiveTable({
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-slate-200 dark:border-[#2d2d30] relative overflow-hidden">
+      <div className="border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] relative overflow-hidden">
         {isLoading && (
           <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden z-50">
             <div className="h-full w-full bg-gradient-to-r from-transparent via-blue-500/40 to-transparent animate-shimmer" />
@@ -146,11 +146,11 @@ export default function ArchiveTable({
           }`}
         >
           <thead>
-            <tr className="border-b border-slate-200 dark:border-[#2d2d30] bg-slate-100/70 dark:bg-[#252526]">
+            <tr className="border-b border-slate-300 dark:border-[#3e3e42]">
               <th className="px-2 sm:px-4 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] sm:text-xs whitespace-nowrap">First Scored</th>
               <th className="px-2 sm:px-4 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] sm:text-xs whitespace-nowrap">Score</th>
               <th className="px-2 sm:px-4 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] sm:text-xs whitespace-nowrap">Teams</th>
-              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] sm:text-xs whitespace-nowrap">Times</th>
+              <th className="px-2 sm:px-4 py-3 text-right font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] sm:text-xs whitespace-nowrap">Ballpark</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-[#2d2d30]">
@@ -158,7 +158,6 @@ export default function ArchiveTable({
               const visitorWon = row.visitor_score > row.home_score;
               const winner = visitorWon ? row.visitor_team : row.home_team;
               const loser = visitorWon ? row.home_team : row.visitor_team;
-              const occurrences = Number(row.occurrences);
               const isNew = new Date(row.date).getUTCFullYear() === thisYear;
               const boxScoreUrl =
                 row.game_id && row.source === "mlb_api"
@@ -167,7 +166,7 @@ export default function ArchiveTable({
 
               const rowContent = (
                 <>
-                  <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm text-slate-500 dark:text-slate-400 tabular-nums whitespace-nowrap">
+                  <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm text-slate-600 dark:text-slate-300 tabular-nums whitespace-nowrap">
                     {isNew && (
                       <span
                         className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5 align-middle"
@@ -179,7 +178,7 @@ export default function ArchiveTable({
                   <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm text-slate-900 dark:text-slate-100 font-medium tabular-nums whitespace-nowrap">
                     {row.win}–{row.lose}
                   </td>
-                  <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm text-slate-500 dark:text-slate-400 sm:whitespace-nowrap">
+                  <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm text-slate-600 dark:text-slate-300 sm:whitespace-nowrap">
                     <span className="sm:hidden">
                       {shortName(winner)} vs.{" "}
                       <span className="whitespace-nowrap">
@@ -196,8 +195,8 @@ export default function ArchiveTable({
                       )}
                     </span>
                   </td>
-                  <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm text-right tabular-nums text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                    {occurrences.toLocaleString()}
+                  <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-sm text-right text-slate-600 dark:text-slate-300">
+                    {row.venue_name ?? ""}
                   </td>
                 </>
               );
@@ -207,7 +206,7 @@ export default function ArchiveTable({
                   <tr
                     key={`${row.win}-${row.lose}-${i}`}
                     onClick={() => window.open(boxScoreUrl, "_blank")}
-                    className="hover:bg-slate-50 dark:hover:bg-[#252526] transition-colors cursor-pointer"
+                    className="hover:bg-slate-50 dark:hover:bg-[#2d2d30] transition-colors cursor-pointer"
                   >
                     {rowContent}
                   </tr>
@@ -217,7 +216,7 @@ export default function ArchiveTable({
               return (
                 <tr
                   key={`${row.win}-${row.lose}-${i}`}
-                  className="hover:bg-slate-50 dark:hover:bg-[#252526] transition-colors"
+                  className="hover:bg-slate-50 dark:hover:bg-[#2d2d30] transition-colors"
                 >
                   {rowContent}
                 </tr>
@@ -249,7 +248,7 @@ export default function ArchiveTable({
                   onClick={() => goToPage(item)}
                   disabled={isLoading}
                   aria-current={item === currentPage ? "page" : undefined}
-                  className={`min-w-[28px] h-7 px-1.5 rounded text-sm tabular-nums transition-colors ${
+                  className={`min-w-[28px] h-7 px-1.5 text-sm tabular-nums transition-colors ${
                     item === currentPage
                       ? "bg-slate-200/70 dark:bg-[#2d2d30] text-slate-900 dark:text-slate-100 font-medium"
                       : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"

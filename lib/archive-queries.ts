@@ -10,6 +10,7 @@ export interface ArchiveRow {
   win: number;
   lose: number;
   occurrences: string;
+  venue_name: string | null;
   game_id: number | null;
   source: string | null;
   game_type: string | null;
@@ -40,7 +41,7 @@ async function fetchScorigamiArchive(page: number): Promise<{ rows: ArchiveRow[]
         SELECT DISTINCT ON (fo.win, fo.lose)
           g.date, g.home_team, g.visitor_team,
           g.home_score, g.visitor_score,
-          g.game_id, g.source, g.game_type, g.box_url,
+          g.game_id, g.source, g.game_type, g.box_url, g.venue_name,
           fo.win, fo.lose, c.occurrences
         FROM gamelogs g
         JOIN first_occurrences fo
