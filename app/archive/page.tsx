@@ -7,7 +7,7 @@ import ArchiveTable from "./archive-table";
 export const metadata: Metadata = {
   title: "Scorigami Archive",
   description:
-    "Every unique final score in MLB history: the date it first occurred, the teams involved, and how many times it has happened since.",
+    "Every unique final score in MLB history: the date it first occurred, the teams involved, and the ballpark where it happened.",
   alternates: { canonical: "/archive" },
   openGraph: {
     images: [{ url: "/og-archive.png", width: 1200, height: 630, alt: "Scorigami Archive: the most recent first-time final scores in MLB history" }],
