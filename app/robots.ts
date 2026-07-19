@@ -5,6 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
+      disallow: "/ops",
     },
     sitemap: "https://mlbscorigami.com/sitemap.xml",
   };
