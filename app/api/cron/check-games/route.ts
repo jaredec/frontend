@@ -685,7 +685,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           igamiLabel = teamIgami(teamFull);
         }
 
-        postText = `${header}\n\n🚨 That's ${igamiLabel}!\n${firstLine}${historyLine}`;
+        postText = `${header}\n\nThat's ${igamiLabel}!\n${firstLine}${historyLine}`;
       } else {
         const isRarigami = totalOccurrences < 100;
         if (isRarigami && history) {
