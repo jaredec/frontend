@@ -166,37 +166,39 @@ async function getUniqueScoreCount(): Promise<number> {
   return result.rows[0]?.count ?? 0;
 }
 
-async function isModernEraScorigami(supabase: SupabaseClient, s1: number, s2: number): Promise<boolean> {
+async function isModernEraScorigami(supabase: SupabaseClient, s1: number, s2: number, excludeGameId: number): Promise<boolean> {
   const win = Math.max(s1, s2);
   const lose = Math.min(s1, s2);
   const { data, error } = await supabase.from('gamelogs').select('game_id')
     .or(`and(home_score.eq.${win},visitor_score.eq.${lose}),and(home_score.eq.${lose},visitor_score.eq.${win})`)
     .eq('is_negro_league', false)
+    .neq('game_id', excludeGameId)
     .gte('date', `${MODERN_ERA_YEAR}-01-01`)
     .limit(1);
   if (error) throw new Error(`isModernEraScorigami(${win}-${lose}) failed: ${error.message}`);
   return !data || data.length === 0;
 }
 
-async function isFranchiseScorigami(supabase: SupabaseClient, franchiseIds: number[], s1: number, s2: number): Promise<boolean> {
+async function isFranchiseScorigami(supabase: SupabaseClient, franchiseIds: number[], s1: number, s2: number, excludeGameId: number): Promise<boolean> {
   const ids = `(${franchiseIds.join(',')})`;
   const { data, error } = await supabase.from('gamelogs').select('game_id').or(
     `and(home_team_id.in.${ids},home_score.eq.${s1},visitor_score.eq.${s2}),` +
     `and(visitor_team_id.in.${ids},visitor_score.eq.${s1},home_score.eq.${s2}),` +
     `and(home_team_id.in.${ids},home_score.eq.${s2},visitor_score.eq.${s1}),` +
     `and(visitor_team_id.in.${ids},visitor_score.eq.${s2},home_score.eq.${s1})`
-  ).gte('date', `${START_YEAR}-01-01`).limit(1);
+  ).neq('game_id', excludeGameId).gte('date', `${START_YEAR}-01-01`).limit(1);
   if (error) throw new Error(`isFranchiseScorigami(${s1}-${s2}) failed: ${error.message}`);
   return !data || data.length === 0;
 }
 
-async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number): Promise<ScoreHistory | null> {
+async function getScoreHistory(supabase: SupabaseClient, s1: number, s2: number, excludeGameId: number): Promise<ScoreHistory | null> {
   const win = Math.max(s1, s2);
   const lose = Math.min(s1, s2);
   const { count, data, error } = await supabase.from('gamelogs')
     .select('date, home_team, visitor_team, home_score, visitor_score, ended_at', { count: 'exact' })
     .or(`and(home_score.eq.${win},visitor_score.eq.${lose}),and(home_score.eq.${lose},visitor_score.eq.${win})`)
     .eq('is_negro_league', false)
+    .neq('game_id', excludeGameId)
     .gte('date', `${START_YEAR}-01-01`)
     .order('date', { ascending: false })
     .limit(1);
@@ -310,7 +312,7 @@ function formatRecency(
   return `on ${lastGameDate}`;
 }
 
-async function getPlayoffBreakdown(s1: number, s2: number): Promise<PlayoffBreakdown> {
+async function getPlayoffBreakdown(s1: number, s2: number, excludeGameId: number): Promise<PlayoffBreakdown> {
   const win = Math.max(s1, s2);
   const lose = Math.min(s1, s2);
   const result = await pool.query(`
@@ -318,9 +320,10 @@ async function getPlayoffBreakdown(s1: number, s2: number): Promise<PlayoffBreak
     FROM gamelogs
     WHERE ((home_score = $1 AND visitor_score = $2) OR (home_score = $2 AND visitor_score = $1))
       AND game_type IN ('W','L','D','F')
+      AND game_id <> $3
       AND EXTRACT(YEAR FROM date) >= ${START_YEAR}
     GROUP BY game_type
-  `, [win, lose]);
+  `, [win, lose, excludeGameId]);
 
   if (result.rows.length === 0) return { total: 0, ws: 0, lcs: 0, ds: 0, wc: 0, last_date: null };
 
@@ -480,7 +483,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const away_name = g.teams.away.team.name;
     const home_name = g.teams.home.team.name;
 
-    const { data: alreadyPosted } = await supabase.from('posted_updates').select('id').eq('game_id', game_id).eq('post_type', 'Final').limit(1);
+    const { data: alreadyPosted, error: alreadyPostedErr } = await supabase.from('posted_updates').select('id').eq('game_id', game_id).eq('post_type', 'Final').limit(1);
+    // A failed dedup check must NOT look like "never posted" — that's how a
+    // duplicate tweet happens. Skip this game and retry next tick.
+    if (alreadyPostedErr) throw new Error(`alreadyPosted check failed: ${alreadyPostedErr.message}`);
     if (alreadyPosted && alreadyPosted.length > 0) continue;
 
     const isPostseason = ['F', 'D', 'L', 'W'].includes(g.gameType);
@@ -499,8 +505,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const [franchiseIdsAway, franchiseIdsHome, history, playoffBreakdown] = await Promise.all([
       getFranchiseTeamIds(supabase, away_id),
       getFranchiseTeamIds(supabase, home_id),
-      getScoreHistory(supabase, away_score, home_score),
-      isPostseason ? getPlayoffBreakdown(away_score, home_score) : Promise.resolve(null),
+      getScoreHistory(supabase, away_score, home_score, game_id),
+      isPostseason ? getPlayoffBreakdown(away_score, home_score, game_id) : Promise.resolve(null),
     ]);
 
     const isScorigami = history === null;
@@ -511,8 +517,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // posting. A dropped/failed REST query upstream must never survive this.
       const verify = await pool.query(
         `SELECT COUNT(*)::int AS n FROM gamelogs WHERE is_negro_league = false
-           AND GREATEST(home_score, visitor_score) = $1 AND LEAST(home_score, visitor_score) = $2`,
-        [Math.max(away_score, home_score), Math.min(away_score, home_score)]
+           AND GREATEST(home_score, visitor_score) = $1 AND LEAST(home_score, visitor_score) = $2
+           AND game_id <> $3`,
+        [Math.max(away_score, home_score), Math.min(away_score, home_score), game_id]
       );
       const priorN = verify.rows[0]?.n ?? -1;
       if (priorN !== 0) {
@@ -535,7 +542,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       postText = `${header}\n\nThat's Playoffigami! It's the ${getOrdinal(playoffCount + pendingPlayoffPairs + 1)} unique final score in MLB playoff history.`;
       revalidateTag('archive');
 
-    } else if (await isModernEraScorigami(supabase, away_score, home_score)) {
+    } else if (await isModernEraScorigami(supabase, away_score, home_score, game_id)) {
       // 3. Modern Era Scorigami — first time this score has occurred since 1901
       // Winner-first ordering to match header convention.
       const homeWon = history.last_home_score > history.last_visitor_score;
@@ -554,8 +561,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     } else {
       // 4. Franchisigami or No Scorigami
       const [isAwayS, isHomeS] = await Promise.all([
-        isFranchiseScorigami(supabase, franchiseIdsAway, away_score, home_score),
-        isFranchiseScorigami(supabase, franchiseIdsHome, home_score, away_score),
+        isFranchiseScorigami(supabase, franchiseIdsAway, away_score, home_score, game_id),
+        isFranchiseScorigami(supabase, franchiseIdsHome, home_score, away_score, game_id),
       ]);
 
       // Same-day recency lookup applies to both branches: Franchisigami now also
@@ -700,7 +707,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const tweetId = await postTweet(twitterClient, postText);
 
-    await supabase.from('posted_updates').insert({
+    const { error: insertErr } = await supabase.from('posted_updates').insert({
       game_id,
       post_type: 'Final',
       details: 'Final Score',
@@ -708,6 +715,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       tweet_id: tweetId,
       ended_at: endedAt,
     });
+    if (insertErr) {
+      // Tweet is already out; losing this row means a duplicate next tick.
+      console.error(`CRITICAL: posted_updates insert failed for game ${game_id} (tweet ${tweetId}): ${insertErr.message}`);
+    }
 
     // Bust per-team yearly caches only for the teams that actually played, plus
     // the ALL view (team_id=0). The 'scorigami' tag handles the aggregated blobs
