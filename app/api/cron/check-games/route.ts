@@ -548,7 +548,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const winnerDisplay = winnerModern && loserModern ? teamAbbr(winnerCanonical) : lastWinner;
       const loserDisplay = winnerModern && loserModern ? teamAbbr(loserCanonical) : lastLoser;
       const occurrencesPhrase = history.occurrences === 1 ? 'only once' : `only ${formatNum(history.occurrences)} times`;
-      postText = `${header}\n\nThat's Modern Era Scorigami! It's the first time this score has occurred in MLB's modern era.\n\nIt's happened ${occurrencesPhrase} in MLB history, most recently on ${history.last_game_date} (${winnerDisplay} vs. ${loserDisplay}).`;
+      postText = `${header}\n\nThat's Modern Era Scorigami!\nIt's the first time this score has occurred in baseball's modern era.\n\nIt's happened ${occurrencesPhrase} in MLB history, most recently on ${history.last_game_date} (${winnerDisplay} vs. ${loserDisplay}).`;
       revalidateTag('archive');
 
     } else {
