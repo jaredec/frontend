@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-23T16:02:26.543Z",
+  "generated_at": "2026-07-24T10:29:46.436Z",
   "types": [
     "traditional",
     "homeaway"
@@ -41,7 +41,7 @@
     {
       "file": "traditional/ALL.json",
       "rows": 18500,
-      "gzipped_bytes": 322673
+      "gzipped_bytes": 322680
     },
     {
       "file": "traditional/LAA.json",
@@ -51,12 +51,12 @@
     {
       "file": "traditional/ARI.json",
       "rows": 1682,
-      "gzipped_bytes": 26023
+      "gzipped_bytes": 26024
     },
     {
       "file": "traditional/ATL.json",
       "rows": 8639,
-      "gzipped_bytes": 140770
+      "gzipped_bytes": 140767
     },
     {
       "file": "traditional/BAL.json",
@@ -96,7 +96,7 @@
     {
       "file": "traditional/DET.json",
       "rows": 7298,
-      "gzipped_bytes": 104224
+      "gzipped_bytes": 104230
     },
     {
       "file": "traditional/HOU.json",
@@ -106,7 +106,7 @@
     {
       "file": "traditional/KC.json",
       "rows": 3231,
-      "gzipped_bytes": 48365
+      "gzipped_bytes": 48367
     },
     {
       "file": "traditional/LAD.json",
@@ -126,7 +126,7 @@
     {
       "file": "traditional/MIN.json",
       "rows": 7161,
-      "gzipped_bytes": 102320
+      "gzipped_bytes": 102317
     },
     {
       "file": "traditional/NYY.json",
@@ -155,8 +155,8 @@
     },
     {
       "file": "traditional/SD.json",
-      "rows": 3051,
-      "gzipped_bytes": 45627
+      "rows": 3052,
+      "gzipped_bytes": 45639
     },
     {
       "file": "traditional/SEA.json",
@@ -170,13 +170,13 @@
     },
     {
       "file": "traditional/STL.json",
-      "rows": 8255,
-      "gzipped_bytes": 130446
+      "rows": 8256,
+      "gzipped_bytes": 130458
     },
     {
       "file": "traditional/TB.json",
       "rows": 1621,
-      "gzipped_bytes": 25164
+      "gzipped_bytes": 25162
     },
     {
       "file": "traditional/TEX.json",
@@ -186,7 +186,7 @@
     {
       "file": "traditional/TOR.json",
       "rows": 2807,
-      "gzipped_bytes": 42405
+      "gzipped_bytes": 42401
     },
     {
       "file": "traditional/WSH.json",
@@ -196,7 +196,7 @@
     {
       "file": "homeaway/ALL.json",
       "rows": 30068,
-      "gzipped_bytes": 505912
+      "gzipped_bytes": 505931
     },
     {
       "file": "homeaway/LAA.json",
@@ -205,8 +205,8 @@
     },
     {
       "file": "homeaway/ARI.json",
-      "rows": 2375,
-      "gzipped_bytes": 35434
+      "rows": 2376,
+      "gzipped_bytes": 35448
     },
     {
       "file": "homeaway/ATL.json",
@@ -241,7 +241,7 @@
     {
       "file": "homeaway/CLE.json",
       "rows": 10210,
-      "gzipped_bytes": 140446
+      "gzipped_bytes": 140450
     },
     {
       "file": "homeaway/COL.json",
@@ -251,7 +251,7 @@
     {
       "file": "homeaway/DET.json",
       "rows": 10347,
-      "gzipped_bytes": 142434
+      "gzipped_bytes": 142441
     },
     {
       "file": "homeaway/HOU.json",
@@ -261,7 +261,7 @@
     {
       "file": "homeaway/KC.json",
       "rows": 4692,
-      "gzipped_bytes": 67578
+      "gzipped_bytes": 67577
     },
     {
       "file": "homeaway/LAD.json",
@@ -281,7 +281,7 @@
     {
       "file": "homeaway/MIN.json",
       "rows": 10183,
-      "gzipped_bytes": 140106
+      "gzipped_bytes": 140105
     },
     {
       "file": "homeaway/NYY.json",
@@ -310,8 +310,8 @@
     },
     {
       "file": "homeaway/SD.json",
-      "rows": 4441,
-      "gzipped_bytes": 64093
+      "rows": 4442,
+      "gzipped_bytes": 64106
     },
     {
       "file": "homeaway/SEA.json",
@@ -325,13 +325,13 @@
     },
     {
       "file": "homeaway/STL.json",
-      "rows": 11614,
-      "gzipped_bytes": 175654
+      "rows": 11615,
+      "gzipped_bytes": 175665
     },
     {
       "file": "homeaway/TB.json",
       "rows": 2340,
-      "gzipped_bytes": 34861
+      "gzipped_bytes": 34858
     },
     {
       "file": "homeaway/TEX.json",
@@ -340,8 +340,8 @@
     },
     {
       "file": "homeaway/TOR.json",
-      "rows": 4073,
-      "gzipped_bytes": 59085
+      "rows": 4074,
+      "gzipped_bytes": 59096
     },
     {
       "file": "homeaway/WSH.json",
