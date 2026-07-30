@@ -8,8 +8,8 @@ const XLogoIcon = ({ className }: { className?: string }) => (
 
 export default function PageFooter() {
   return (
-    <footer className="border-t border-slate-200/60 dark:border-[#2d2d30] mt-8">
-      <div className="max-w-5xl mx-auto w-full px-4 py-6">
+    <footer className="mt-8">
+      <div className="max-w-5xl mx-auto w-full px-4 py-6 border-t border-slate-200/60 dark:border-[#2d2d30]">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 dark:text-slate-500">
           <div className="flex items-center gap-4">
             <span>

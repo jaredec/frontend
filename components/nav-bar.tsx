@@ -44,10 +44,10 @@ export default function NavBar({ totalGames, uniqueScores }: NavBarProps) {
   }, [open]);
 
   return (
-    <header className="border-b border-slate-200/60 dark:border-[#2d2d30] py-3">
-      <div className="max-w-5xl mx-auto w-full px-4">
+    <header className="py-2.5">
+      <div className="max-w-5xl mx-auto w-full px-4 border-b border-slate-200/60 dark:border-[#2d2d30] pb-2.5">
         <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 sm:gap-3">
+          <Link href="/" className="flex items-center gap-2 sm:gap-2.5">
             <Image
               src="/logo3.svg"
               alt="MLB Scorigami"
@@ -55,9 +55,9 @@ export default function NavBar({ totalGames, uniqueScores }: NavBarProps) {
               height={48}
               priority
               style={{ width: "auto" }}
-              className="h-7 sm:h-10 w-auto flex-shrink-0 dark:invert"
+              className="h-6 sm:h-8 w-auto flex-shrink-0 dark:invert"
             />
-            <span className="text-base sm:text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+            <span className="text-sm sm:text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
               MLB Scorigami
             </span>
           </Link>
@@ -83,16 +83,10 @@ export default function NavBar({ totalGames, uniqueScores }: NavBarProps) {
                 onClick={() => setOpen((v) => !v)}
                 className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-[#2d2d30] transition-colors"
               >
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
-                  <circle cx="3" cy="3" r="1.5" />
-                  <circle cx="9" cy="3" r="1.5" />
-                  <circle cx="15" cy="3" r="1.5" />
-                  <circle cx="3" cy="9" r="1.5" />
-                  <circle cx="9" cy="9" r="1.5" />
-                  <circle cx="15" cy="9" r="1.5" />
-                  <circle cx="3" cy="15" r="1.5" />
-                  <circle cx="9" cy="15" r="1.5" />
-                  <circle cx="15" cy="15" r="1.5" />
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
+                  <line x1="2.5" y1="5" x2="15.5" y2="5" />
+                  <line x1="2.5" y1="9" x2="15.5" y2="9" />
+                  <line x1="2.5" y1="13" x2="15.5" y2="13" />
                 </svg>
               </button>
 
