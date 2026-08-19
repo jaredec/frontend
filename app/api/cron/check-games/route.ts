@@ -687,7 +687,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         ? `, most recently when these same two teams played earlier today`
         : `, most recently ${mostRecently}`;
 
-      if (isAwayS || isHomeS) {
+      if (totalOccurrences >= 1 && totalOccurrences <= 4) {
+        // Socloseigami — the score has happened only a handful of times ever, so
+        // this game is its 2nd-5th occurrence. Outranks Franchisigami (checked
+        // first): a score this rare is a bigger story than a franchise-first.
+        // totalOccurrences is the prior count (excludes tonight), so 1-4 priors
+        // means this is the 2nd-5th time in history. Singular drops "most
+        // recently" and uses "once before … on {date}".
+        const rarityClause = totalOccurrences === 1
+          ? `only once before in MLB history${isDoubleheaderRematch ? ', when these same two teams played earlier today' : `, ${mostRecently}`}`
+          : `only ${formatNum(totalOccurrences)} other times in MLB history${recencyClause}`;
+        postText = `${header}\n\nSocloseigami! This score has happened ${rarityClause}${teamContext}.`;
+        revalidateTag('archive');
+      } else if (isAwayS || isHomeS) {
         const onlyWord = totalOccurrences < 25 ? 'only ' : '';
         const occurrencesPhrase = totalOccurrences === 1
           ? 'only once'
