@@ -550,18 +550,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       postText = `${header}\n\nThat's Scorigami! It's the ${getOrdinal(newCount)} unique final score in MLB history.`;
       revalidateTag('archive');
 
-    } else if (isPostseason && playoffBreakdown && playoffBreakdown.total === 0) {
-      // 2. Playoffigami
-      const [playoffCount, pendingPlayoffPairs] = await Promise.all([
-        getUniquePlayoffScoreCount(),
-        countPendingNewScorePairs(supabase, game_id, true, scheduleGames),
-      ]);
-      postText = `${header}\n\nThat's Playoffigami! It's the ${getOrdinal(playoffCount + pendingPlayoffPairs + 1)} unique final score in MLB playoff history.`;
-      revalidateTag('archive');
-
     } else if (await isModernEraScorigami(supabase, away_score, home_score, game_id)) {
-      // 3. Modern Era Scorigami — first time this score has occurred since 1901
-      // Winner-first ordering to match header convention.
+      // 2. Modern Era Scorigami — first time this score has occurred since 1901.
+      // Checked before Playoffigami: a score last seen pre-1901 that resurfaces
+      // in a playoff game is a bigger story as "first since 18xx" than as a
+      // playoff first. Winner-first ordering to match header convention.
       const homeWon = history.last_home_score > history.last_visitor_score;
       const lastWinner = homeWon ? history.last_home_team : history.last_visitor_team;
       const lastLoser  = homeWon ? history.last_visitor_team : history.last_home_team;
@@ -573,6 +566,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const loserDisplay = winnerModern && loserModern ? displayAbbr(lastLoser) : lastLoser;
       const occurrencesPhrase = history.occurrences === 1 ? 'only once' : `only ${formatNum(history.occurrences)} times`;
       postText = `${header}\n\nThat's Modern Era Scorigami!\nIt's the first time this score has occurred in baseball's modern era.\n\nIt's happened ${occurrencesPhrase} in MLB history, most recently on ${history.last_game_date} (${winnerDisplay} vs. ${loserDisplay}).`;
+      revalidateTag('archive');
+
+    } else if (isPostseason && playoffBreakdown && playoffBreakdown.total === 0) {
+      // 3. Playoffigami
+      const [playoffCount, pendingPlayoffPairs] = await Promise.all([
+        getUniquePlayoffScoreCount(),
+        countPendingNewScorePairs(supabase, game_id, true, scheduleGames),
+      ]);
+      postText = `${header}\n\nThat's Playoffigami! It's the ${getOrdinal(playoffCount + pendingPlayoffPairs + 1)} unique final score in MLB playoff history.`;
       revalidateTag('archive');
 
     } else {
