@@ -111,17 +111,34 @@ const RENAMED_FRANCHISES: Record<string, string> = {
   'California Angels': 'Los Angeles Angels',
   'Los Angeles Angels of Anaheim': 'Los Angeles Angels',
   'Houston Colt .45s': 'Houston Astros',
-  'Brooklyn Dodgers': 'Los Angeles Dodgers',
-  'New York Giants': 'San Francisco Giants',
   'Montreal Expos': 'Washington Nationals',
-  'Philadelphia Athletics': 'Athletics',
-  'Kansas City Athletics': 'Athletics',
   'Oakland Athletics': 'Athletics',
-  'Seattle Pilots': 'Milwaukee Brewers',
+  // Deliberately omitted so they show as their FULL NAME in posts rather than a
+  // modern code: Seattle Pilots (bbref "SE1" is meaningless), and the pre-Oakland
+  // Athletics eras + Brooklyn Dodgers + New York Giants (user prefers full names).
 };
 
 function canonicalFranchise(name: string): string {
   return RENAMED_FRANCHISES[name] ?? name;
+}
+
+// Baseball-Reference era codes for historical names of still-active franchises,
+// so a game reads with the identity it had at the time (e.g. the 1962 A's show
+// "KCA", not the modern "OAK"). Checked before the modern-franchise squash.
+const ERA_ABBR_MAP: { [key: string]: string } = {
+  'Athletics': 'ATH',              // 2025-present
+  'Oakland Athletics': 'OAK',      // 1968-2024
+  'Montreal Expos': 'MON',
+  'California Angels': 'CAL',
+  'Anaheim Angels': 'ANA',
+  'Florida Marlins': 'FLA',
+};
+
+// Era-accurate code when we have one, otherwise the team's modern franchise
+// code (via the rename map). Genuinely defunct teams never reach here — the
+// caller's gate shows their full name instead.
+function displayAbbr(originalName: string): string {
+  return ERA_ABBR_MAP[originalName] ?? teamAbbr(canonicalFranchise(originalName));
 }
 
 const START_YEAR = 1871;
@@ -552,8 +569,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const loserCanonical = canonicalFranchise(lastLoser);
       const winnerModern = winnerCanonical in TEAM_IGAMI_MAP;
       const loserModern = loserCanonical in TEAM_IGAMI_MAP;
-      const winnerDisplay = winnerModern && loserModern ? teamAbbr(winnerCanonical) : lastWinner;
-      const loserDisplay = winnerModern && loserModern ? teamAbbr(loserCanonical) : lastLoser;
+      const winnerDisplay = winnerModern && loserModern ? displayAbbr(lastWinner) : lastWinner;
+      const loserDisplay = winnerModern && loserModern ? displayAbbr(lastLoser) : lastLoser;
       const occurrencesPhrase = history.occurrences === 1 ? 'only once' : `only ${formatNum(history.occurrences)} times`;
       postText = `${header}\n\nThat's Modern Era Scorigami!\nIt's the first time this score has occurred in baseball's modern era.\n\nIt's happened ${occurrencesPhrase} in MLB history, most recently on ${history.last_game_date} (${winnerDisplay} vs. ${loserDisplay}).`;
       revalidateTag('archive');
@@ -639,8 +656,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const loserCanonical = canonicalFranchise(loserName);
         const winnerModern = winnerCanonical in TEAM_IGAMI_MAP;
         const loserModern = loserCanonical in TEAM_IGAMI_MAP;
-        const winnerDisplay = winnerModern && loserModern ? teamAbbr(winnerCanonical) : winnerName;
-        const loserDisplay = winnerModern && loserModern ? teamAbbr(loserCanonical) : loserName;
+        const winnerDisplay = winnerModern && loserModern ? displayAbbr(winnerName) : winnerName;
+        const loserDisplay = winnerModern && loserModern ? displayAbbr(loserName) : loserName;
         return ` (${winnerDisplay} vs. ${loserDisplay})`;
       };
       let teamContext = '';
@@ -827,8 +844,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         if (!scorigamiJump && !franchiseJump) continue;
       }
 
-      const awayAbbr = teamAbbr(canonicalFranchise(g.teams.away.team.name));
-      const homeAbbr = teamAbbr(canonicalFranchise(g.teams.home.team.name));
+      const awayAbbr = displayAbbr(g.teams.away.team.name);
+      const homeAbbr = displayAbbr(g.teams.home.team.name);
       // Leader first, matching the Final post convention (ties: away first).
       const awayLeadsOrTied = awayScore >= homeScore;
       const scoreLine = awayLeadsOrTied
