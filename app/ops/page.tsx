@@ -8,6 +8,8 @@ import {
   getStaticFreshness,
   getRecentPosts,
 } from "@/lib/ops-queries";
+import NavBar from "@/components/nav-bar";
+import PageFooter from "@/components/page-footer";
 
 export const dynamic = "force-dynamic";
 
@@ -39,24 +41,28 @@ const td = "px-3 py-2 text-[11px] sm:text-sm text-slate-600 dark:text-slate-300"
 
 function LoginForm({ error }: { error: boolean }) {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#1e1e1e] flex items-center justify-center px-4">
-      <form action={opsLogin} className="w-full max-w-xs border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] p-6 space-y-3">
-        <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Ops</div>
-        <input
-          type="password"
-          name="password"
-          autoFocus
-          placeholder="Password"
-          className="w-full border border-slate-300 dark:border-[#3e3e42] bg-transparent px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
-        />
-        {error && <div className="text-xs text-red-500">Wrong password.</div>}
-        <button
-          type="submit"
-          className="w-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm font-medium py-2 hover:opacity-90 transition-opacity"
-        >
-          Enter
-        </button>
-      </form>
+    <div className="min-h-screen bg-slate-50 dark:bg-[#1e1e1e] flex flex-col">
+      <NavBar />
+      <div className="flex-1 flex items-center justify-center px-4 py-12">
+        <form action={opsLogin} className="w-full max-w-xs border border-slate-200 dark:border-[#3e3e42] bg-white dark:bg-[#252526] p-6 space-y-3">
+          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Ops</div>
+          <input
+            type="password"
+            name="password"
+            autoFocus
+            placeholder="Password"
+            className="w-full border border-slate-300 dark:border-[#3e3e42] bg-transparent px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+          />
+          {error && <div className="text-xs text-red-500">Wrong password.</div>}
+          <button
+            type="submit"
+            className="w-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm font-medium py-2 hover:opacity-90 transition-opacity"
+          >
+            Enter
+          </button>
+        </form>
+      </div>
+      <PageFooter />
     </div>
   );
 }
@@ -132,10 +138,11 @@ export default async function OpsPage({
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#1e1e1e]">
-      <main className="max-w-5xl mx-auto w-full px-4 py-8 space-y-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#1e1e1e] flex flex-col">
+      <NavBar totalGames={pipeline.totalGames} uniqueScores={pipeline.uniqueScores} />
+      <main className="max-w-5xl mx-auto w-full px-4 py-8 space-y-6 flex-1">
         <h1 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-          MLB Scorigami · Ops
+          Ops
           <span className="ml-3 font-normal text-slate-400 dark:text-slate-500 text-xs">
             {new Intl.DateTimeFormat("en-CA", {
               timeZone: "America/Los_Angeles",
@@ -258,6 +265,7 @@ export default async function OpsPage({
           </table>
         </div>
       </main>
+      <PageFooter />
     </div>
   );
 }
