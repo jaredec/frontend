@@ -33,6 +33,21 @@ export const getTeamLogoUrl = (code: string, isDark = false): string | null => {
   return `https://www.mlbstatic.com/team-logos/${variant}/${id}.svg`;
 };
 
+// Per-team "-igami" title, keyed by franchise code (mirrors the bot's naming:
+// Red Soxigami, White Soxigami, A'sigami, Dbacksigami, Natsigami, etc.).
+export const TEAM_IGAMI: Record<string, string> = {
+  LAA: "Angelsigami", ARI: "Dbacksigami", ATL: "Bravesigami",
+  BAL: "Oriolesigami", BOS: "Red Soxigami", CWS: "White Soxigami",
+  CHC: "Cubsigami", CIN: "Redsigami", CLE: "Guardiansigami",
+  COL: "Rockiesigami", DET: "Tigersigami", HOU: "Astrosigami",
+  KC: "Royalsigami", LAD: "Dodgersigami", MIA: "Marlinsigami",
+  MIL: "Brewersigami", MIN: "Twinsigami", NYY: "Yankeesigami",
+  NYM: "Metsigami", OAK: "A'sigami", PHI: "Philliesigami",
+  PIT: "Piratesigami", SD: "Padresigami", SEA: "Marinersigami",
+  SFG: "Giantsigami", STL: "Cardinalsigami", TB: "Raysigami",
+  TEX: "Rangersigami", TOR: "Blue Jaysigami", WSH: "Natsigami",
+};
+
 export const TEAM_HASHTAG_MAP: Record<string, string> = {
     'Baltimore Orioles': '#Birdland', 'Boston Red Sox': '#DirtyWater', 'New York Yankees': '#RepBX', 'Tampa Bay Rays': '#RaysUp',
     'Toronto Blue Jays': '#LightsUpLetsGo', 'Cleveland Guardians': '#GuardsBall', 'Detroit Tigers': '#RepDetroit', 'Kansas City Royals': '#FountainsUp',

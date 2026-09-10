@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
-import { Cookie } from "next/font/google";
+import { Cookie, Courier_Prime } from "next/font/google";
 
 const cookie = Cookie({ subsets: ["latin"], weight: "400", variable: "--font-cookie" });
+// Free typewriter face standing in for bearigami's paid FF Nexus Typewriter (v2 title).
+const typewriter = Courier_Prime({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-typewriter" });
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
@@ -69,7 +71,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth dark" suppressHydrationWarning>
-      <body className={`${GeistSans.variable} ${GeistMono.variable} ${cookie.variable} font-sans antialiased`}>
+      <body className={`${GeistSans.variable} ${GeistMono.variable} ${cookie.variable} ${typewriter.variable} font-sans antialiased`}>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

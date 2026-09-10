@@ -14,6 +14,8 @@ import {
   FranchiseCode,
   ScorigamiType,
   GameFilter,
+  TEAM_IGAMI,
+  getTeamLogoUrl,
 } from "@/lib/mlb-data";
 import type { YearlyRow } from "@/lib/scorigami-queries";
 
@@ -63,9 +65,10 @@ export type GridSize = 36 | 51;
 
 interface ScorigamiPageProps {
   initialClub?: FranchiseCode | "ALL";
+  variant?: "default" | "single";
 }
 
-export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProps) {
+export default function ScorigamiPage({ initialClub = "ALL", variant = "default" }: ScorigamiPageProps) {
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>("traditional");
   const [club, setClub] = useState<FranchiseCode | "ALL">(initialClub);
   const [yearRange, setYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
@@ -77,6 +80,19 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     if (!open) dropdownCloseTimeRef.current = Date.now();
   };
   const isGhostClick = () => Date.now() - dropdownCloseTimeRef.current < 400;
+
+  // Warm the browser cache with every team logo so the header logo swaps instantly
+  // (no blank flash) when the filter changes. Single-page variant only.
+  useEffect(() => {
+    if (variant !== "single") return;
+    CURRENT_FRANCHISE_CODES.forEach((code) => {
+      const url = getTeamLogoUrl(code);
+      if (url) {
+        const img = new window.Image();
+        img.src = url;
+      }
+    });
+  }, [variant]);
 
   // Load all yearly data once per team+type combo
   const dataKey = useMemo(
@@ -206,6 +222,12 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
     return { totalGames, uniqueScores: rows.length };
   }, [rows]);
 
+  // Keep the last known stats on screen during a team/filter reload so the header
+  // never collapses and reappears. Only the grid should show a loading state.
+  const lastStatsRef = useRef(quickStats);
+  if (quickStats) lastStatsRef.current = quickStats;
+  const headerStats = quickStats ?? lastStatsRef.current;
+
   const isFiltered =
     club !== initialClub ||
     gameFilter !== "all" ||
@@ -233,13 +255,40 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <NavBar
-        totalGames={quickStats?.totalGames}
-        uniqueScores={quickStats?.uniqueScores}
-      />
+    <div className="min-h-screen flex flex-col" style={variant === "single" ? { backgroundColor: "#f2f2f2" } : undefined}>
+      {variant === "single" ? (
+        <header className="max-w-[1150px] mx-auto w-full px-4 pt-10 pb-5 text-center">
+          <div className="flex items-center justify-center gap-3">
+            {(() => {
+              const igamiTitle = club === "ALL" ? "MLBgami" : (TEAM_IGAMI[club] ?? "MLBgami");
+              const logoSrc = club === "ALL" ? "/logo3.svg" : (getTeamLogoUrl(club) ?? "/logo3.svg");
+              return (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={logoSrc} alt={igamiTitle} className="h-16 w-16 sm:h-20 sm:w-20 object-contain flex-none" />
+                  <span className="text-[38px] sm:text-5xl font-bold tracking-tight text-[#343434]" style={{ fontFamily: '"ff-nexus-typewriter", var(--font-typewriter), monospace' }}>{igamiTitle}</span>
+                </>
+              );
+            })()}
+          </div>
+          <p className="mt-3 text-sm text-slate-500 min-h-[1.25rem]">
+            {headerStats && (
+              <>
+                <span className="tabular-nums text-slate-700">{headerStats.totalGames.toLocaleString()}</span> games
+                <span className="mx-1.5 text-slate-300">·</span>
+                <span className="tabular-nums text-slate-700">{headerStats.uniqueScores.toLocaleString()}</span> unique scores
+              </>
+            )}
+          </p>
+        </header>
+      ) : (
+        <NavBar
+          totalGames={quickStats?.totalGames}
+          uniqueScores={quickStats?.uniqueScores}
+        />
+      )}
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-4">
+      <main className={`flex-1 mx-auto w-full px-4 py-4 ${variant === "single" ? "max-w-[1150px]" : "max-w-5xl"}`}>
         {/* Filters */}
         <div className="mb-3">
           <FilterBar {...filterProps} />
@@ -294,6 +343,11 @@ export default function ScorigamiPage({ initialClub = "ALL" }: ScorigamiPageProp
               club={club}
               gridSize={gridSize}
               isGhostClick={isGhostClick}
+              dark={variant !== "single"}
+              fillWidth={variant === "single"}
+              colCount={variant === "single" ? 51 : undefined}
+              rowCount={variant === "single" ? 41 : undefined}
+              skeleton={variant === "single" && !rows}
             />
           )}
         </div>

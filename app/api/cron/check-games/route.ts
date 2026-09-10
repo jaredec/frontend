@@ -462,6 +462,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       home: { team: { id: number; name: string }; score: number };
     };
   };
+  // Reads only dates[0] (today's bucket). This LOOKS like a bug — a late West
+  // Coast game finishing after midnight ET seems like it'd roll off "today" and
+  // never post — but it isn't. The MLB schedule endpoint keeps a game on its
+  // date's list until well past midnight ET: proven empirically by an 18-inning
+  // World Series game (2025-10-27, TOR@LAD) that ended 2:50am ET and still posted
+  // its Final. No realistic game runs later than that, so the game is always still
+  // in dates[0] when it goes Final. A yesterday+today merge (like the ingest script
+  // fetch_daily_gamelogs.py does) would be belt-and-suspenders, not a fix. Verified
+  // Aug 2026: full season, zero missed Finals, including 41 games ending after 10pm PT.
   const scheduleGames: ScheduleGame[] = scheduleData.dates[0].games;
 
   // Filter to candidates first, then fetch ended_at for each, then sort by ended_at

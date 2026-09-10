@@ -101,6 +101,11 @@ interface ScorigamiHeatmapProps {
   club: string;
   gridSize: number;
   isGhostClick?: () => boolean;
+  dark?: boolean;
+  colCount?: number;   // number of X (winning-score) columns; defaults to gridSize
+  rowCount?: number;   // number of Y (losing-score) rows to render; defaults to a square grid
+  fillWidth?: boolean; // let cells grow to fill the container width instead of capping at 20px
+  skeleton?: boolean;  // render the grid frame as gray cells (loading) instead of a spinner
 }
 
 export default function ScorigamiHeatmap({
@@ -110,8 +115,14 @@ export default function ScorigamiHeatmap({
   club,
   gridSize,
   isGhostClick,
+  dark = true,
+  colCount,
+  rowCount,
+  fillWidth = false,
+  skeleton = false,
 }: ScorigamiHeatmapProps) {
-  const GRID_DIMENSION = gridSize;
+  const GRID_DIMENSION = colCount ?? gridSize;
+  const ROW_COUNT = rowCount ?? gridSize;
 
   const hasData = useMemo(() => Array.isArray(rows) && rows.length > 0, [rows]);
 
@@ -130,7 +141,7 @@ export default function ScorigamiHeatmap({
     return map;
   }, [rows]);
 
-  const isDarkMode = true;
+  const isDarkMode = dark;
   const [cellSize, setCellSize] = useState(DESKTOP_CELL_SIZE);
   const [headerCellSize, setHeaderCellSize] = useState(DESKTOP_HEADER_CELL_SIZE);
   const [gridReady, setGridReady] = useState(false);
@@ -192,30 +203,31 @@ export default function ScorigamiHeatmap({
       const availableWidth = containerWidth - PADDING;
       const totalUnits = GRID_DIMENSION + 1.2;
       const dynamicCellSize = Math.floor(availableWidth / totalUnits);
-      setCellSize(Math.max(4, Math.min(DESKTOP_CELL_SIZE, dynamicCellSize)));
+      const maxCell = fillWidth ? 40 : DESKTOP_CELL_SIZE;   // fillWidth: cells grow to fill instead of capping at 20
+      setCellSize(Math.max(4, Math.min(maxCell, dynamicCellSize)));
       setHeaderCellSize(
         Math.max(10, Math.min(DESKTOP_HEADER_CELL_SIZE, dynamicCellSize * 1.2))
       );
       setGridReady(true);
     };
-    if (hasData) {
+    if (hasData || skeleton) {
       calculateSize();
       window.addEventListener("resize", calculateSize);
       return () => window.removeEventListener("resize", calculateSize);
     }
-  }, [hasData, GRID_DIMENSION]);
+  }, [hasData, skeleton, GRID_DIMENSION, fillWidth]);
 
 
   // Back to the original multiplier logic, but applied to every label
   const dynamicFontSize = Math.min(cellSize * 0.65, 12);
 
-  if (isLoading)
+  if (isLoading && !skeleton)
     return (
       <div className="flex min-h-[400px] md:min-h-[450px] w-full items-center justify-center">
         <StatusIndicator type="loading" />
       </div>
     );
-  if (!hasData)
+  if (!hasData && !skeleton)
     return (
       <div className="flex min-h-[400px] md:min-h-[450px] w-full items-center justify-center">
         <StatusIndicator type="empty" />
@@ -251,14 +263,14 @@ export default function ScorigamiHeatmap({
               className="relative overflow-hidden"
               style={{
                 width: `${headerCellSize + GRID_DIMENSION * cellSize}px`,
-                height: `${headerCellSize + GRID_DIMENSION * cellSize}px`,
+                height: `${headerCellSize + ROW_COUNT * cellSize}px`,
               }}
             >
               <div
                 style={{
                   display: "grid",
                   gridTemplateColumns: `${headerCellSize}px repeat(${GRID_DIMENSION}, ${cellSize}px)`,
-                  gridTemplateRows: `${headerCellSize}px repeat(${GRID_DIMENSION}, ${cellSize}px)`,
+                  gridTemplateRows: `${headerCellSize}px repeat(${ROW_COUNT}, ${cellSize}px)`,
                 }}
               >
                 {/* Empty Top-Left Corner */}
@@ -280,7 +292,7 @@ export default function ScorigamiHeatmap({
                 ))}
 
                 {/* Rows */}
-                {Array.from({ length: GRID_DIMENSION }).map(
+                {Array.from({ length: ROW_COUNT }).map(
                   (_, score2_iterator) => (
                     <React.Fragment key={`rf-${score2_iterator}`}>
                       {/* Row Header */}
@@ -306,10 +318,21 @@ export default function ScorigamiHeatmap({
 
                           const isImpossible = scorigamiType === "traditional" && score1_iterator < score2_iterator;
 
+                          if (skeleton) {
+                            // Exact empty-cell color, so the skeleton is indistinguishable
+                            // from the loaded empty grid — only the colored (blue) cells pop in.
+                            return (
+                              <div
+                                key={k}
+                                style={{ backgroundColor: isImpossible ? (isDarkMode ? "#1c1c1e" : "#eef2f7") : getLogScaledColor(0, maxOccurrencesInView) }}
+                              />
+                            );
+                          }
+
                           const CellBase = (
                             <div
                               style={{
-                                backgroundColor: isImpossible ? "#1c1c1e" : getLogScaledColor(f, maxOccurrencesInView),
+                                backgroundColor: isImpossible ? (isDarkMode ? "#1c1c1e" : "#eef2f7") : getLogScaledColor(f, maxOccurrencesInView),
                               }}
                               className={`cursor-pointer transition-[filter] duration-100 ${
                                 isHovered && !isActive ? "brightness-110" : ""
