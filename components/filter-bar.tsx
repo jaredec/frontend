@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import * as Select from "@radix-ui/react-select";
 import * as Slider from "@radix-ui/react-slider";
 import { ChevronDown, Pencil, RotateCcw } from "lucide-react";
@@ -20,10 +20,12 @@ function GameTypeDropdown({
   value,
   onChange,
   onOpenChange,
+  stacked = false,
 }: {
   value: GameFilter;
   onChange: (v: GameFilter) => void;
   onOpenChange?: (open: boolean) => void;
+  stacked?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [postExpanded, setPostExpanded] = useState(isPostseason(value));
@@ -52,36 +54,50 @@ function GameTypeDropdown({
     onOpenChange?.(false);
   };
 
-  const itemCls = "w-full text-left px-3 py-2 text-sm text-slate-800 dark:text-slate-200 hover:bg-blue-500 hover:text-white rounded cursor-pointer";
+  const itemCls = stacked
+    ? "w-full text-left px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] text-[#343434] hover:bg-[#0b162a] hover:text-white rounded-md cursor-pointer"
+    : "w-full text-left px-3 py-2 text-sm text-slate-800 dark:text-slate-200 hover:bg-blue-500 hover:text-white rounded cursor-pointer";
 
   return (
     <div ref={ref} className="relative">
       <button
         type="button"
         onClick={() => { setOpen(o => !o); onOpenChange?.(!open); }}
-        className="flex w-full items-center justify-between rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className={stacked
+          ? "flex w-full items-center justify-between rounded-[15px] border border-[#d9dee7] bg-white px-3 py-1.5 md:py-2 text-[15px] md:text-[17px] text-[#343434] text-left focus:outline-none"
+          : "flex w-full items-center justify-between rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        }
+        style={stacked ? { fontFamily: '"dinosaur", serif', fontWeight: 500 } : undefined}
       >
         <span className="flex-1 truncate">{triggerLabel}</span>
-        <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0 ml-1" />
+        <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 ml-1 ${stacked ? "text-[#0b162a]" : "text-slate-400"}`} />
       </button>
 
       {open && (
-        <div className="absolute z-[99] mt-1 w-full min-w-[180px] rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] p-1 shadow-lg">
+        <div
+          className={stacked
+            ? "absolute z-[99] mt-1 w-full min-w-[180px] rounded-[12px] border border-[#d9dee7] bg-white py-0.5 shadow-md"
+            : "absolute z-[99] mt-1 w-full min-w-[180px] rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] p-1 shadow-lg"
+          }
+          style={stacked ? { fontFamily: '"dinosaur", serif' } : undefined}
+        >
           <button onClick={() => select("all")} className={itemCls}>All Games</button>
           <button onClick={() => select("regular")} className={itemCls}>Regular Season</button>
 
-          {/* Postseason header — toggles sub-list */}
           <button
             type="button"
             onClick={() => setPostExpanded(e => !e)}
-            className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#2d2d30] rounded cursor-pointer"
+            className={stacked
+              ? "w-full flex items-center justify-between px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] text-[#343434] hover:bg-[#0b162a] hover:text-white rounded-md cursor-pointer"
+              : "w-full flex items-center justify-between px-3 py-2 text-sm text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#2d2d30] rounded cursor-pointer"
+            }
           >
             <span>Postseason</span>
-            <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${postExpanded ? "rotate-180" : ""}`} />
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${postExpanded ? "rotate-180" : ""} ${stacked ? "text-[#0b162a]" : "text-slate-400"}`} />
           </button>
 
           {postExpanded && (
-            <div className="ml-2 border-l border-slate-200 dark:border-[#3e3e42] pl-2">
+            <div className={stacked ? "ml-2 border-l border-[#d9dee7] pl-1.5" : "ml-2 border-l border-slate-200 dark:border-[#3e3e42] pl-2"}>
               {POSTSEASON_ROUNDS.map(r => (
                 <button key={r.value} onClick={() => select(r.value)} className={itemCls}>
                   {r.label}
@@ -153,6 +169,135 @@ function YearInput({
   );
 }
 
+function yearToSliderValue(yearRange: [number, number], sentinel: number) {
+  return yearRange[0] !== yearRange[1] ? sentinel : yearRange[0];
+}
+
+function BearYearSlider({
+  minYear,
+  maxYear,
+  yearRange,
+  onChange,
+}: {
+  minYear: number;
+  maxYear: number;
+  yearRange: [number, number];
+  onChange: (value: [number, number]) => void;
+}) {
+  const sentinel = maxYear + 1;
+  const [local, setLocal] = useState(() => yearToSliderValue(yearRange, sentinel));
+  const draggingRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
+
+  const positionLabel = (val: number) => {
+    const slider = inputRef.current;
+    const label = labelRef.current;
+    if (!slider || !label) return;
+    const min = Number(slider.min);
+    const max = Number(slider.max);
+    const pct = max === min ? 0.5 : (val - min) / (max - min);
+    label.style.left = `calc(16px + ${pct} * (100% - 32px))`;
+  };
+
+  useLayoutEffect(() => {
+    if (draggingRef.current) return;
+    const next = yearToSliderValue(yearRange, sentinel);
+    setLocal(next);
+    positionLabel(next);
+  }, [yearRange, sentinel]);
+
+  useEffect(() => {
+    const onResize = () => positionLabel(Number(inputRef.current?.value ?? local));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [local]);
+
+  const commit = (v: number) => {
+    setLocal(v);
+    positionLabel(v);
+    if (v === sentinel) onChange([minYear, maxYear]);
+    else onChange([v, v]);
+  };
+
+  return (
+    <div className="relative w-full h-8 flex items-center">
+      <style>{`
+        .bear-year-slider {
+          width: 100%;
+          -webkit-appearance: none;
+          appearance: none;
+          background: #cbcbcb;
+          height: 8px;
+          border-radius: 999px;
+          outline: none;
+          margin: 0;
+          padding: 0;
+          cursor: pointer;
+          touch-action: pan-y;
+        }
+        .bear-year-slider::-webkit-slider-runnable-track {
+          height: 8px;
+          background: #cbcbcb;
+          border-radius: 999px;
+        }
+        .bear-year-slider::-moz-range-track {
+          height: 8px;
+          background: #cbcbcb;
+          border-radius: 999px;
+          border: none;
+        }
+        .bear-year-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: transparent;
+          border: none;
+          box-shadow: none;
+          margin-top: -12px;
+        }
+        .bear-year-slider::-moz-range-thumb {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: transparent;
+          border: none;
+          box-shadow: none;
+        }
+      `}</style>
+      <input
+        ref={inputRef}
+        type="range"
+        className="bear-year-slider"
+        min={minYear}
+        max={sentinel}
+        step={1}
+        value={local}
+        aria-label="Year slider"
+        onPointerDown={() => { draggingRef.current = true; }}
+        onPointerUp={() => { draggingRef.current = false; }}
+        onPointerCancel={() => { draggingRef.current = false; }}
+        onChange={(e) => commit(Number(e.target.value))}
+      />
+      <span
+        ref={labelRef}
+        className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none whitespace-nowrap rounded-full px-[10px] pt-[2px] pb-[4px]"
+        style={{
+          background: "#0b162a",
+          color: "#ffffff",
+          fontFamily: '"dinosaur", serif',
+          fontSize: 12,
+          fontWeight: 600,
+        }}
+      >
+        {local === sentinel ? "ALL" : String(local)}
+      </span>
+    </div>
+  );
+}
+
 interface FilterBarProps {
   gameFilter: GameFilter;
   setGameFilter: (value: GameFilter) => void;
@@ -165,6 +310,7 @@ interface FilterBarProps {
   onDropdownOpenChange?: (open: boolean) => void;
   onReset?: () => void;
   isFiltered?: boolean;
+  stacked?: boolean;
 }
 
 export default function FilterBar({
@@ -178,8 +324,10 @@ export default function FilterBar({
   sortedTeamsForDropdown,
   onDropdownOpenChange,
   onReset,
+  isFiltered = false,
+  stacked = false,
 }: FilterBarProps) {
-  const isDark = true;
+  const isDark = !stacked;
 
   const [dataMin, dataMax] = dataYearBounds;
   const isSingleYear = yearRange[0] === yearRange[1];
@@ -227,26 +375,42 @@ export default function FilterBar({
   }, [sortedTeamsForDropdown, isDark]);
 
   return (
-    <div className="space-y-3 md:space-y-0 md:flex md:items-end md:gap-5">
+    <div className={stacked
+      ? "w-full space-y-4"
+      : "space-y-3 md:space-y-0 md:flex md:items-end md:gap-5"
+    }>
 
       {/* Row 1 on mobile: Games dropdown + Team dropdown */}
-      <div className="flex items-end gap-2 md:contents">
+      <div className={stacked ? "flex items-end gap-3 w-full md:w-[70%] max-w-[950px] mx-auto" : "flex items-end gap-2 md:contents"}>
 
         {/* Game Type dropdown */}
-        <div className="flex-1 min-w-0 md:w-52 md:flex-none">
-          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+        <div className={stacked ? "flex-1 min-w-0" : "flex-1 min-w-0 md:w-52 md:flex-none"}>
+          <label
+            className={stacked
+              ? "block text-[13px] md:text-[15px] mb-1 text-[#343434]"
+              : "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5"
+            }
+            style={stacked ? { fontFamily: '"dinosaur", serif' } : undefined}
+          >
             Game Type
           </label>
           <GameTypeDropdown
             value={gameFilter}
             onChange={setGameFilter}
             onOpenChange={onDropdownOpenChange}
+            stacked={stacked}
           />
         </div>
 
         {/* Team dropdown */}
-        <div className="flex-1 min-w-0 md:w-52 md:flex-none">
-          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+        <div className={stacked ? "flex-1 min-w-0" : "flex-1 min-w-0 md:w-52 md:flex-none"}>
+          <label
+            className={stacked
+              ? "block text-[13px] md:text-[15px] mb-1 text-[#343434]"
+              : "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5"
+            }
+            style={stacked ? { fontFamily: '"dinosaur", serif' } : undefined}
+          >
             Team
           </label>
           <Select.Root
@@ -254,12 +418,18 @@ export default function FilterBar({
             onValueChange={(val: string) => setClub(val as FranchiseCode | "ALL")}
             onOpenChange={onDropdownOpenChange}
           >
-            <Select.Trigger className="flex w-full items-center justify-between rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] px-3 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 overflow-hidden">
+            <Select.Trigger
+              className={stacked
+                ? "flex w-full items-center justify-between rounded-[15px] border border-[#d9dee7] bg-white px-3 py-1.5 md:py-2 text-[15px] md:text-[17px] text-[#343434] text-left focus:outline-none overflow-hidden"
+                : "flex w-full items-center justify-between rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] px-3 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 overflow-hidden"
+              }
+              style={stacked ? { fontFamily: '"dinosaur", serif', fontWeight: 500 } : undefined}
+            >
               <span className="flex-1 min-w-0 overflow-hidden">
                 <Select.Value>
                   <span className="flex items-center gap-2 min-w-0">
                     {club !== "ALL" && getTeamLogoUrl(club, isDark) && (
-                      <img src={getTeamLogoUrl(club, isDark)!} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                      <img src={getTeamLogoUrl(club, isDark)!} alt="" className="w-5 h-5 md:w-6 md:h-6 object-contain flex-shrink-0" />
                     )}
                     <span className="truncate">
                       {club === "ALL" ? "All Teams" : TEAM_NAMES[club] ?? club}
@@ -268,19 +438,26 @@ export default function FilterBar({
                 </Select.Value>
               </span>
               <Select.Icon className="flex-shrink-0 ml-1">
-                <ChevronDown className="h-4 w-4 text-slate-400" />
+                <ChevronDown className={`h-3.5 w-3.5 ${stacked ? "text-[#0b162a]" : "text-slate-400"}`} />
               </Select.Icon>
             </Select.Trigger>
             <Select.Portal>
               <Select.Content
-                className="z-[99] max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] p-1 text-sm shadow-lg"
+                className={stacked
+                  ? "z-[99] max-h-72 md:max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-[12px] border border-[#d9dee7] bg-white py-0.5 md:py-1 text-[14px] md:text-[16px] text-[#343434] shadow-md"
+                  : "z-[99] max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] p-1 text-sm shadow-lg"
+                }
+                style={stacked ? { fontFamily: '"dinosaur", serif' } : undefined}
                 position="popper"
-                sideOffset={4}
+                sideOffset={2}
               >
                 <Select.Viewport>
                   <Select.Item
                     value="ALL"
-                    className="cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white"
+                    className={stacked
+                      ? "cursor-pointer select-none rounded-md px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] outline-none text-[#343434] data-[highlighted]:bg-[#0b162a] data-[highlighted]:text-white"
+                      : "cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white"
+                    }
                   >
                     <Select.ItemText>All Teams</Select.ItemText>
                   </Select.Item>
@@ -288,15 +465,18 @@ export default function FilterBar({
                     <Select.Item
                       key={team.code}
                       value={team.code}
-                      className="cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white"
+                      className={stacked
+                        ? "cursor-pointer select-none rounded-md px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] outline-none text-[#343434] data-[highlighted]:bg-[#0b162a] data-[highlighted]:text-white"
+                        : "cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white"
+                      }
                     >
                       <Select.ItemText>
-                        <span className="flex items-center gap-2">
+                        <span className="flex items-center gap-1.5">
                           {getTeamLogoUrl(team.code, isDark) && (
                             <img
                               src={getTeamLogoUrl(team.code, isDark)!}
                               alt=""
-                              className="w-5 h-5 object-contain flex-shrink-0"
+                              className="w-5 h-5 md:w-6 md:h-6 object-contain flex-shrink-0"
                             />
                           )}
                           {team.name}
@@ -312,7 +492,17 @@ export default function FilterBar({
 
       </div>
 
-      {/* Row 2 on mobile: Year range slider — full width */}
+      {/* Row 2: Year slider */}
+      {stacked ? (
+        <div className="w-[85%] md:w-[90%] max-w-[1150px] mx-auto">
+          <BearYearSlider
+            minYear={MIN_YEAR}
+            maxYear={CURRENT_YEAR}
+            yearRange={yearRange}
+            onChange={setYearRange}
+          />
+        </div>
+      ) : (
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1.5">
           {editingYears ? (
@@ -422,6 +612,7 @@ export default function FilterBar({
         )}
         </div>
       </div>
+      )}
 
     </div>
   );

@@ -8,6 +8,7 @@ import NavBar from "@/components/nav-bar";
 import FilterBar from "@/components/filter-bar";
 import ScorigamiHeatmap from "@/components/scorigami-heatmap";
 import PageFooter from "@/components/page-footer";
+import V2About from "@/components/v2-about";
 import {
   TEAM_NAMES,
   CURRENT_FRANCHISE_CODES,
@@ -18,6 +19,14 @@ import {
   getTeamLogoUrl,
 } from "@/lib/mlb-data";
 import type { YearlyRow } from "@/lib/scorigami-queries";
+
+const formatMetaDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = 1871;
@@ -106,6 +115,17 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "default"
     isLoading,
     isValidating,
   } = useSWR<YearlyRow[]>(dataKey, fetcher, {
+    revalidateOnFocus: false,
+    revalidateIfStale: false,
+    dedupingInterval: 3600000,
+  });
+
+  // Team W/L needs home/away rows even when the grid is on the traditional view.
+  const haKey = useMemo(
+    () => (variant === "single" ? buildDataKey(club, "home_away", gameFilter) : null),
+    [variant, club, gameFilter]
+  );
+  const { data: haYearly } = useSWR<YearlyRow[]>(haKey, fetcher, {
     revalidateOnFocus: false,
     revalidateIfStale: false,
     dedupingInterval: 3600000,
@@ -219,8 +239,107 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "default"
   const quickStats = useMemo(() => {
     if (!rows || rows.length === 0) return null;
     const totalGames = rows.reduce((s, r) => s + r.occurrences, 0);
-    return { totalGames, uniqueScores: rows.length };
-  }, [rows]);
+    const uniqueScores = rows.length;
+
+    const recordRows: YearlyRow[] | undefined =
+      club === "ALL"
+        ? undefined
+        : scorigamiType === "home_away"
+          ? yearlyRows
+          : haYearly;
+    let wins: number | null = null;
+    let losses: number | null = null;
+    let ties = 0;
+    if (club === "ALL") {
+      for (const r of rows) {
+        if (r.score1 === r.score2) ties += Number(r.occurrences);
+      }
+    } else if (recordRows && Array.isArray(recordRows)) {
+      wins = 0;
+      losses = 0;
+      for (const row of recordRows) {
+        if (row.year < yearRange[0] || row.year > yearRange[1]) continue;
+        const n = Number(row.occurrences);
+        if (row.score1 > row.score2) wins += n;
+        else if (row.score1 < row.score2) losses += n;
+        else ties += n;
+      }
+    } else {
+      for (const r of rows) {
+        if (r.score1 === r.score2) ties += Number(r.occurrences);
+      }
+    }
+
+    const isSingleSeason = yearRange[0] === yearRange[1];
+    let recent: {
+      score1: number;
+      score2: number;
+      date: string | null;
+      home: string | null;
+      visitor: string | null;
+    } | null = null;
+    if (isSingleSeason) {
+      const allTime = new Map<string, number>();
+      if (Array.isArray(yearlyRows)) {
+        for (const row of yearlyRows) {
+          const k = `${row.score1}-${row.score2}`;
+          allTime.set(k, (allTime.get(k) ?? 0) + Number(row.occurrences));
+        }
+      }
+      let best: (typeof rows)[number] | null = null;
+      let bestAllTime = Infinity;
+      for (const r of rows) {
+        const k = `${r.score1}-${r.score2}`;
+        const n = allTime.get(k) ?? Number(r.occurrences);
+        if (
+          !best ||
+          n < bestAllTime ||
+          (n === bestAllTime && (r.last_date || "") > (best.last_date || ""))
+        ) {
+          best = r;
+          bestAllTime = n;
+        }
+      }
+      if (best) {
+        recent = {
+          score1: best.score1,
+          score2: best.score2,
+          date: best.last_date,
+          home: best.last_home_team,
+          visitor: best.last_visitor_team,
+        };
+      }
+    } else if (Array.isArray(yearlyRows) && yearlyRows.length > 0) {
+      const first = new Map<string, YearlyRow>();
+      for (const row of yearlyRows) {
+        const k = `${row.score1}-${row.score2}`;
+        const prev = first.get(k);
+        if (!prev || row.year < prev.year) first.set(k, row);
+      }
+      let best: YearlyRow | null = null;
+      for (const row of first.values()) {
+        if (row.year < yearRange[0] || row.year > yearRange[1]) continue;
+        if (
+          !best ||
+          row.year > best.year ||
+          (row.year === best.year && (row.last_date || "") > (best.last_date || ""))
+        ) {
+          best = row;
+        }
+      }
+      if (best) {
+        recent = {
+          score1: best.score1,
+          score2: best.score2,
+          date: best.last_date,
+          home: best.last_home_team,
+          visitor: best.last_visitor_team,
+        };
+      }
+    }
+
+    return { totalGames, uniqueScores, wins, losses, ties, recent };
+  }, [rows, yearlyRows, haYearly, yearRange, club, scorigamiType]);
 
   // Keep the last known stats on screen during a team/filter reload so the header
   // never collapses and reappears. Only the grid should show a loading state.
@@ -257,29 +376,90 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "default"
   return (
     <div className="min-h-screen flex flex-col" style={variant === "single" ? { backgroundColor: "#f2f2f2" } : undefined}>
       {variant === "single" ? (
-        <header className="max-w-[1150px] mx-auto w-full px-4 pt-10 pb-5 text-center">
-          <div className="flex items-center justify-center gap-3">
+        <header className="max-w-[1150px] mx-auto w-full px-3 sm:px-4 pt-6 sm:pt-10 pb-4 sm:pb-5 text-center">
             {(() => {
-              const igamiTitle = club === "ALL" ? "MLBgami" : (TEAM_IGAMI[club] ?? "MLBgami");
+              const igamiTitle = club === "ALL" ? "MLB Scorigami" : (TEAM_IGAMI[club] ?? "MLB Scorigami");
               const logoSrc = club === "ALL" ? "/logo3.svg" : (getTeamLogoUrl(club) ?? "/logo3.svg");
+              const countLabel = "Unique scores";
+              const isSingleSeason = yearRange[0] === yearRange[1];
+              const recentLabel = isSingleSeason
+                ? "Rarest score"
+                : club === "ALL"
+                  ? "Last Scorigami"
+                  : `Last ${igamiTitle}`;
               return (
                 <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={logoSrc} alt={igamiTitle} className="h-16 w-16 sm:h-20 sm:w-20 object-contain flex-none" />
-                  <span className="text-[38px] sm:text-5xl font-bold tracking-tight text-[#343434]" style={{ fontFamily: '"ff-nexus-typewriter", var(--font-typewriter), monospace' }}>{igamiTitle}</span>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={logoSrc} alt={igamiTitle} className="h-14 w-14 sm:h-24 sm:w-24 object-contain flex-none" />
+                    <span className="text-[28px] sm:text-5xl font-bold tracking-tight leading-tight text-[#343434] px-1" style={{ fontFamily: '"ff-nexus-typewriter", var(--font-typewriter), monospace' }}>{igamiTitle}</span>
+                  </div>
+                  <div
+                    className="mt-3 sm:mt-4 min-h-[3.1rem] px-1 sm:px-4 text-[13px] sm:text-[17px] leading-snug sm:leading-[1.55]"
+                    style={{
+                      fontFamily: '"dinosaur", serif',
+                      fontWeight: 400,
+                      color: "#343434",
+                    }}
+                  >
+                    {headerStats && (
+                      <>
+                        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5">
+                          <span>
+                            <span style={{ color: "#0b162a" }}>Games: </span>
+                            <span className="font-bold tabular-nums">
+                              {headerStats.totalGames.toLocaleString()}
+                            </span>
+                          </span>
+                          {club !== "ALL" && headerStats.wins != null && headerStats.losses != null && (
+                            <>
+                              <span>
+                                <span style={{ color: "#2d91ff" }}>Wins: </span>
+                                <span className="font-bold tabular-nums" style={{ color: "#2d91ff" }}>
+                                  {headerStats.wins.toLocaleString()}
+                                </span>
+                              </span>
+                              <span>
+                                <span style={{ color: "#909090" }}>Losses: </span>
+                                <span className="font-bold tabular-nums" style={{ color: "#909090" }}>
+                                  {headerStats.losses.toLocaleString()}
+                                </span>
+                              </span>
+                              <span>
+                                <span style={{ color: "#4d6592" }}>Ties: </span>
+                                <span className="font-bold tabular-nums" style={{ color: "#4d6592" }}>
+                                  {headerStats.ties.toLocaleString()}
+                                </span>
+                              </span>
+                            </>
+                          )}
+                          <span>
+                            <span style={{ color: "#0b162a" }}>{countLabel}: </span>
+                            <span className="font-bold tabular-nums">
+                              {headerStats.uniqueScores.toLocaleString()}
+                            </span>
+                          </span>
+                        </div>
+                        {headerStats.recent && (
+                          <div>
+                            <span style={{ color: "#0b162a" }}>{recentLabel}: </span>
+                            <span className="font-bold tabular-nums">
+                              {headerStats.recent.score1}–{headerStats.recent.score2}
+                            </span>
+                            {headerStats.recent.date && (
+                              <span className="font-bold">
+                                {" "}
+                                · {formatMetaDate(headerStats.recent.date)}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </>
               );
             })()}
-          </div>
-          <p className="mt-3 text-sm text-slate-500 min-h-[1.25rem]">
-            {headerStats && (
-              <>
-                <span className="tabular-nums text-slate-700">{headerStats.totalGames.toLocaleString()}</span> games
-                <span className="mx-1.5 text-slate-300">·</span>
-                <span className="tabular-nums text-slate-700">{headerStats.uniqueScores.toLocaleString()}</span> unique scores
-              </>
-            )}
-          </p>
         </header>
       ) : (
         <NavBar
@@ -290,34 +470,38 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "default"
 
       <main className={`flex-1 mx-auto w-full px-4 py-4 ${variant === "single" ? "max-w-[1150px]" : "max-w-5xl"}`}>
         {/* Filters */}
-        <div className="mb-3">
-          <FilterBar {...filterProps} />
+        <div className={variant === "single" ? "mb-6" : "mb-3"}>
+          <FilterBar {...filterProps} stacked={variant === "single"} />
         </div>
 
-        {/* Heatmap — full width */}
-        <div className="relative bg-white dark:bg-[#252526] rounded-lg overflow-hidden min-h-[400px] md:min-h-[500px]">
+        {/* Heatmap — full width. Single-page: no card; grid sits on the gray canvas. */}
+        <div className={variant === "single"
+          ? "relative"
+          : "relative bg-white dark:bg-[#252526] rounded-lg overflow-hidden min-h-[400px] md:min-h-[500px]"
+        }>
 
-          {/* Icon buttons: type toggle + expand/collapse */}
-          <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
-            <button
-              onClick={() => setScorigamiType(scorigamiType === "traditional" ? "home_away" : "traditional")}
-              className="p-1.5 rounded-md bg-white/80 dark:bg-[#252526]/80 backdrop-blur-sm border border-slate-200/60 dark:border-[#3e3e42]/60 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-              title={scorigamiType === "traditional" ? "Switch to Home/Away view" : "Switch to Traditional view"}
-            >
-              <ArrowLeftRight className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setGridSize(gridSize === 36 ? 51 : 36)}
-              className="p-1.5 rounded-md bg-white/80 dark:bg-[#252526]/80 backdrop-blur-sm border border-slate-200/60 dark:border-[#3e3e42]/60 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-              title={gridSize === 36 ? "Expand grid" : "Collapse grid"}
-            >
-              {gridSize === 36 ? (
-                <Maximize2 className="w-4 h-4" />
-              ) : (
-                <Minimize2 className="w-4 h-4" />
-              )}
-            </button>
-          </div>
+          {variant !== "single" && (
+            <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+              <button
+                onClick={() => setScorigamiType(scorigamiType === "traditional" ? "home_away" : "traditional")}
+                className="p-1.5 rounded-md bg-white/80 dark:bg-[#252526]/80 backdrop-blur-sm border border-slate-200/60 dark:border-[#3e3e42]/60 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                title={scorigamiType === "traditional" ? "Switch to Home/Away view" : "Switch to Traditional view"}
+              >
+                <ArrowLeftRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setGridSize(gridSize === 36 ? 51 : 36)}
+                className="p-1.5 rounded-md bg-white/80 dark:bg-[#252526]/80 backdrop-blur-sm border border-slate-200/60 dark:border-[#3e3e42]/60 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                title={gridSize === 36 ? "Expand grid" : "Collapse grid"}
+              >
+                {gridSize === 36 ? (
+                  <Maximize2 className="w-4 h-4" />
+                ) : (
+                  <Minimize2 className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+          )}
 
           {isValidating && (
             <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden z-50">
@@ -344,14 +528,20 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "default"
               gridSize={gridSize}
               isGhostClick={isGhostClick}
               dark={variant !== "single"}
-              fillWidth={variant === "single"}
               colCount={variant === "single" ? 51 : undefined}
               rowCount={variant === "single" ? 41 : undefined}
               skeleton={variant === "single" && !rows}
+              bearigamiGrid={variant === "single"}
+              onToggleType={variant === "single"
+                ? () => setScorigamiType(scorigamiType === "traditional" ? "home_away" : "traditional")
+                : undefined
+              }
             />
           )}
         </div>
       </main>
+
+      {variant === "single" && <V2About />}
 
       <PageFooter />
     </div>

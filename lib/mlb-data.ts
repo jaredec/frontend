@@ -29,7 +29,9 @@ export const TEAM_IDS: Record<string, number> = {
 export const getTeamLogoUrl = (code: string, isDark = false): string | null => {
   const id = TEAM_IDS[code];
   if (!id) return null;
-  const variant = isDark ? "team-primary-on-dark" : "team-primary-on-light";
+  // Cap-on-light is the color hat mark made for light backgrounds (a few KB).
+  // "primary-on-light" is often the dark-bg asset (white fills) despite the name.
+  const variant = isDark ? "team-primary-on-dark" : "team-cap-on-light";
   return `https://www.mlbstatic.com/team-logos/${variant}/${id}.svg`;
 };
 
