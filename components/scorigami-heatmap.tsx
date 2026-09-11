@@ -265,7 +265,7 @@ export default function ScorigamiHeatmap({
   const tickStyle: React.CSSProperties = bearigamiGrid
     ? {
         fontSize: tickFontSize,
-        fontFamily: '"dinosaur", serif',
+        fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
         fontWeight: 400,
         fontStyle: "normal",
         color: "#343434",
@@ -312,7 +312,7 @@ export default function ScorigamiHeatmap({
             <div
               className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pb-[15px]"
               style={{
-                fontFamily: '"dinosaur", serif',
+                fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
                 fontSize: 14,
                 fontWeight: 400,
                 color: "#343434",

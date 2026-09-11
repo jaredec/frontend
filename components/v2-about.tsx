@@ -2,7 +2,7 @@ const linkCls =
   "text-[#2d91ff] underline underline-offset-2 decoration-[#2d91ff] hover:text-[#0b162a] hover:decoration-[#0b162a] transition-colors duration-200";
 
 const h3Style = {
-  fontFamily: '"dinosaur", sans-serif',
+  fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
   fontWeight: 700,
   fontStyle: "normal" as const,
   fontSize: 24,
@@ -19,7 +19,7 @@ export default function V2About() {
     <section
       className="w-[90%] max-[900px]:w-[95%] max-w-[1150px] mx-auto mt-10 mb-0 bg-white pt-10 pb-[65px] text-center"
       style={{
-        fontFamily: '"dinosaur", sans-serif',
+        fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
         fontWeight: 500,
         fontStyle: "normal",
         color: "#343434",
@@ -28,8 +28,8 @@ export default function V2About() {
       <h2
         className="w-full text-[40px] mb-[10px] px-0"
         style={{
-          fontFamily: '"ff-nexus-typewriter", var(--font-typewriter), sans-serif',
-          fontWeight: 700,
+          fontFamily: "var(--v2-title-font)",
+          fontWeight: "var(--v2-title-weight)",
           fontStyle: "normal",
           color: "#343434",
         }}

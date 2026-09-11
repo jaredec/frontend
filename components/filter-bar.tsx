@@ -67,7 +67,7 @@ function GameTypeDropdown({
           ? "flex w-full items-center justify-between rounded-[15px] border border-[#d9dee7] bg-white px-3 py-1.5 md:py-2 text-[15px] md:text-[17px] text-[#343434] text-left focus:outline-none"
           : "flex w-full items-center justify-between rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         }
-        style={stacked ? { fontFamily: '"dinosaur", serif', fontWeight: 500 } : undefined}
+        style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif", fontWeight: 500 } : undefined}
       >
         <span className="flex-1 truncate">{triggerLabel}</span>
         <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 ml-1 ${stacked ? "text-[#0b162a]" : "text-slate-400"}`} />
@@ -79,7 +79,7 @@ function GameTypeDropdown({
             ? "absolute z-[99] mt-1 w-full min-w-[180px] rounded-[12px] border border-[#d9dee7] bg-white py-0.5 shadow-md"
             : "absolute z-[99] mt-1 w-full min-w-[180px] rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] p-1 shadow-lg"
           }
-          style={stacked ? { fontFamily: '"dinosaur", serif' } : undefined}
+          style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}
         >
           <button onClick={() => select("all")} className={itemCls}>All Games</button>
           <button onClick={() => select("regular")} className={itemCls}>Regular Season</button>
@@ -287,7 +287,7 @@ function BearYearSlider({
         style={{
           background: "#0b162a",
           color: "#ffffff",
-          fontFamily: '"dinosaur", serif',
+          fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
           fontSize: 12,
           fontWeight: 600,
         }}
@@ -390,7 +390,7 @@ export default function FilterBar({
               ? "block text-[13px] md:text-[15px] mb-1 text-[#343434]"
               : "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5"
             }
-            style={stacked ? { fontFamily: '"dinosaur", serif' } : undefined}
+            style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}
           >
             Game Type
           </label>
@@ -409,7 +409,7 @@ export default function FilterBar({
               ? "block text-[13px] md:text-[15px] mb-1 text-[#343434]"
               : "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5"
             }
-            style={stacked ? { fontFamily: '"dinosaur", serif' } : undefined}
+            style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}
           >
             Team
           </label>
@@ -423,7 +423,7 @@ export default function FilterBar({
                 ? "flex w-full items-center justify-between rounded-[15px] border border-[#d9dee7] bg-white px-3 py-1.5 md:py-2 text-[15px] md:text-[17px] text-[#343434] text-left focus:outline-none overflow-hidden"
                 : "flex w-full items-center justify-between rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] px-3 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 overflow-hidden"
               }
-              style={stacked ? { fontFamily: '"dinosaur", serif', fontWeight: 500 } : undefined}
+              style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif", fontWeight: 500 } : undefined}
             >
               <span className="flex-1 min-w-0 overflow-hidden">
                 <Select.Value>
@@ -447,7 +447,7 @@ export default function FilterBar({
                   ? "z-[99] max-h-72 md:max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-[12px] border border-[#d9dee7] bg-white py-0.5 md:py-1 text-[14px] md:text-[16px] text-[#343434] shadow-md"
                   : "z-[99] max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] p-1 text-sm shadow-lg"
                 }
-                style={stacked ? { fontFamily: '"dinosaur", serif' } : undefined}
+                style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}
                 position="popper"
                 sideOffset={2}
               >

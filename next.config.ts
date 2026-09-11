@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/history", destination: "/archive", permanent: true },
+      { source: "/v2", destination: "/", permanent: true },
     ];
   },
 };

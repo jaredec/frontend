@@ -77,7 +77,7 @@ interface ScorigamiPageProps {
   variant?: "default" | "single";
 }
 
-export default function ScorigamiPage({ initialClub = "ALL", variant = "default" }: ScorigamiPageProps) {
+export default function ScorigamiPage({ initialClub = "ALL", variant = "single" }: ScorigamiPageProps) {
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>("traditional");
   const [club, setClub] = useState<FranchiseCode | "ALL">(initialClub);
   const [yearRange, setYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
@@ -392,12 +392,12 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "default"
                   <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={logoSrc} alt={igamiTitle} className="h-14 w-14 sm:h-24 sm:w-24 object-contain flex-none" />
-                    <span className="text-[28px] sm:text-5xl font-bold tracking-tight leading-tight text-[#343434] px-1" style={{ fontFamily: '"ff-nexus-typewriter", var(--font-typewriter), monospace' }}>{igamiTitle}</span>
+                    <span className="text-[28px] sm:text-5xl tracking-tight leading-tight text-[#343434] px-1" style={{ fontFamily: "var(--v2-title-font)", fontWeight: "var(--v2-title-weight)" }}>{igamiTitle}</span>
                   </div>
                   <div
                     className="mt-3 sm:mt-4 min-h-[3.1rem] px-1 sm:px-4 text-[13px] sm:text-[17px] leading-snug sm:leading-[1.55]"
                     style={{
-                      fontFamily: '"dinosaur", serif',
+                      fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
                       fontWeight: 400,
                       color: "#343434",
                     }}
