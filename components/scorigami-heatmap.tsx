@@ -31,7 +31,7 @@ const boxScoreHref = (row: ApiRow): string | null => {
 
 const formatDisplayDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", {
-    month: "long",
+    month: "short",
     day: "numeric",
     year: "numeric",
     timeZone: "UTC",
@@ -109,6 +109,8 @@ interface ScorigamiHeatmapProps {
   skeleton?: boolean;  // render the grid frame as gray cells (loading) instead of a spinner
   bearigamiGrid?: boolean; // bearigami-style structure: 0.5px gridline borders, white empties, dark diagonal
   onToggleType?: () => void;
+  revealed?: boolean;
+  onPainted?: () => void;
 }
 
 export default function ScorigamiHeatmap({
@@ -125,6 +127,8 @@ export default function ScorigamiHeatmap({
   skeleton = false,
   bearigamiGrid = false,
   onToggleType,
+  revealed = true,
+  onPainted,
 }: ScorigamiHeatmapProps) {
   const GRID_DIMENSION = colCount ?? gridSize;
   const ROW_COUNT = rowCount ?? gridSize;
@@ -166,7 +170,7 @@ export default function ScorigamiHeatmap({
         ? "Winning score"
         : club === "ALL"
           ? "Home score"
-          : `${(TEAM_IGAMI[club] ?? "").replace(/igami$/i, "") || TEAM_NAMES[club] || club} score`,
+          : `${(TEAM_IGAMI[club] ?? "").replace(/i?gami$/i, "") || TEAM_NAMES[club] || club} score`,
     [scorigamiType, club]
   );
 
@@ -187,6 +191,7 @@ export default function ScorigamiHeatmap({
   );
 
   const getLogScaledColor = (currentOccurrences: number, maxInView: number) => {
+    // Light v2 canvas, but the same occurrence blues as production (darkHex).
     const currentHexSet = isDarkMode ? darkHex : hex;
     if (currentOccurrences === 0) return currentHexSet[0];
     if (currentOccurrences === 1) return currentHexSet[1];
@@ -238,6 +243,11 @@ export default function ScorigamiHeatmap({
 
   useEffect(() => {
     if (!bearigamiGrid) return;
+    if (Array.isArray(rows) && gridReady) onPainted?.();
+  }, [bearigamiGrid, rows, gridReady, onPainted]);
+
+  useEffect(() => {
+    if (!bearigamiGrid) return;
     const el = scrollRef.current;
     if (!el) return;
     const update = () => {
@@ -281,16 +291,30 @@ export default function ScorigamiHeatmap({
   const impossibleCellColor = bearigamiGrid ? "#0b162a" : (isDarkMode ? "#1c1c1e" : "#eef2f7");
   const cellStructure = (isImp: boolean): React.CSSProperties =>
     bearigamiGrid
-      ? { boxSizing: "border-box", borderRadius: 0, border: `0.5px solid ${isImp ? impossibleCellColor : "#d9dee7"}` }
+      ? {
+          boxSizing: "border-box",
+          borderRadius: 0,
+          border: `0.5px solid ${isImp ? impossibleCellColor : "#d9dee7"}`,
+        }
       : {};
 
-  if (isLoading && !skeleton)
+  if (bearigamiGrid && !Array.isArray(rows))
+    return (
+      <div ref={gridContainerRef} className="w-full">
+        <div
+          aria-hidden
+          className="w-full"
+          style={{ aspectRatio: `${GRID_DIMENSION} / ${ROW_COUNT}`, minHeight: 240 }}
+        />
+      </div>
+    );
+  if (isLoading && !skeleton && !bearigamiGrid)
     return (
       <div className="flex min-h-[400px] md:min-h-[450px] w-full items-center justify-center">
         <StatusIndicator type="loading" />
       </div>
     );
-  if (!hasData && !skeleton)
+  if (!hasData && !skeleton && !bearigamiGrid)
     return (
       <div className="flex min-h-[400px] md:min-h-[450px] w-full items-center justify-center">
         <StatusIndicator type="empty" />
@@ -305,7 +329,11 @@ export default function ScorigamiHeatmap({
       <div
         ref={gridContainerRef}
         className={bearigamiGrid ? "w-full overflow-visible" : "p-3 sm:p-6 flex flex-col items-center justify-center"}
-        style={{ visibility: gridReady ? "visible" : "hidden" }}
+        style={
+          bearigamiGrid
+            ? { opacity: revealed ? 1 : 0, transition: revealed ? "opacity 160ms ease-out" : undefined }
+            : { visibility: gridReady ? "visible" : "hidden" }
+        }
       >
         <div className={bearigamiGrid ? "w-full" : "flex flex-col items-center"}>
           {bearigamiGrid && (

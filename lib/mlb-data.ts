@@ -35,19 +35,19 @@ export const getTeamLogoUrl = (code: string, isDark = false): string | null => {
   return `https://www.mlbstatic.com/team-logos/${variant}/${id}.svg`;
 };
 
-// Per-team "-igami" title, keyed by franchise code (mirrors the bot's naming:
-// Red Soxigami, White Soxigami, A'sigami, Dbacksigami, Natsigami, etc.).
+// Per-team "-igami"/"-gami" title, keyed by franchise code.
+// Nicknames that singularize to -er drop the s (Dodgergami, Rangergami).
 export const TEAM_IGAMI: Record<string, string> = {
-  LAA: "Angelsigami", ARI: "Dbacksigami", ATL: "Bravesigami",
-  BAL: "Oriolesigami", BOS: "Red Soxigami", CWS: "White Soxigami",
-  CHC: "Cubsigami", CIN: "Redsigami", CLE: "Guardiansigami",
-  COL: "Rockiesigami", DET: "Tigersigami", HOU: "Astrosigami",
-  KC: "Royalsigami", LAD: "Dodgersigami", MIA: "Marlinsigami",
-  MIL: "Brewersigami", MIN: "Twinsigami", NYY: "Yankeesigami",
-  NYM: "Metsigami", OAK: "A'sigami", PHI: "Philliesigami",
-  PIT: "Piratesigami", SD: "Padresigami", SEA: "Marinersigami",
-  SFG: "Giantsigami", STL: "Cardinalsigami", TB: "Raysigami",
-  TEX: "Rangersigami", TOR: "Blue Jaysigami", WSH: "Natsigami",
+  LAA: "Angelgami", ARI: "Dbacksigami", ATL: "Bravesigami",
+  BAL: "O'sigami", BOS: "Red Soxigami", CWS: "White Soxigami",
+  CHC: "Cubsigami", CIN: "Redsigami", CLE: "Guardsigami",
+  COL: "Rocksigami", DET: "Tigergami", HOU: "Astrosigami",
+  KC: "Royalgami", LAD: "Dodgergami", MIA: "Fishigami",
+  MIL: "Brewergami", MIN: "Twinsigami", NYY: "Yankeegami",
+  NYM: "Metsigami", OAK: "A'sigami", PHI: "Philliegami",
+  PIT: "Bucsigami", SD: "Padsigami", SEA: "M'sigami",
+  SFG: "Giantsigami", STL: "Cardsigami", TB: "Raysigami",
+  TEX: "Rangergami", TOR: "Jaysigami", WSH: "Natsigami",
 };
 
 export const TEAM_HASHTAG_MAP: Record<string, string> = {

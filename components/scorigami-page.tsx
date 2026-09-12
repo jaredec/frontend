@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
-import useSWR, { preload } from "swr";
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import useSWR, { preload, useSWRConfig } from "swr";
 import { AlertTriangle, ArrowLeftRight, Maximize2, Minimize2 } from "lucide-react";
 
 import NavBar from "@/components/nav-bar";
@@ -22,7 +22,7 @@ import type { YearlyRow } from "@/lib/scorigami-queries";
 
 const formatMetaDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", {
-    month: "long",
+    month: "short",
     day: "numeric",
     year: "numeric",
     timeZone: "UTC",
@@ -70,6 +70,185 @@ function buildDataKey(club: string, scorigamiType: string, gameFilter: string): 
   return `${staticUrl}|${apiUrl}`;
 }
 
+type AggRow = {
+  score1: number;
+  score2: number;
+  occurrences: number;
+  last_date: string | null;
+  last_home_team: string | null;
+  last_visitor_team: string | null;
+  last_game_id: number | null;
+  source: string | null;
+  box_url: string | null;
+};
+
+type HeaderStats = {
+  totalGames: number;
+  uniqueScores: number;
+  wins: number | null;
+  losses: number | null;
+  ties: number;
+  recent: { score1: number; score2: number; date: string | null; home: string | null; visitor: string | null } | null;
+};
+
+function aggregateRows(yearly: YearlyRow[], yearRange: [number, number]): AggRow[] {
+  const map = new Map<string, AggRow>();
+  for (const row of yearly) {
+    if (row.year < yearRange[0] || row.year > yearRange[1]) continue;
+    const key = `${row.score1}-${row.score2}`;
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, {
+        score1: row.score1,
+        score2: row.score2,
+        occurrences: Number(row.occurrences),
+        last_date: row.last_date,
+        last_home_team: row.last_home_team,
+        last_visitor_team: row.last_visitor_team,
+        last_game_id: row.last_game_id,
+        source: row.source,
+        box_url: row.box_url ?? null,
+      });
+    } else {
+      existing.occurrences += Number(row.occurrences);
+      if (row.last_date && (!existing.last_date || row.last_date > existing.last_date)) {
+        existing.last_date = row.last_date;
+        existing.last_home_team = row.last_home_team;
+        existing.last_visitor_team = row.last_visitor_team;
+        existing.last_game_id = row.last_game_id;
+        existing.source = row.source;
+        existing.box_url = row.box_url ?? null;
+      }
+    }
+  }
+  return Array.from(map.values());
+}
+
+function computeHeaderStats(
+  rows: AggRow[],
+  yearly: YearlyRow[],
+  ha: YearlyRow[] | undefined,
+  statsClub: FranchiseCode | "ALL",
+  statsType: ScorigamiType,
+  yearRange: [number, number],
+): HeaderStats {
+  if (rows.length === 0) {
+    return {
+      totalGames: 0,
+      uniqueScores: 0,
+      wins: statsClub === "ALL" ? null : 0,
+      losses: statsClub === "ALL" ? null : 0,
+      ties: 0,
+      recent: null,
+    };
+  }
+  const totalGames = rows.reduce((s, r) => s + r.occurrences, 0);
+  const uniqueScores = rows.length;
+  const recordRows: YearlyRow[] | undefined =
+    statsClub === "ALL" ? undefined : statsType === "home_away" ? yearly : ha;
+  let wins: number | null = null;
+  let losses: number | null = null;
+  let ties = 0;
+  if (statsClub === "ALL") {
+    for (const r of rows) {
+      if (r.score1 === r.score2) ties += Number(r.occurrences);
+    }
+  } else if (Array.isArray(recordRows)) {
+    wins = 0;
+    losses = 0;
+    for (const row of recordRows) {
+      if (row.year < yearRange[0] || row.year > yearRange[1]) continue;
+      const n = Number(row.occurrences);
+      if (row.score1 > row.score2) wins += n;
+      else if (row.score1 < row.score2) losses += n;
+      else ties += n;
+    }
+  } else {
+    for (const r of rows) {
+      if (r.score1 === r.score2) ties += Number(r.occurrences);
+    }
+  }
+
+  const isSingleSeason = yearRange[0] === yearRange[1];
+  let recent: HeaderStats["recent"] = null;
+  if (isSingleSeason) {
+    const allTime = new Map<string, number>();
+    for (const row of yearly) {
+      const k = `${row.score1}-${row.score2}`;
+      allTime.set(k, (allTime.get(k) ?? 0) + Number(row.occurrences));
+    }
+    let best: AggRow | null = null;
+    let bestAllTime = Infinity;
+    for (const r of rows) {
+      const k = `${r.score1}-${r.score2}`;
+      const n = allTime.get(k) ?? Number(r.occurrences);
+      if (
+        !best ||
+        n < bestAllTime ||
+        (n === bestAllTime && (r.last_date || "") > (best.last_date || ""))
+      ) {
+        best = r;
+        bestAllTime = n;
+      }
+    }
+    if (best) {
+      recent = {
+        score1: best.score1,
+        score2: best.score2,
+        date: best.last_date,
+        home: best.last_home_team,
+        visitor: best.last_visitor_team,
+      };
+    }
+  } else if (yearly.length > 0) {
+    const first = new Map<string, YearlyRow>();
+    for (const row of yearly) {
+      const k = `${row.score1}-${row.score2}`;
+      const prev = first.get(k);
+      if (!prev || row.year < prev.year) first.set(k, row);
+    }
+    let best: YearlyRow | null = null;
+    for (const row of first.values()) {
+      if (row.year < yearRange[0] || row.year > yearRange[1]) continue;
+      if (
+        !best ||
+        row.year > best.year ||
+        (row.year === best.year && (row.last_date || "") > (best.last_date || ""))
+      ) {
+        best = row;
+      }
+    }
+    if (best) {
+      recent = {
+        score1: best.score1,
+        score2: best.score2,
+        date: best.last_date,
+        home: best.last_home_team,
+        visitor: best.last_visitor_team,
+      };
+    }
+  }
+
+  return { totalGames, uniqueScores, wins, losses, ties, recent };
+}
+
+function yearBounds(yearly: YearlyRow[]): [number, number] {
+  if (yearly.length === 0) return [MIN_YEAR, CURRENT_YEAR];
+  let min = Infinity;
+  let max = -Infinity;
+  for (const row of yearly) {
+    if (row.year < min) min = row.year;
+    if (row.year > max) max = row.year;
+  }
+  return [min, max];
+}
+
+function sliderSpan(yearly: YearlyRow[], gameFilter: GameFilter): [number, number] {
+  const [min, max] = yearBounds(yearly);
+  const postseason = ["playoffs", "ws", "lcs", "ds", "wc"].includes(gameFilter);
+  return [min, postseason ? max : Math.max(max, CURRENT_YEAR)];
+}
+
 export type GridSize = 36 | 51;
 
 interface ScorigamiPageProps {
@@ -109,6 +288,8 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     [club, scorigamiType, gameFilter]
   );
 
+  const { cache } = useSWRConfig();
+
   const {
     data: yearlyRows,
     error,
@@ -131,103 +312,95 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     dedupingInterval: 3600000,
   });
 
-  // Derive min/max year from actual data
-  const dataYearBounds = useMemo<[number, number]>(() => {
-    if (!Array.isArray(yearlyRows) || yearlyRows.length === 0)
-      return [MIN_YEAR, CURRENT_YEAR];
-    let min = Infinity;
-    let max = -Infinity;
-    for (const row of yearlyRows) {
-      if (row.year < min) min = row.year;
-      if (row.year > max) max = row.year;
-    }
-    return [min, max];
-  }, [yearlyRows]);
-
-  // Adjust yearRange when data bounds change (e.g. team or game filter switch)
+  type ViewSnap = {
+    yearly: YearlyRow[];
+    ha: YearlyRow[] | undefined;
+    club: FranchiseCode | "ALL";
+    scorigamiType: ScorigamiType;
+    gameFilter: GameFilter;
+    yearRange: [number, number];
+  };
+  const [view, setView] = useState<ViewSnap | null>(null);
   const prevClubRef = useRef(club);
   const prevGameFilterRef = useRef(gameFilter);
-  useEffect(() => {
-    if (!yearlyRows || yearlyRows.length === 0) return;
+  const yearRangeRef = useRef(yearRange);
+  yearRangeRef.current = yearRange;
 
-    const [dataMin, dataMax] = dataYearBounds;
+  useLayoutEffect(() => {
+    const cachedYearly = cache.get(dataKey)?.data as YearlyRow[] | undefined;
+    if (!Array.isArray(cachedYearly)) return;
+
+    const needHa = variant === "single" && club !== "ALL" && scorigamiType === "traditional";
+    const cachedHa = haKey ? (cache.get(haKey)?.data as YearlyRow[] | undefined) : undefined;
+    if (needHa && !Array.isArray(cachedHa)) return;
+
+    const [spanMin, spanMax] = sliderSpan(cachedYearly, gameFilter);
     const clubChanged = prevClubRef.current !== club;
     const gameFilterChanged = prevGameFilterRef.current !== gameFilter;
     prevClubRef.current = club;
     prevGameFilterRef.current = gameFilter;
 
+    const [lo, hi] = yearRangeRef.current;
+    let nextRange: [number, number];
     if (clubChanged || gameFilterChanged) {
-      // Team or game filter changed: snap to full range for new data
-      setYearRange([Math.max(dataMin, MIN_YEAR), dataMax]);
+      nextRange = [spanMin, spanMax];
     } else {
-      // Same team + filter, bounds may have shifted (type switch or data reload): clamp
-      setYearRange(([lo, hi]) => {
-        const clampedLo = Math.max(lo, dataMin);
-        const clampedHi = Math.min(hi, dataMax);
-        if (clampedLo > clampedHi) return [dataMin, dataMax];
-        if (clampedLo !== lo || clampedHi !== hi) return [clampedLo, clampedHi];
-        return [lo, hi];
-      });
+      const clampedLo = Math.max(lo, spanMin);
+      const clampedHi = Math.min(hi, spanMax);
+      nextRange = clampedLo > clampedHi ? [spanMin, spanMax] : [clampedLo, clampedHi];
     }
-  }, [club, gameFilter, yearlyRows, dataYearBounds]);
 
-  // Prefetch the alternate type so toggling is instant
+    if (lo !== nextRange[0] || hi !== nextRange[1]) setYearRange(nextRange);
+    setView({
+      yearly: cachedYearly,
+      ha: cachedHa,
+      club,
+      scorigamiType,
+      gameFilter,
+      yearRange: nextRange,
+    });
+  }, [cache, dataKey, haKey, yearlyRows, haYearly, club, scorigamiType, gameFilter, variant]);
+
+  const dataYearBounds = useMemo<[number, number]>(() => {
+    const src = view?.yearly;
+    if (!Array.isArray(src) || src.length === 0) return [MIN_YEAR, CURRENT_YEAR];
+    return sliderSpan(src, view.gameFilter);
+  }, [view]);
+
   useEffect(() => {
     if (!yearlyRows) return;
     const altType = scorigamiType === "traditional" ? "home_away" : "traditional";
     preload(buildDataKey(club, altType, gameFilter), fetcher);
   }, [yearlyRows, club, scorigamiType, gameFilter]);
 
-  // Client-side: filter by year range and aggregate by score pair
-  const rows = useMemo(() => {
-    if (!Array.isArray(yearlyRows) || yearlyRows.length === 0) return undefined;
+  const display = useMemo(() => {
+    if (!view) return null;
+    const synced =
+      view.club === club &&
+      view.scorigamiType === scorigamiType &&
+      view.gameFilter === gameFilter;
+    const range = synced ? yearRange : view.yearRange;
+    const rows = aggregateRows(view.yearly, range);
+    const stats = computeHeaderStats(
+      rows,
+      view.yearly,
+      view.ha,
+      view.club,
+      view.scorigamiType,
+      range,
+    );
+    return {
+      rows,
+      stats,
+      club: view.club,
+      scorigamiType: view.scorigamiType,
+      yearRange: range,
+    };
+  }, [view, yearRange, club, scorigamiType, gameFilter]);
 
-    const map = new Map<string, {
-      score1: number;
-      score2: number;
-      occurrences: number;
-      last_date: string | null;
-      last_home_team: string | null;
-      last_visitor_team: string | null;
-      last_game_id: number | null;
-      source: string | null;
-      box_url: string | null;
-    }>();
-
-    for (const row of yearlyRows) {
-      if (row.year < yearRange[0] || row.year > yearRange[1]) continue;
-
-      const key = `${row.score1}-${row.score2}`;
-      const existing = map.get(key);
-
-      if (!existing) {
-        map.set(key, {
-          score1: row.score1,
-          score2: row.score2,
-          occurrences: Number(row.occurrences),
-          last_date: row.last_date,
-          last_home_team: row.last_home_team,
-          last_visitor_team: row.last_visitor_team,
-          last_game_id: row.last_game_id,
-          source: row.source,
-          box_url: row.box_url ?? null,
-        });
-      } else {
-        existing.occurrences += Number(row.occurrences);
-        if (row.last_date && (!existing.last_date || row.last_date > existing.last_date)) {
-          existing.last_date = row.last_date;
-          existing.last_home_team = row.last_home_team;
-          existing.last_visitor_team = row.last_visitor_team;
-          existing.last_game_id = row.last_game_id;
-          existing.source = row.source;
-          existing.box_url = row.box_url ?? null;
-        }
-      }
-    }
-
-    return Array.from(map.values());
-  }, [yearlyRows, yearRange]);
-
+  const rows = display?.rows;
+  const headerStats = display?.stats ?? null;
+  const statsClub = display?.club ?? club;
 
   const sortedTeamsForDropdown = useMemo(() => {
     return CURRENT_FRANCHISE_CODES.map((code) => ({
@@ -236,122 +409,8 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     })).sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 
-  const quickStats = useMemo(() => {
-    if (!rows || rows.length === 0) return null;
-    const totalGames = rows.reduce((s, r) => s + r.occurrences, 0);
-    const uniqueScores = rows.length;
-
-    const recordRows: YearlyRow[] | undefined =
-      club === "ALL"
-        ? undefined
-        : scorigamiType === "home_away"
-          ? yearlyRows
-          : haYearly;
-    let wins: number | null = null;
-    let losses: number | null = null;
-    let ties = 0;
-    if (club === "ALL") {
-      for (const r of rows) {
-        if (r.score1 === r.score2) ties += Number(r.occurrences);
-      }
-    } else if (recordRows && Array.isArray(recordRows)) {
-      wins = 0;
-      losses = 0;
-      for (const row of recordRows) {
-        if (row.year < yearRange[0] || row.year > yearRange[1]) continue;
-        const n = Number(row.occurrences);
-        if (row.score1 > row.score2) wins += n;
-        else if (row.score1 < row.score2) losses += n;
-        else ties += n;
-      }
-    } else {
-      for (const r of rows) {
-        if (r.score1 === r.score2) ties += Number(r.occurrences);
-      }
-    }
-
-    const isSingleSeason = yearRange[0] === yearRange[1];
-    let recent: {
-      score1: number;
-      score2: number;
-      date: string | null;
-      home: string | null;
-      visitor: string | null;
-    } | null = null;
-    if (isSingleSeason) {
-      const allTime = new Map<string, number>();
-      if (Array.isArray(yearlyRows)) {
-        for (const row of yearlyRows) {
-          const k = `${row.score1}-${row.score2}`;
-          allTime.set(k, (allTime.get(k) ?? 0) + Number(row.occurrences));
-        }
-      }
-      let best: (typeof rows)[number] | null = null;
-      let bestAllTime = Infinity;
-      for (const r of rows) {
-        const k = `${r.score1}-${r.score2}`;
-        const n = allTime.get(k) ?? Number(r.occurrences);
-        if (
-          !best ||
-          n < bestAllTime ||
-          (n === bestAllTime && (r.last_date || "") > (best.last_date || ""))
-        ) {
-          best = r;
-          bestAllTime = n;
-        }
-      }
-      if (best) {
-        recent = {
-          score1: best.score1,
-          score2: best.score2,
-          date: best.last_date,
-          home: best.last_home_team,
-          visitor: best.last_visitor_team,
-        };
-      }
-    } else if (Array.isArray(yearlyRows) && yearlyRows.length > 0) {
-      const first = new Map<string, YearlyRow>();
-      for (const row of yearlyRows) {
-        const k = `${row.score1}-${row.score2}`;
-        const prev = first.get(k);
-        if (!prev || row.year < prev.year) first.set(k, row);
-      }
-      let best: YearlyRow | null = null;
-      for (const row of first.values()) {
-        if (row.year < yearRange[0] || row.year > yearRange[1]) continue;
-        if (
-          !best ||
-          row.year > best.year ||
-          (row.year === best.year && (row.last_date || "") > (best.last_date || ""))
-        ) {
-          best = row;
-        }
-      }
-      if (best) {
-        recent = {
-          score1: best.score1,
-          score2: best.score2,
-          date: best.last_date,
-          home: best.last_home_team,
-          visitor: best.last_visitor_team,
-        };
-      }
-    }
-
-    return { totalGames, uniqueScores, wins, losses, ties, recent };
-  }, [rows, yearlyRows, haYearly, yearRange, club, scorigamiType]);
-
-  // Keep the last known stats on screen during a team/filter reload so the header
-  // never collapses and reappears. Only the grid should show a loading state.
-  const lastStatsRef = useRef(quickStats);
-  if (quickStats) lastStatsRef.current = quickStats;
-  const headerStats = quickStats ?? lastStatsRef.current;
-
-  const isFiltered =
-    club !== initialClub ||
-    gameFilter !== "all" ||
-    yearRange[0] !== MIN_YEAR ||
-    yearRange[1] !== CURRENT_YEAR;
+  const [revealed, setRevealed] = useState(false);
+  const markRevealed = useCallback(() => setRevealed(true), []);
 
   const handleReset = () => {
     setClub(initialClub);
@@ -370,90 +429,132 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     sortedTeamsForDropdown,
     onDropdownOpenChange: handleDropdownOpenChange,
     onReset: handleReset,
-    isFiltered,
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={variant === "single" ? { backgroundColor: "#f2f2f2" } : undefined}>
+    <div className="min-h-screen flex flex-col" style={variant === "single" ? { backgroundColor: "#f2f2f2", fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}>
       {variant === "single" ? (
-        <header className="max-w-[1150px] mx-auto w-full px-3 sm:px-4 pt-6 sm:pt-10 pb-4 sm:pb-5 text-center">
+        <header className="max-w-[1150px] mx-auto w-full px-3 sm:px-4 pt-8 sm:pt-10 pb-5 sm:pb-6 text-center">
             {(() => {
-              const igamiTitle = club === "ALL" ? "MLB Scorigami" : (TEAM_IGAMI[club] ?? "MLB Scorigami");
-              const logoSrc = club === "ALL" ? "/logo3.svg" : (getTeamLogoUrl(club) ?? "/logo3.svg");
+              const igamiTitle = statsClub === "ALL" ? "MLB Scorigami" : (TEAM_IGAMI[statsClub] ?? "MLB Scorigami");
+              const logoSrc = statsClub === "ALL" ? "/logo3.svg" : (getTeamLogoUrl(statsClub) ?? "/logo3.svg");
               const countLabel = "Unique scores";
-              const isSingleSeason = yearRange[0] === yearRange[1];
+              const shownRange = display?.yearRange ?? yearRange;
+              const isSingleSeason = shownRange[0] === shownRange[1];
               const recentLabel = isSingleSeason
                 ? "Rarest score"
-                : club === "ALL"
+                : statsClub === "ALL"
                   ? "Last Scorigami"
                   : `Last ${igamiTitle}`;
               return (
                 <>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={logoSrc} alt={igamiTitle} className="h-14 w-14 sm:h-24 sm:w-24 object-contain flex-none" />
-                    <span className="text-[28px] sm:text-5xl tracking-tight leading-tight text-[#343434] px-1" style={{ fontFamily: "var(--v2-title-font)", fontWeight: "var(--v2-title-weight)" }}>{igamiTitle}</span>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+                    <div className="h-[88px] w-[88px] sm:h-[112px] sm:w-[112px] flex items-center justify-center flex-none">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={logoSrc}
+                        alt={igamiTitle}
+                        className={`object-contain ${
+                          statsClub === "ALL"
+                            ? "h-[64px] w-[64px] sm:h-[80px] sm:w-[80px]"
+                            : "h-full w-full"
+                        }`}
+                      />
+                    </div>
+                    <span
+                      className="text-[36px] sm:text-[48px] tracking-tight leading-tight text-[#343434] px-1"
+                      style={{
+                        fontFamily: "var(--v2-title-font)",
+                        fontWeight: "var(--v2-title-weight)",
+                        WebkitTextStroke: "0.4px #343434",
+                      }}
+                    >{igamiTitle}</span>
                   </div>
                   <div
-                    className="mt-3 sm:mt-4 min-h-[3.1rem] px-1 sm:px-4 text-[13px] sm:text-[17px] leading-snug sm:leading-[1.55]"
+                    className="mt-3.5 sm:mt-4 min-h-[5.25rem] sm:min-h-[3.3rem] px-1 sm:px-4 text-[16px] sm:text-[17px] leading-snug sm:leading-[1.55]"
                     style={{
                       fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
                       fontWeight: 400,
                       color: "#343434",
+                      opacity: revealed ? 1 : 0,
+                      transition: revealed ? "opacity 160ms ease-out" : undefined,
                     }}
                   >
                     {headerStats && (
                       <>
-                        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5">
-                          <span>
-                            <span style={{ color: "#0b162a" }}>Games: </span>
-                            <span className="font-bold tabular-nums">
-                              {headerStats.totalGames.toLocaleString()}
-                            </span>
-                          </span>
-                          {club !== "ALL" && headerStats.wins != null && headerStats.losses != null && (
-                            <>
-                              <span>
-                                <span style={{ color: "#2d91ff" }}>Wins: </span>
-                                <span className="font-bold tabular-nums" style={{ color: "#2d91ff" }}>
-                                  {headerStats.wins.toLocaleString()}
+                        <div className="flex flex-col items-center gap-1.5 sm:gap-0">
+                          <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-3 sm:gap-y-0.5">
+                            {statsClub === "ALL" ? (
+                              <>
+                                <span>
+                                  <span style={{ color: "#343434" }}>Games: </span>
+                                  <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
+                                    {headerStats.totalGames.toLocaleString()}
+                                  </span>
                                 </span>
-                              </span>
-                              <span>
-                                <span style={{ color: "#909090" }}>Losses: </span>
-                                <span className="font-bold tabular-nums" style={{ color: "#909090" }}>
-                                  {headerStats.losses.toLocaleString()}
+                                <span>
+                                  <span style={{ color: "#0b162a" }}>{countLabel}: </span>
+                                  <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
+                                    {headerStats.uniqueScores.toLocaleString()}
+                                  </span>
                                 </span>
-                              </span>
-                              <span>
-                                <span style={{ color: "#4d6592" }}>Ties: </span>
-                                <span className="font-bold tabular-nums" style={{ color: "#4d6592" }}>
-                                  {headerStats.ties.toLocaleString()}
+                              </>
+                            ) : (
+                              <>
+                                <span className="flex flex-wrap items-center justify-center gap-x-3">
+                                  <span>
+                                    <span style={{ color: "#343434" }}>Games: </span>
+                                    <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
+                                      {headerStats.totalGames.toLocaleString()}
+                                    </span>
+                                  </span>
+                                  <span>
+                                    <span style={{ color: "#0b162a" }}>{countLabel}: </span>
+                                    <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
+                                      {headerStats.uniqueScores.toLocaleString()}
+                                    </span>
+                                  </span>
                                 </span>
-                              </span>
-                            </>
-                          )}
-                          <span>
-                            <span style={{ color: "#0b162a" }}>{countLabel}: </span>
-                            <span className="font-bold tabular-nums">
-                              {headerStats.uniqueScores.toLocaleString()}
-                            </span>
-                          </span>
-                        </div>
-                        {headerStats.recent && (
-                          <div>
-                            <span style={{ color: "#0b162a" }}>{recentLabel}: </span>
-                            <span className="font-bold tabular-nums">
-                              {headerStats.recent.score1}–{headerStats.recent.score2}
-                            </span>
-                            {headerStats.recent.date && (
-                              <span className="font-bold">
-                                {" "}
-                                · {formatMetaDate(headerStats.recent.date)}
-                              </span>
+                                {headerStats.wins != null && headerStats.losses != null && (
+                                  <span className="flex flex-wrap items-center justify-center gap-x-3">
+                                    <span>
+                                      <span style={{ color: "#2d7a4f" }}>Wins: </span>
+                                      <span className="font-bold tabular-nums" style={{ color: "#2d7a4f" }}>
+                                        {headerStats.wins.toLocaleString()}
+                                      </span>
+                                    </span>
+                                    <span>
+                                      <span style={{ color: "#8a4a4a" }}>Losses: </span>
+                                      <span className="font-bold tabular-nums" style={{ color: "#8a4a4a" }}>
+                                        {headerStats.losses.toLocaleString()}
+                                      </span>
+                                    </span>
+                                    <span>
+                                      <span style={{ color: "#5a6a7a" }}>Ties: </span>
+                                      <span className="font-bold tabular-nums" style={{ color: "#5a6a7a" }}>
+                                        {headerStats.ties.toLocaleString()}
+                                      </span>
+                                    </span>
+                                  </span>
+                                )}
+                              </>
                             )}
                           </div>
-                        )}
+                          {headerStats.recent && (
+                            <div>
+                              <span style={{ color: "#0b162a" }}>{recentLabel}: </span>
+                              <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
+                                {headerStats.recent.score1}–{headerStats.recent.score2}
+                              </span>
+                              {headerStats.recent.date && (
+                                <span className="font-bold" style={{ color: "#343434" }}>
+                                  {" "}
+                                  · {formatMetaDate(headerStats.recent.date)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </>
                     )}
                   </div>
@@ -463,8 +564,8 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
         </header>
       ) : (
         <NavBar
-          totalGames={quickStats?.totalGames}
-          uniqueScores={quickStats?.uniqueScores}
+          totalGames={headerStats?.totalGames}
+          uniqueScores={headerStats?.uniqueScores}
         />
       )}
 
@@ -503,7 +604,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
             </div>
           )}
 
-          {isValidating && (
+          {isValidating && yearlyRows && (
             <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden z-50">
               <div className="h-full w-full bg-gradient-to-r from-transparent via-blue-500/40 to-transparent animate-shimmer" />
             </div>
@@ -522,16 +623,18 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
           ) : (
             <ScorigamiHeatmap
               rows={rows}
-              isLoading={isLoading && !yearlyRows}
-              scorigamiType={scorigamiType}
-              club={club}
+              isLoading={isLoading && !view}
+              scorigamiType={display?.scorigamiType ?? scorigamiType}
+              club={display?.club ?? club}
               gridSize={gridSize}
               isGhostClick={isGhostClick}
               dark={variant !== "single"}
               colCount={variant === "single" ? 51 : undefined}
               rowCount={variant === "single" ? 41 : undefined}
-              skeleton={variant === "single" && !rows}
+              skeleton={false}
               bearigamiGrid={variant === "single"}
+              revealed={variant === "single" ? revealed : true}
+              onPainted={variant === "single" ? markRevealed : undefined}
               onToggleType={variant === "single"
                 ? () => setScorigamiType(scorigamiType === "traditional" ? "home_away" : "traditional")
                 : undefined

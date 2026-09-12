@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
-import { Cookie, Source_Sans_3, Spline_Sans_Mono } from "next/font/google";
+import { Cookie, Source_Sans_3, Anonymous_Pro } from "next/font/google";
 
 const cookie = Cookie({ subsets: ["latin"], weight: "400", variable: "--font-cookie" });
 const sourceSans = Source_Sans_3({
@@ -9,10 +9,10 @@ const sourceSans = Source_Sans_3({
   weight: ["400", "500", "600", "700"],
   variable: "--font-source-sans",
 });
-const splineMono = Spline_Sans_Mono({
+const anonymousPro = Anonymous_Pro({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-spline-mono",
+  weight: ["400", "700"],
+  variable: "--font-anonymous-pro",
 });
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -78,8 +78,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${sourceSans.variable} ${splineMono.variable} scroll-smooth`} suppressHydrationWarning>
+    <html lang="en" className={`${sourceSans.variable} ${anonymousPro.variable} scroll-smooth`} suppressHydrationWarning>
       <body className={`${GeistSans.variable} ${GeistMono.variable} ${cookie.variable} font-sans antialiased`}>
+        <link rel="preload" href="/scorigami-data/traditional/ALL.json" as="fetch" crossOrigin="anonymous" />
+        <link rel="preload" href="/scorigami-data/homeaway/ALL.json" as="fetch" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

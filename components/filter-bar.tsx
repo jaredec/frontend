@@ -178,122 +178,134 @@ function BearYearSlider({
   maxYear,
   yearRange,
   onChange,
+  haltNote,
 }: {
   minYear: number;
   maxYear: number;
   yearRange: [number, number];
   onChange: (value: [number, number]) => void;
+  haltNote?: string;
 }) {
   const sentinel = maxYear + 1;
   const [local, setLocal] = useState(() => yearToSliderValue(yearRange, sentinel));
   const draggingRef = useRef(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const labelRef = useRef<HTMLSpanElement>(null);
+  const lastFlushedRef = useRef(local);
+  const trackRef = useRef<HTMLDivElement>(null);
 
-  const positionLabel = (val: number) => {
-    const slider = inputRef.current;
-    const label = labelRef.current;
-    if (!slider || !label) return;
-    const min = Number(slider.min);
-    const max = Number(slider.max);
-    const pct = max === min ? 0.5 : (val - min) / (max - min);
-    label.style.left = `calc(16px + ${pct} * (100% - 32px))`;
-  };
-
-  useLayoutEffect(() => {
-    if (draggingRef.current) return;
-    const next = yearToSliderValue(yearRange, sentinel);
-    setLocal(next);
-    positionLabel(next);
-  }, [yearRange, sentinel]);
-
-  useEffect(() => {
-    const onResize = () => positionLabel(Number(inputRef.current?.value ?? local));
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [local]);
-
-  const commit = (v: number) => {
-    setLocal(v);
-    positionLabel(v);
+  const flush = (v: number) => {
+    if (v === lastFlushedRef.current) return;
+    lastFlushedRef.current = v;
     if (v === sentinel) onChange([minYear, maxYear]);
     else onChange([v, v]);
   };
 
+  const applyFromPointer = (clientX: number) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const rect = track.getBoundingClientRect();
+    const pad = 16;
+    const usable = Math.max(rect.width - pad * 2, 1);
+    const pct = (clientX - rect.left - pad) / usable;
+    const raw = minYear + pct * (sentinel - minYear);
+    const v = Math.round(Math.min(sentinel, Math.max(minYear, raw)));
+    setLocal(v);
+    flush(v);
+  };
+
+  useLayoutEffect(() => {
+    if (draggingRef.current) return;
+    let next = yearToSliderValue(yearRange, sentinel);
+    if (next !== sentinel) next = Math.min(maxYear, Math.max(minYear, next));
+    lastFlushedRef.current = next;
+    setLocal(next);
+  }, [yearRange, sentinel, minYear, maxYear]);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    applyFromPointer(e.clientX);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    applyFromPointer(e.clientX);
+  };
+
+  const onPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    applyFromPointer(e.clientX);
+  };
+
+  const nudge = (delta: number) => {
+    const next = Math.min(sentinel, Math.max(minYear, local + delta));
+    setLocal(next);
+    flush(next);
+  };
+
+  const pct = sentinel === minYear ? 0.5 : (local - minYear) / (sentinel - minYear);
+  const showHalt = Boolean(haltNote) && local === minYear;
+
   return (
-    <div className="relative w-full h-8 flex items-center">
-      <style>{`
-        .bear-year-slider {
-          width: 100%;
-          -webkit-appearance: none;
-          appearance: none;
-          background: #cbcbcb;
-          height: 8px;
-          border-radius: 999px;
-          outline: none;
-          margin: 0;
-          padding: 0;
-          cursor: pointer;
-          touch-action: pan-y;
-        }
-        .bear-year-slider::-webkit-slider-runnable-track {
-          height: 8px;
-          background: #cbcbcb;
-          border-radius: 999px;
-        }
-        .bear-year-slider::-moz-range-track {
-          height: 8px;
-          background: #cbcbcb;
-          border-radius: 999px;
-          border: none;
-        }
-        .bear-year-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: transparent;
-          border: none;
-          box-shadow: none;
-          margin-top: -12px;
-        }
-        .bear-year-slider::-moz-range-thumb {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: transparent;
-          border: none;
-          box-shadow: none;
-        }
-      `}</style>
-      <input
-        ref={inputRef}
-        type="range"
-        className="bear-year-slider"
-        min={minYear}
-        max={sentinel}
-        step={1}
-        value={local}
+    <div className="w-full">
+      <div
+        ref={trackRef}
+        role="slider"
+        tabIndex={0}
         aria-label="Year slider"
-        onPointerDown={() => { draggingRef.current = true; }}
-        onPointerUp={() => { draggingRef.current = false; }}
-        onPointerCancel={() => { draggingRef.current = false; }}
-        onChange={(e) => commit(Number(e.target.value))}
-      />
-      <span
-        ref={labelRef}
-        className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none whitespace-nowrap rounded-full px-[10px] pt-[2px] pb-[4px]"
-        style={{
-          background: "#0b162a",
-          color: "#ffffff",
-          fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
-          fontSize: 12,
-          fontWeight: 600,
+        aria-valuemin={minYear}
+        aria-valuemax={sentinel}
+        aria-valuenow={local}
+        aria-valuetext={local === sentinel ? "ALL" : String(local)}
+        className="relative w-full h-8 flex items-center cursor-pointer select-none"
+        style={{ touchAction: "none" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerEnd}
+        onPointerCancel={onPointerEnd}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+            e.preventDefault();
+            nudge(-1);
+          } else if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+            e.preventDefault();
+            nudge(1);
+          } else if (e.key === "Home") {
+            e.preventDefault();
+            nudge(minYear - local);
+          } else if (e.key === "End") {
+            e.preventDefault();
+            nudge(sentinel - local);
+          }
         }}
       >
-        {local === sentinel ? "ALL" : String(local)}
-      </span>
+        <div className="absolute left-0 right-0 h-2 rounded-full bg-[#cbcbcb]" />
+        <span
+          className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none whitespace-nowrap rounded-full px-[10px] pt-[2px] pb-[4px]"
+          style={{
+            background: "#0b162a",
+            color: "#ffffff",
+            fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
+            fontSize: 12,
+            fontWeight: 600,
+            left: `calc(16px + ${pct} * (100% - 32px))`,
+          }}
+        >
+          {local === sentinel ? "ALL" : String(local)}
+        </span>
+      </div>
+      <p
+        className="h-5 mt-0.5 text-center text-[12px] sm:text-[13px] leading-5 text-[#5a6a7a] transition-opacity duration-150"
+        style={{
+          fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
+          opacity: showHalt ? 1 : 0,
+        }}
+        aria-hidden={!showHalt}
+        aria-live="polite"
+      >
+        {haltNote ?? ""}
+      </p>
     </div>
   );
 }
@@ -309,7 +321,6 @@ interface FilterBarProps {
   sortedTeamsForDropdown: { code: string; name: string }[];
   onDropdownOpenChange?: (open: boolean) => void;
   onReset?: () => void;
-  isFiltered?: boolean;
   stacked?: boolean;
 }
 
@@ -324,7 +335,6 @@ export default function FilterBar({
   sortedTeamsForDropdown,
   onDropdownOpenChange,
   onReset,
-  isFiltered = false,
   stacked = false,
 }: FilterBarProps) {
   const isDark = !stacked;
@@ -494,12 +504,13 @@ export default function FilterBar({
 
       {/* Row 2: Year slider */}
       {stacked ? (
-        <div className="w-[85%] md:w-[90%] max-w-[1150px] mx-auto">
+        <div className="w-full md:w-[90%] max-w-[1150px] mx-auto">
           <BearYearSlider
-            minYear={MIN_YEAR}
-            maxYear={CURRENT_YEAR}
+            minYear={dataMin}
+            maxYear={dataMax}
             yearRange={yearRange}
             onChange={setYearRange}
+            haltNote={club === "ALL" ? undefined : `No games before ${dataMin}`}
           />
         </div>
       ) : (

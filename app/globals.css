@@ -48,8 +48,8 @@ html {
 }
 
 :root {
-  --v2-title-font: var(--font-spline-mono, "Spline Sans Mono", ui-monospace, monospace);
-  --v2-title-weight: 600;
+  --v2-title-font: var(--font-anonymous-pro, "Anonymous Pro", ui-monospace, monospace);
+  --v2-title-weight: 700;
   --v2-ui-font: var(--font-source-sans, "Source Sans 3", system-ui, sans-serif);
   --radius: 0.125rem;
   --background: oklch(1 0 0);
@@ -138,3 +138,4 @@ html {
 .animate-shimmer {
   animation: shimmer 1.5s ease-in-out infinite;
 }
+
