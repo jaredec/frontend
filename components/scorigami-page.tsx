@@ -362,9 +362,10 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   }, [cache, dataKey, haKey, yearlyRows, haYearly, club, scorigamiType, gameFilter, variant]);
 
   const dataYearBounds = useMemo<[number, number]>(() => {
-    const src = view?.yearly;
-    if (!Array.isArray(src) || src.length === 0) return [MIN_YEAR, CURRENT_YEAR];
-    return sliderSpan(src, view.gameFilter);
+    if (!view || !Array.isArray(view.yearly) || view.yearly.length === 0) {
+      return [MIN_YEAR, CURRENT_YEAR];
+    }
+    return sliderSpan(view.yearly, view.gameFilter);
   }, [view]);
 
   useEffect(() => {
