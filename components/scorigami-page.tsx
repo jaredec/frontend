@@ -442,11 +442,16 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
               const countLabel = "Unique scores";
               const shownRange = display?.yearRange ?? yearRange;
               const isSingleSeason = shownRange[0] === shownRange[1];
+              const statsType = display?.scorigamiType ?? scorigamiType;
               const recentLabel = isSingleSeason
                 ? "Rarest score"
-                : statsClub === "ALL"
-                  ? "Last Scorigami"
-                  : `Last ${igamiTitle}`;
+                : statsClub !== "ALL"
+                  ? `Last ${igamiTitle}`
+                  : statsType === "home_away"
+                    ? (headerStats?.recent && headerStats.recent.score1 < headerStats.recent.score2
+                        ? "Last Awayigami"
+                        : "Last Homeigami")
+                    : "Last Scorigami";
               return (
                 <>
                   <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">

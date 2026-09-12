@@ -38,13 +38,13 @@ export const getTeamLogoUrl = (code: string, isDark = false): string | null => {
 // Per-team "-igami"/"-gami" title, keyed by franchise code.
 // Nicknames that singularize to -er drop the s (Dodgergami, Rangergami).
 export const TEAM_IGAMI: Record<string, string> = {
-  LAA: "Angelgami", ARI: "Dbacksigami", ATL: "Bravesigami",
+  LAA: "Angelsigami", ARI: "Dbacksigami", ATL: "Bravesigami",
   BAL: "O'sigami", BOS: "Red Soxigami", CWS: "White Soxigami",
   CHC: "Cubsigami", CIN: "Redsigami", CLE: "Guardsigami",
   COL: "Rocksigami", DET: "Tigergami", HOU: "Astrosigami",
-  KC: "Royalgami", LAD: "Dodgergami", MIA: "Fishigami",
+  KC: "Royalsigami", LAD: "Dodgergami", MIA: "Fishigami",
   MIL: "Brewergami", MIN: "Twinsigami", NYY: "Yankeegami",
-  NYM: "Metsigami", OAK: "A'sigami", PHI: "Philliegami",
+  NYM: "Metsigami", OAK: "A'sigami", PHI: "Philsigami",
   PIT: "Bucsigami", SD: "Padsigami", SEA: "M'sigami",
   SFG: "Giantsigami", STL: "Cardsigami", TB: "Raysigami",
   TEX: "Rangergami", TOR: "Jaysigami", WSH: "Natsigami",
