@@ -77,6 +77,8 @@ type AggRow = {
   last_date: string | null;
   last_home_team: string | null;
   last_visitor_team: string | null;
+  last_home_score?: number | null;
+  last_visitor_score?: number | null;
   last_game_id: number | null;
   source: string | null;
   box_url: string | null;
@@ -105,6 +107,8 @@ function aggregateRows(yearly: YearlyRow[], yearRange: [number, number]): AggRow
         last_date: row.last_date,
         last_home_team: row.last_home_team,
         last_visitor_team: row.last_visitor_team,
+        last_home_score: row.last_home_score ?? null,
+        last_visitor_score: row.last_visitor_score ?? null,
         last_game_id: row.last_game_id,
         source: row.source,
         box_url: row.box_url ?? null,
@@ -115,6 +119,8 @@ function aggregateRows(yearly: YearlyRow[], yearRange: [number, number]): AggRow
         existing.last_date = row.last_date;
         existing.last_home_team = row.last_home_team;
         existing.last_visitor_team = row.last_visitor_team;
+        existing.last_home_score = row.last_home_score ?? null;
+        existing.last_visitor_score = row.last_visitor_score ?? null;
         existing.last_game_id = row.last_game_id;
         existing.source = row.source;
         existing.box_url = row.box_url ?? null;

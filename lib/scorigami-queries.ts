@@ -19,6 +19,8 @@ export interface YearlyRow {
   last_date: string | null;
   last_home_team: string | null;
   last_visitor_team: string | null;
+  last_home_score?: number | null;
+  last_visitor_score?: number | null;
   last_game_id: number | null;
   source: string | null;
   box_url: string | null;
@@ -109,6 +111,7 @@ async function fetchYearlyScorigami(
     const result = await pool.query(`
       SELECT v.year, v.score1, v.score2, v.occurrences::int,
              v.last_date::text, v.last_home_team, v.last_visitor_team,
+             bx.home_score AS last_home_score, bx.visitor_score AS last_visitor_score,
              v.last_game_id, v.source, bx.box_url
       FROM ${view} v
       LEFT JOIN gamelogs bx ON bx.game_id = v.last_game_id
@@ -132,6 +135,8 @@ async function fetchYearlyScorigami(
         MAX(g.date)::text AS last_date,
         (ARRAY_AGG(g.home_team    ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_home_team,
         (ARRAY_AGG(g.visitor_team ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_visitor_team,
+        (ARRAY_AGG(g.home_score   ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_home_score,
+        (ARRAY_AGG(g.visitor_score ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_visitor_score,
         (ARRAY_AGG(g.game_id      ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_game_id,
         (ARRAY_AGG(g.source       ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS source,
         (ARRAY_AGG(g.box_url      ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS box_url
@@ -158,6 +163,8 @@ async function fetchYearlyScorigami(
       MAX(g.date)::text AS last_date,
       (ARRAY_AGG(g.home_team    ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_home_team,
       (ARRAY_AGG(g.visitor_team ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_visitor_team,
+      (ARRAY_AGG(g.home_score   ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_home_score,
+      (ARRAY_AGG(g.visitor_score ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_visitor_score,
       (ARRAY_AGG(g.game_id      ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS last_game_id,
       (ARRAY_AGG(g.source       ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS source,
       (ARRAY_AGG(g.box_url      ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1] AS box_url

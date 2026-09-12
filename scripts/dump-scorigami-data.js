@@ -41,6 +41,7 @@ async function fetchView(view, teamId) {
   const { rows } = await pool.query(
     `SELECT v.year, v.score1, v.score2, v.occurrences::int,
             v.last_date::text, v.last_home_team, v.last_visitor_team,
+            bx.home_score AS last_home_score, bx.visitor_score AS last_visitor_score,
             v.last_game_id, v.source, bx.box_url
      FROM ${view} v
      LEFT JOIN gamelogs bx ON bx.game_id = v.last_game_id

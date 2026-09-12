@@ -15,6 +15,8 @@ interface ApiRow {
   last_date: string | null;
   last_home_team: string | null;
   last_visitor_team: string | null;
+  last_home_score?: number | null;
+  last_visitor_score?: number | null;
   last_game_id: number | null;
   source: string | null;
   box_url: string | null;
@@ -36,6 +38,43 @@ const formatDisplayDate = (iso: string) =>
     year: "numeric",
     timeZone: "UTC",
   });
+
+function lastMatchupLine(row: ApiRow, scorigamiType: ScorigamiType, club: string): string | null {
+  const home = row.last_home_team;
+  const visitor = row.last_visitor_team;
+  if (!home || !visitor) return null;
+
+  const toScore = (value: unknown): number | null => {
+    if (value == null || value === "") return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  let homeScore = toScore(row.last_home_score);
+  let visitorScore = toScore(row.last_visitor_score);
+  if (homeScore == null || visitorScore == null) {
+    if (scorigamiType === "home_away") {
+      if (club === "ALL") {
+        homeScore = toScore(row.score1);
+        visitorScore = toScore(row.score2);
+      } else {
+        const name = TEAM_NAMES[club];
+        if (name && home === name) {
+          homeScore = toScore(row.score1);
+          visitorScore = toScore(row.score2);
+        } else if (name && visitor === name) {
+          visitorScore = toScore(row.score1);
+          homeScore = toScore(row.score2);
+        }
+      }
+    }
+  }
+
+  if (homeScore == null || visitorScore == null || homeScore === visitorScore) {
+    return `${home} vs ${visitor}`;
+  }
+  return homeScore > visitorScore ? `${home} vs ${visitor}` : `${visitor} vs ${home}`;
+}
 
 const freqText = (f: number) =>
   f === 1 ? "1 game" : `${f.toLocaleString()} games`;
@@ -603,7 +642,7 @@ export default function ScorigamiHeatmap({
                                           {formatDisplayDate(rowData.last_date)}
                                         </div>
                                         <div className="text-slate-500 dark:text-slate-400">
-                                          {rowData.last_home_team} vs {rowData.last_visitor_team}
+                                          {lastMatchupLine(rowData, scorigamiType, club)}
                                         </div>
                                         {boxScoreHref(rowData) && (
                                           <a
