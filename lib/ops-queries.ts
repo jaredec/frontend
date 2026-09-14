@@ -104,6 +104,145 @@ export async function getPipelineHealth(): Promise<PipelineHealth> {
   };
 }
 
+export interface UnpostedFinal {
+  gamePk: number;
+  away: string;
+  home: string;
+  awayScore: number | null;
+  homeScore: number | null;
+  minutesSinceFinal: number | null; // null = couldn't read end time (treat as stuck)
+}
+
+interface ScheduleGameLite {
+  gamePk: number;
+  gameType: string;
+  status: { codedGameState: string };
+  teams: {
+    away: { team: { name: string }; score?: number };
+    home: { team: { name: string }; score?: number };
+  };
+}
+
+// The truest health check: does every game the MLB API considers Final actually
+// have a Final post? This catches a stuck game regardless of *why* it stuck —
+// REST timeout, cron down, broken deploy, logic bug — because it compares the
+// real-world outcome (schedule says Final) against our record (posted_updates),
+// not the cron's own success signal (which stays 200 even when a game errors).
+export async function getUnpostedFinals(): Promise<UnpostedFinal[]> {
+  try {
+    const res = await fetch("https://statsapi.mlb.com/api/v1/schedule/games/?sportId=1", { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { dates?: { games: ScheduleGameLite[] }[] };
+    const games = data.dates?.[0]?.games ?? [];
+    const finals = games.filter(
+      (g) =>
+        (g.status?.codedGameState === "F" || g.status?.codedGameState === "O") &&
+        ["R", "F", "D", "L", "W"].includes(g.gameType)
+    );
+    if (finals.length === 0) return [];
+
+    const { rows } = await pool.query(
+      `SELECT game_id FROM posted_updates WHERE post_type = 'Final' AND game_id = ANY($1)`,
+      [finals.map((g) => g.gamePk)]
+    );
+    const posted = new Set(rows.map((r) => Number(r.game_id)));
+    const missing = finals.filter((g) => !posted.has(g.gamePk));
+
+    // Healthy case is zero missing → zero extra fetches. Only probe the live
+    // feed for the stragglers, to learn how long each has actually been Final.
+    return await Promise.all(
+      missing.map(async (g) => {
+        let minutesSinceFinal: number | null = null;
+        try {
+          const f = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${g.gamePk}/feed/live`, { cache: "no-store" });
+          if (f.ok) {
+            const d = (await f.json()) as {
+              liveData?: { plays?: { allPlays?: { about?: { endTime?: string } }[] } };
+            };
+            const plays = d.liveData?.plays?.allPlays;
+            const endTime = plays && plays.length ? plays[plays.length - 1]?.about?.endTime : undefined;
+            if (endTime) minutesSinceFinal = Math.floor((Date.now() - new Date(endTime).getTime()) / 60000);
+          }
+        } catch {
+          // feed probe failed — leave null, surfaced as stuck rather than hidden
+        }
+        return {
+          gamePk: g.gamePk,
+          away: g.teams?.away?.team?.name ?? "?",
+          home: g.teams?.home?.team?.name ?? "?",
+          awayScore: g.teams?.away?.score ?? null,
+          homeScore: g.teams?.home?.score ?? null,
+          minutesSinceFinal,
+        };
+      })
+    );
+  } catch {
+    return [];
+  }
+}
+
+export interface SupabaseApiHealth {
+  available: boolean; // false when no token / endpoint unreachable
+  windowHours: number;
+  total: number;
+  errors: number; // 5xx responses (the 504s live here)
+  successRate: number | null; // (total - errors) / total
+}
+
+// Reads the platform-level REST success rate straight from Supabase's own logs
+// (the "84.6%" number the dashboard shows) via the Management API. Needs a
+// personal access token in SUPABASE_ACCESS_TOKEN; degrades gracefully to
+// "unavailable" without one, mirroring how getCronHealth handles a missing key.
+export async function getSupabaseApiHealth(windowHours = 6): Promise<SupabaseApiHealth> {
+  const empty: SupabaseApiHealth = { available: false, windowHours, total: 0, errors: 0, successRate: null };
+  const token = process.env.SUPABASE_ACCESS_TOKEN;
+  const projectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!token || !projectUrl) return empty;
+  const ref = projectUrl.match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1];
+  if (!ref) return empty;
+
+  // BigQuery over the edge (API gateway) logs. Nested arrays must be unnested.
+  // The time window is controlled by the iso_timestamp_start/end query params,
+  // NOT a WHERE clause — a timestamp filter in the SQL is silently ignored and
+  // returns zero rows.
+  const sql = `
+    select
+      count(*) as total,
+      countif(cast(response.status_code as int64) >= 500) as errors
+    from edge_logs
+    cross join unnest(metadata) as m
+    cross join unnest(m.request) as request
+    cross join unnest(m.response) as response
+    where request.path like '/rest/v1/%'
+  `;
+  const end = new Date();
+  const start = new Date(end.getTime() - windowHours * 3600000);
+  try {
+    const res = await fetch(
+      `https://api.supabase.com/v1/projects/${ref}/analytics/endpoints/logs.all` +
+        `?sql=${encodeURIComponent(sql)}` +
+        `&iso_timestamp_start=${encodeURIComponent(start.toISOString())}` +
+        `&iso_timestamp_end=${encodeURIComponent(end.toISOString())}`,
+      { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
+    );
+    if (!res.ok) return empty;
+    const json = (await res.json()) as { result?: { total?: number; errors?: number }[] };
+    const row = json.result?.[0];
+    if (!row) return { ...empty, available: true };
+    const total = Number(row.total ?? 0);
+    const errors = Number(row.errors ?? 0);
+    return {
+      available: true,
+      windowHours,
+      total,
+      errors,
+      successRate: total > 0 ? (total - errors) / total : null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
 export interface StaticFreshness {
   staticLastDate: string | null; // newest last_date present in the deployed ALL.json
   checkedUrl: string;
