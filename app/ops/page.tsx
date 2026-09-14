@@ -83,14 +83,17 @@ export default async function OpsPage({
   }
 
   const now = Date.now();
-  const [pipeline, cronJobs, staticData, posts, unpostedFinals, supabaseApi] = await Promise.all([
+  const [pipeline, cronJobs, staticData, posts, unpostedFinals, apiDay, apiHour] = await Promise.all([
     getPipelineHealth(),
     getCronHealth(),
     getStaticFreshness(),
     getRecentPosts(),
     getUnpostedFinals(),
-    getSupabaseApiHealth(),
+    getSupabaseApiHealth(24), // trailing 24h — catches a recent incident
+    getSupabaseApiHealth(1), //  last 60m — current health
   ]);
+  const apiPct = (h: typeof apiDay) =>
+    !h.available ? "no token" : h.successRate === null ? "idle" : `${(h.successRate * 100).toFixed(1)}%`;
 
   // A Final the MLB API reports but we haven't posted. null minutes = couldn't
   // confirm end time, treated as stuck (better a false alarm than a silent miss).
@@ -160,22 +163,19 @@ export default async function OpsPage({
     },
     {
       label: "Supabase REST",
-      value: !supabaseApi.available
-        ? "no token"
-        : supabaseApi.successRate === null
-        ? "no traffic"
-        : `${(supabaseApi.successRate * 100).toFixed(1)}%`,
-      sub: supabaseApi.available
-        ? `${supabaseApi.total.toLocaleString()} reqs · ${supabaseApi.errors} 5xx (${supabaseApi.windowHours}h)`
+      // Headline = 60m (current health); 24h shown below for recent-incident context.
+      value: !apiHour.available ? "no token" : `60m ${apiPct(apiHour)}`,
+      sub: apiDay.available
+        ? `24h ${apiPct(apiDay)} · ${apiDay.total.toLocaleString()} req, ${apiDay.errors} 5xx`
         : "set SUPABASE_ACCESS_TOKEN",
-      // Unavailable or idle → neutral green (no signal, not a failure). With
-      // traffic: green ≥99%, amber ≥95%, red below (today was 84.6%).
-      ok: !supabaseApi.available || supabaseApi.successRate === null || supabaseApi.successRate >= 0.99,
+      // Dot reflects the last 60m (idle/no-token → neutral green). With traffic:
+      // green ≥99%, amber ≥95%, red below.
+      ok: !apiHour.available || apiHour.successRate === null || apiHour.successRate >= 0.99,
       warn:
-        supabaseApi.available &&
-        supabaseApi.successRate !== null &&
-        supabaseApi.successRate >= 0.95 &&
-        supabaseApi.successRate < 0.99,
+        apiHour.available &&
+        apiHour.successRate !== null &&
+        apiHour.successRate >= 0.95 &&
+        apiHour.successRate < 0.99,
     },
   ];
 
