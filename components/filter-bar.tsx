@@ -191,9 +191,6 @@ function BearYearSlider({
   const draggingRef = useRef(false);
   const lastFlushedRef = useRef(local);
   const trackRef = useRef<HTMLDivElement>(null);
-  // Pointer samples during a drag. Used to ignore the last twitch of a thumb lift,
-  // which is several years of travel on a ~2px-per-year track.
-  const samplesRef = useRef<{ t: number; v: number; x: number }[]>([]);
 
   const flush = (v: number) => {
     if (v === lastFlushedRef.current) return;
@@ -202,54 +199,17 @@ function BearYearSlider({
     else onChange([v, v]);
   };
 
-  const yearFromX = (clientX: number) => {
+  const applyFromPointer = (clientX: number) => {
     const track = trackRef.current;
-    if (!track) return null;
+    if (!track) return;
     const rect = track.getBoundingClientRect();
     const pad = 16;
     const usable = Math.max(rect.width - pad * 2, 1);
     const pct = (clientX - rect.left - pad) / usable;
     const raw = minYear + pct * (sentinel - minYear);
-    return Math.round(Math.min(sentinel, Math.max(minYear, raw)));
-  };
-
-  const applyYear = (v: number, t: number, x: number) => {
-    samplesRef.current.push({ t, v, x });
-    if (samplesRef.current.length > 50) samplesRef.current.splice(0, samplesRef.current.length - 40);
+    const v = Math.round(Math.min(sentinel, Math.max(minYear, raw)));
     setLocal(v);
     flush(v);
-  };
-
-  const applyFromPointer = (clientX: number, t: number) => {
-    const v = yearFromX(clientX);
-    if (v == null) return;
-    // Holding still: ignore the 1–10px wobble of a resting thumb. That wobble is
-    // multiple years on this track. Real drags move more than 12px in 90ms.
-    if (v !== lastFlushedRef.current && samplesRef.current.length >= 2) {
-      const recent = samplesRef.current.filter((s) => t - s.t <= 90);
-      if (recent.length >= 2) {
-        const xs = recent.map((s) => s.x);
-        xs.push(clientX);
-        if (Math.max(...xs) - Math.min(...xs) < 12) {
-          samplesRef.current.push({ t, v: lastFlushedRef.current, x: clientX });
-          if (samplesRef.current.length > 50) samplesRef.current.splice(0, samplesRef.current.length - 40);
-          return;
-        }
-      }
-    }
-    applyYear(v, t, clientX);
-  };
-
-  // Lifting a finger always jogs the last coordinates. Prefer the year from just
-  // before that; if the gesture was a quick flick, fall back closer to the end.
-  const yearAtRelease = (now: number) => {
-    const samples = samplesRef.current;
-    if (samples.length === 0) return null;
-    const older = samples.filter((s) => now - s.t >= 70);
-    if (older.length > 0) return older[older.length - 1].v;
-    const tail = samples.filter((s) => now - s.t >= 25);
-    const pool = tail.length > 0 ? tail : samples;
-    return pool[pool.length - 1].v;
   };
 
   useLayoutEffect(() => {
@@ -263,25 +223,19 @@ function BearYearSlider({
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
     draggingRef.current = true;
-    samplesRef.current = [];
     e.currentTarget.setPointerCapture(e.pointerId);
-    applyFromPointer(e.clientX, e.timeStamp);
+    applyFromPointer(e.clientX);
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!draggingRef.current) return;
-    applyFromPointer(e.clientX, e.timeStamp);
+    applyFromPointer(e.clientX);
   };
 
-  const onPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!draggingRef.current) return;
+  const onPointerEnd = () => {
+    // Do not reread the pointer on lift. That last twitch is several years on
+    // this track. Keep the year from the last move.
     draggingRef.current = false;
-    const stable = yearAtRelease(e.timeStamp);
-    if (stable != null) {
-      setLocal(stable);
-      flush(stable);
-    }
-    samplesRef.current = [];
   };
 
   const nudge = (delta: number) => {
