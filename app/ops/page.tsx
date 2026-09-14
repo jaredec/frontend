@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { cookies } from "next/headers";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { opsLogin } from "./actions";
 import {
   getCronHealth,
@@ -40,6 +41,26 @@ function relTime(iso: string | null, nowMs: number): string {
 function unixRel(unix: number | null, nowMs: number): string {
   if (!unix) return "—";
   return relTime(new Date(unix * 1000).toISOString(), nowMs);
+}
+
+function usaDate(iso: string | null): string {
+  if (!iso) return "—";
+  const day = iso.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return iso;
+  return new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function prettyPct(rate: number | null): string {
+  if (rate == null) return "idle";
+  const pct = rate * 100;
+  if (pct >= 99.95) return "100%";
+  if (Math.abs(pct - Math.round(pct)) < 0.05) return `${Math.round(pct)}%`;
+  return `${pct.toFixed(1)}%`;
 }
 
 function LoginForm({ error }: { error: boolean }) {
@@ -89,9 +110,9 @@ function LoginForm({ error }: { error: boolean }) {
         >
           Enter
         </button>
-        <a href="/" className="block text-[13px] underline underline-offset-2" style={{ color: BLUE }}>
+        <Link href="/" className="block text-[13px] underline underline-offset-2" style={{ color: BLUE }}>
           Back to the grid
-        </a>
+        </Link>
       </form>
       <p className="mt-6 text-[12px]" style={{ color: MUTED }}>
         Private monitor. Not indexed.
@@ -159,59 +180,63 @@ export default async function OpsPage({
     stuckFinals.length > 0
       ? { label: "Stuck Final", ok: false as const, warn: false }
       : !cronOk
-        ? { label: "Cron needs a look", ok: false as const, warn: false }
+        ? { label: "Tweet bot is behind", ok: false as const, warn: false }
         : pendingFinals.length > 0
           ? { label: "Game just finished", ok: true as const, warn: true }
           : restWarn
-            ? { label: "REST is flaky", ok: true as const, warn: true }
+            ? { label: "Database API is flaky", ok: true as const, warn: true }
             : { label: "All clear", ok: true as const, warn: false };
-
-  const apiPct = (h: typeof apiDay) =>
-    !h.available ? "no token" : h.successRate === null ? "idle" : `${(h.successRate * 100).toFixed(1)}%`;
 
   const stats = [
     {
-      label: "DB ingest",
-      value: pipeline.lastGameDate ?? "—",
-      sub: `${pipeline.totalGames.toLocaleString()} games · ${pipeline.uniqueScores} scores`,
+      label: "Newest game logged",
+      value: usaDate(pipeline.lastGameDate),
+      sub: `${pipeline.totalGames.toLocaleString()} games · ${pipeline.uniqueScores} unique scores`,
       ok: ingestOk,
     },
     {
-      label: "Static data + OG",
-      value: staticData.staticLastDate ?? "unreachable",
-      sub: staticLagDays === null ? undefined : staticLagDays <= 0 ? "in sync with DB" : `${staticLagDays}d behind DB`,
+      label: "Website grid",
+      value: staticData.error ? "couldn't load" : usaDate(staticData.staticLastDate),
+      sub:
+        staticData.error
+          ? "could not load site data"
+          : staticLagDays === null
+            ? undefined
+            : staticLagDays <= 0
+              ? "caught up with the database"
+              : `${staticLagDays}d behind the database`,
       ok: staticOk,
     },
     {
-      label: "Bot trigger",
+      label: "Tweet bot",
       value: unixRel(botCron?.lastRun ?? null, now),
-      sub: botCron?.successRate != null ? `${(botCron.successRate * 100).toFixed(0)}% of last ${botCron.runs.length || 50} OK` : undefined,
+      sub: botCron?.successRate != null ? `${prettyPct(botCron.successRate)} of last ${botCron.runs.length || 50} runs` : undefined,
       ok: cronOk,
     },
     {
-      label: "Last Final post",
+      label: "Last Final tweet",
       value: relTime(pipeline.lastFinalPost, now),
-      sub: `${pipeline.postsLast7d} posts in 7d`,
+      sub: `${pipeline.postsLast7d} posts this week`,
       ok: pipeline.lastFinalPost !== null && stuckFinals.length === 0,
     },
     {
-      label: "Unposted Finals",
+      label: "Waiting to tweet",
       value: unpostedFinals.length === 0 ? "none" : String(unpostedFinals.length),
       sub:
         stuckFinals.length > 0
-          ? `${stuckFinals.length} stuck >15m`
+          ? `${stuckFinals.length} stuck more than 15 minutes`
           : pendingFinals.length > 0
             ? `${pendingFinals.length} just finished`
-            : "all Finals posted",
+            : "every Final posted",
       ok: unpostedFinals.length === 0,
       warn: stuckFinals.length === 0 && pendingFinals.length > 0,
     },
     {
-      label: "Supabase REST",
-      value: !apiHour.available ? "no token" : `60m ${apiPct(apiHour)}`,
+      label: "Database API",
+      value: !apiHour.available ? "no token" : prettyPct(apiHour.successRate),
       sub: apiDay.available
-        ? `24h ${apiPct(apiDay)} · ${apiDay.total.toLocaleString()} req, ${apiDay.errors} 5xx`
-        : "set SUPABASE_ACCESS_TOKEN",
+        ? `last 24 hours ${prettyPct(apiDay.successRate)} · ${apiDay.total.toLocaleString()} calls, ${apiDay.errors} errors`
+        : "missing API token",
       ok: restOk,
       warn: restWarn,
     },
