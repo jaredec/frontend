@@ -43,7 +43,8 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-html {
+html,
+body {
   background-color: #f2f2f2;
 }
 
@@ -52,7 +53,7 @@ html {
   --v2-title-weight: 700;
   --v2-ui-font: var(--font-source-sans, "Source Sans 3", system-ui, sans-serif);
   --radius: 0.125rem;
-  --background: oklch(1 0 0);
+  --background: #f2f2f2;
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
