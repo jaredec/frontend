@@ -266,6 +266,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>("traditional");
   const [club, setClub] = useState<FranchiseCode | "ALL">(initialClub);
   const [yearRange, setYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
+  const [yearMode, setYearMode] = useState<"single" | "range">("single");
   const [gameFilter, setGameFilter] = useState<GameFilter>("all");
   const [gridSize, setGridSize] = useState<GridSize>(36);
   // Track when filter dropdowns close to suppress ghost clicks on heatmap
@@ -423,6 +424,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     setClub(initialClub);
     setGameFilter("all");
     setYearRange([MIN_YEAR, CURRENT_YEAR]);
+    setYearMode("single");
   };
 
   const filterProps = {
@@ -432,6 +434,8 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     setClub,
     yearRange,
     setYearRange,
+    yearMode,
+    setYearMode,
     dataYearBounds,
     sortedTeamsForDropdown,
     onDropdownOpenChange: handleDropdownOpenChange,

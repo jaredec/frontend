@@ -169,8 +169,36 @@ function YearInput({
   );
 }
 
+function clampYear(n: number, minYear: number, maxYear: number) {
+  return Math.round(Math.min(maxYear, Math.max(minYear, n)));
+}
+
 function yearToSliderValue(yearRange: [number, number], sentinel: number) {
   return yearRange[0] !== yearRange[1] ? sentinel : yearRange[0];
+}
+
+const PILL: React.CSSProperties = {
+  background: "#0b162a",
+  color: "#ffffff",
+  fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
+  fontSize: 12,
+  fontWeight: 600,
+};
+
+function HaltNote({ note, show }: { note?: string; show: boolean }) {
+  return (
+    <p
+      className="h-5 mt-0.5 text-center text-[12px] sm:text-[13px] leading-5 text-[#5a6a7a] transition-opacity duration-150"
+      style={{
+        fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
+        opacity: show ? 1 : 0,
+      }}
+      aria-hidden={!show}
+      aria-live="polite"
+    >
+      {note ?? ""}
+    </p>
+  );
 }
 
 function BearYearSlider({
@@ -178,13 +206,11 @@ function BearYearSlider({
   maxYear,
   yearRange,
   onChange,
-  haltNote,
 }: {
   minYear: number;
   maxYear: number;
   yearRange: [number, number];
   onChange: (value: [number, number]) => void;
-  haltNote?: string;
 }) {
   const sentinel = maxYear + 1;
   const [local, setLocal] = useState(() => yearToSliderValue(yearRange, sentinel));
@@ -233,8 +259,6 @@ function BearYearSlider({
   };
 
   const onPointerEnd = () => {
-    // Do not reread the pointer on lift. That last twitch is several years on
-    // this track. Keep the year from the last move.
     draggingRef.current = false;
   };
 
@@ -245,7 +269,6 @@ function BearYearSlider({
   };
 
   const pct = sentinel === minYear ? 0.5 : (local - minYear) / (sentinel - minYear);
-  const showHalt = Boolean(haltNote) && local === minYear;
 
   return (
     <div className="w-full">
@@ -253,7 +276,7 @@ function BearYearSlider({
         ref={trackRef}
         role="slider"
         tabIndex={0}
-        aria-label="Year slider"
+        aria-label="Year slider. Double tap for a year range."
         aria-valuemin={minYear}
         aria-valuemax={sentinel}
         aria-valuenow={local}
@@ -285,28 +308,217 @@ function BearYearSlider({
         <span
           className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none whitespace-nowrap rounded-full px-[10px] pt-[2px] pb-[4px]"
           style={{
-            background: "#0b162a",
-            color: "#ffffff",
-            fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
-            fontSize: 12,
-            fontWeight: 600,
+            ...PILL,
             left: `calc(16px + ${pct} * (100% - 32px))`,
           }}
         >
           {local === sentinel ? "ALL" : String(local)}
         </span>
       </div>
-      <p
-        className="h-5 mt-0.5 text-center text-[12px] sm:text-[13px] leading-5 text-[#5a6a7a] transition-opacity duration-150"
-        style={{
-          fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
-          opacity: showHalt ? 1 : 0,
+    </div>
+  );
+}
+
+const RANGE_PAD = 24;
+const RANGE_HIT = 32;
+
+function BearRangeSlider({
+  minYear,
+  maxYear,
+  yearRange,
+  onChange,
+}: {
+  minYear: number;
+  maxYear: number;
+  yearRange: [number, number];
+  onChange: (value: [number, number]) => void;
+}) {
+  const [lo, setLo] = useState(() => clampYear(yearRange[0], minYear, maxYear));
+  const [hi, setHi] = useState(() => clampYear(yearRange[1], minYear, maxYear));
+  const loRef = useRef(lo);
+  const hiRef = useRef(hi);
+  const draggingRef = useRef(false);
+  const activeRef = useRef<"lo" | "hi">("lo");
+  const lastFlushedRef = useRef(`${lo}-${hi}`);
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const commit = (nextLo: number, nextHi: number) => {
+    loRef.current = nextLo;
+    hiRef.current = nextHi;
+    setLo(nextLo);
+    setHi(nextHi);
+    const a = Math.min(nextLo, nextHi);
+    const b = Math.max(nextLo, nextHi);
+    const key = `${a}-${b}`;
+    if (key === lastFlushedRef.current) return;
+    lastFlushedRef.current = key;
+    onChange([a, b]);
+  };
+
+  const metrics = () => {
+    const track = trackRef.current;
+    if (!track) return null;
+    const rect = track.getBoundingClientRect();
+    const usable = Math.max(rect.width - RANGE_PAD * 2, 1);
+    const span = Math.max(maxYear - minYear, 1);
+    const xAt = (year: number) => rect.left + RANGE_PAD + ((year - minYear) / span) * usable;
+    return { rect, usable, span, xAt };
+  };
+
+  const yearFromX = (clientX: number) => {
+    const m = metrics();
+    if (!m) return null;
+    const pct = (clientX - m.rect.left - RANGE_PAD) / m.usable;
+    return clampYear(minYear + pct * (maxYear - minYear), minYear, maxYear);
+  };
+
+  const moveActive = (clientX: number) => {
+    const y = yearFromX(clientX);
+    if (y == null) return;
+    let nextLo = loRef.current;
+    let nextHi = hiRef.current;
+    if (activeRef.current === "lo") {
+      if (y > nextHi) {
+        nextLo = nextHi;
+        nextHi = y;
+        activeRef.current = "hi";
+      } else {
+        nextLo = y;
+      }
+    } else if (y < nextLo) {
+      nextHi = nextLo;
+      nextLo = y;
+      activeRef.current = "lo";
+    } else {
+      nextHi = y;
+    }
+    commit(nextLo, nextHi);
+  };
+
+  useLayoutEffect(() => {
+    if (draggingRef.current) return;
+    const nextLo = clampYear(yearRange[0], minYear, maxYear);
+    const nextHi = clampYear(yearRange[1], minYear, maxYear);
+    lastFlushedRef.current = `${nextLo}-${nextHi}`;
+    loRef.current = nextLo;
+    hiRef.current = nextHi;
+    setLo(nextLo);
+    setHi(nextHi);
+  }, [yearRange, minYear, maxYear]);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const m = metrics();
+    const curLo = loRef.current;
+    const curHi = hiRef.current;
+    draggingRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    if (!m) return;
+    const loX = m.xAt(curLo);
+    const hiX = m.xAt(curHi);
+    let near = false;
+    if (curLo === curHi) {
+      activeRef.current = e.clientX <= loX ? "lo" : "hi";
+      near = Math.abs(e.clientX - loX) <= RANGE_HIT;
+    } else {
+      const dLo = Math.abs(e.clientX - loX);
+      const dHi = Math.abs(e.clientX - hiX);
+      activeRef.current = dLo <= dHi ? "lo" : "hi";
+      near = Math.min(dLo, dHi) <= RANGE_HIT;
+    }
+    if (!near) moveActive(e.clientX);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    moveActive(e.clientX);
+  };
+
+  const onPointerEnd = () => {
+    draggingRef.current = false;
+  };
+
+  const nudge = (delta: number) => {
+    if (activeRef.current === "lo") commit(clampYear(lo + delta, minYear, hi), hi);
+    else commit(lo, clampYear(hi + delta, lo, maxYear));
+  };
+
+  const span = Math.max(maxYear - minYear, 1);
+  const loPct = (lo - minYear) / span;
+  const hiPct = (hi - minYear) / span;
+  const isSingle = lo === hi;
+  const pillLeft = (pct: number) =>
+    `calc(${RANGE_PAD}px + ${pct} * (100% - ${RANGE_PAD * 2}px))`;
+
+  return (
+    <div className="w-full">
+      <div
+        ref={trackRef}
+        role="slider"
+        tabIndex={0}
+        aria-label="Year range. Double tap for one year."
+        aria-valuemin={minYear}
+        aria-valuemax={maxYear}
+        aria-valuetext={isSingle ? String(lo) : `${lo} to ${hi}`}
+        className="relative w-full h-8 flex items-center cursor-grab active:cursor-grabbing select-none"
+        style={{ touchAction: "none" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerEnd}
+        onPointerCancel={onPointerEnd}
+        onLostPointerCapture={onPointerEnd}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+            e.preventDefault();
+            nudge(-1);
+          } else if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+            e.preventDefault();
+            nudge(1);
+          } else if (e.key === "Home") {
+            e.preventDefault();
+            if (activeRef.current === "lo") commit(minYear, hi);
+            else commit(lo, lo);
+          } else if (e.key === "End") {
+            e.preventDefault();
+            if (activeRef.current === "hi") commit(lo, maxYear);
+            else commit(hi, hi);
+          }
         }}
-        aria-hidden={!showHalt}
-        aria-live="polite"
       >
-        {haltNote ?? ""}
-      </p>
+        <div className="absolute left-0 right-0 h-2 rounded-full bg-[#cbcbcb]" />
+        {!isSingle && (
+          <div
+            className="absolute h-2 rounded-full bg-[#a8b0bc]"
+            style={{
+              left: pillLeft(loPct),
+              width: `calc(${Math.max(hiPct - loPct, 0)} * (100% - ${RANGE_PAD * 2}px))`,
+            }}
+          />
+        )}
+        {isSingle ? (
+          <span
+            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none whitespace-nowrap rounded-full px-[10px] pt-[2px] pb-[4px]"
+            style={{ ...PILL, left: pillLeft(loPct) }}
+          >
+            {lo}
+          </span>
+        ) : (
+          <>
+            <span
+              className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none whitespace-nowrap rounded-full px-[10px] pt-[2px] pb-[4px] z-[1]"
+              style={{ ...PILL, left: pillLeft(loPct) }}
+            >
+              {lo}
+            </span>
+            <span
+              className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none whitespace-nowrap rounded-full px-[10px] pt-[2px] pb-[4px] z-[2]"
+              style={{ ...PILL, left: pillLeft(hiPct) }}
+            >
+              {hi}
+            </span>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -323,6 +535,8 @@ interface FilterBarProps {
   onDropdownOpenChange?: (open: boolean) => void;
   onReset?: () => void;
   stacked?: boolean;
+  yearMode?: "single" | "range";
+  setYearMode?: (mode: "single" | "range") => void;
 }
 
 export default function FilterBar({
@@ -337,6 +551,8 @@ export default function FilterBar({
   onDropdownOpenChange,
   onReset,
   stacked = false,
+  yearMode = "single",
+  setYearMode,
 }: FilterBarProps) {
   const isDark = !stacked;
 
@@ -354,6 +570,9 @@ export default function FilterBar({
     if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
     hintTimerRef.current = setTimeout(() => setShowEditHint(false), 4000);
   };
+  const tapStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lastTapRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const yearSnapRef = useRef<[number, number]>(yearRange);
   useEffect(() => {
     return () => {
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
@@ -505,13 +724,77 @@ export default function FilterBar({
 
       {/* Row 2: Year slider */}
       {stacked ? (
-        <div className="w-full md:w-[90%] max-w-[1150px] mx-auto">
-          <BearYearSlider
-            minYear={dataMin}
-            maxYear={dataMax}
-            yearRange={yearRange}
-            onChange={setYearRange}
-            haltNote={club === "ALL" ? undefined : `No games before ${dataMin}`}
+        <div
+          className="w-full md:w-[90%] max-w-[1150px] mx-auto"
+          style={{ touchAction: "none" }}
+          onPointerDownCapture={(e) => {
+            if (!setYearMode) return;
+            if (e.pointerType === "mouse" && e.button !== 0) return;
+            const now = performance.now();
+            const last = lastTapRef.current;
+            if (
+              last &&
+              now - last.t < 400 &&
+              Math.hypot(e.clientX - last.x, e.clientY - last.y) < 32
+            ) {
+              e.preventDefault();
+              e.stopPropagation();
+              lastTapRef.current = null;
+              tapStartRef.current = null;
+              const [lo, hi] = yearSnapRef.current;
+              if (yearMode === "single") {
+                setYearMode("range");
+                setYearRange(
+                  lo === hi
+                    ? lo >= dataMax
+                      ? [dataMin, dataMax]
+                      : [lo, dataMax]
+                    : [dataMin, dataMax],
+                );
+              } else {
+                setYearMode("single");
+                setYearRange(lo === hi ? [lo, hi] : [dataMin, dataMax]);
+              }
+              return;
+            }
+            yearSnapRef.current = yearRange;
+            tapStartRef.current = { x: e.clientX, y: e.clientY };
+            lastTapRef.current = null;
+          }}
+          onPointerMoveCapture={(e) => {
+            const start = tapStartRef.current;
+            if (!start) return;
+            if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) {
+              tapStartRef.current = null;
+            }
+          }}
+          onPointerUpCapture={(e) => {
+            if (!tapStartRef.current) return;
+            lastTapRef.current = { x: e.clientX, y: e.clientY, t: performance.now() };
+            tapStartRef.current = null;
+          }}
+          onPointerCancelCapture={() => {
+            tapStartRef.current = null;
+          }}
+        >
+          {yearMode === "range" ? (
+            <BearRangeSlider
+              minYear={dataMin}
+              maxYear={dataMax}
+              yearRange={yearRange}
+              onChange={setYearRange}
+            />
+          ) : (
+            <BearYearSlider
+              minYear={dataMin}
+              maxYear={dataMax}
+              yearRange={yearRange}
+              onChange={setYearRange}
+            />
+          )}
+          <HaltNote
+            note={club === "ALL" ? undefined : `No games before ${dataMin}`}
+            show={club !== "ALL" && yearRange[0] === yearRange[1] && yearRange[0] === dataMin}
           />
         </div>
       ) : (
