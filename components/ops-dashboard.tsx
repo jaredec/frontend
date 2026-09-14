@@ -67,13 +67,32 @@ function Card({ children, className = "" }: { children: ReactNode; className?: s
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div
-      className="px-4 pt-4 pb-2 text-[11px] uppercase tracking-[0.14em]"
-      style={{ color: MUTED, fontWeight: 600 }}
-    >
+    <div className="px-4 pt-4 pb-2 text-[15px] font-semibold" style={{ color: NAVY }}>
       {children}
     </div>
   );
+}
+
+function prettyPct(rate: number | null): string {
+  if (rate == null) return "idle";
+  const pct = rate * 100;
+  if (pct >= 99.95) return "100%";
+  if (Math.abs(pct - Math.round(pct)) < 0.05) return `${Math.round(pct)}%`;
+  return `${pct.toFixed(1)}%`;
+}
+
+function usaDay(day: string): string {
+  return new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function jobTitle(title: string): string {
+  if (/bot trigger/i.test(title)) return "Tweet bot";
+  if (/process tweet queue/i.test(title)) return "Old tweet queue";
+  return title;
 }
 
 function StackedBars({
@@ -110,7 +129,7 @@ function StackedBars({
         const showLabel = i % 2 === 0 || i === days.length - 1;
         return (
           <g key={d.day}>
-            <title>{`${d.day}: ${d.finals} Finals, ${d.updates} score updates`}</title>
+            <title>{`${usaDay(d.day)}: ${d.finals} Finals, ${d.updates} score updates`}</title>
             {uh > 0 && (
               <rect x={x} y={yBase - th} width={bw} height={uh} fill={PALE} />
             )}
@@ -187,11 +206,11 @@ function Meter({
   return (
     <div className="px-4 py-3">
       <div className="flex items-baseline justify-between gap-3 mb-2">
-        <span className="text-[11px] uppercase tracking-[0.14em]" style={{ color: MUTED, fontWeight: 600 }}>
+        <span className="text-[13px] font-semibold" style={{ color: MUTED }}>
           {label}
         </span>
         <span className="text-sm tabular-nums font-semibold" style={{ color: fill === LINE ? MUTED : fill }}>
-          {rate == null ? "idle" : `${pct.toFixed(1)}%`}
+          {rate == null ? "idle" : prettyPct(rate)}
         </span>
       </div>
       <div className="h-2 w-full" style={{ backgroundColor: LINE }}>
@@ -252,9 +271,6 @@ export default function OpsDashboard({
     minute: "2-digit",
   }).format(now);
 
-  const apiPct = (h: SupabaseApiHealth) =>
-    !h.available ? "no token" : h.successRate === null ? "idle" : `${(h.successRate * 100).toFixed(1)}%`;
-
   return (
     <div className="min-h-screen flex flex-col" style={{ ...ui, backgroundColor: "#f2f2f2" }}>
       <header className="max-w-[1150px] mx-auto w-full px-3 sm:px-4 pt-8 sm:pt-10 pb-5 text-center">
@@ -298,7 +314,7 @@ export default function OpsDashboard({
         >
           {stats.map((s) => (
             <div key={s.label} className="bg-white p-4 sm:p-5">
-              <div className="text-[11px] uppercase tracking-[0.14em] mb-1.5" style={{ color: MUTED, fontWeight: 600 }}>
+              <div className="text-[13px] font-semibold mb-1.5" style={{ color: MUTED }}>
                 {s.label}
               </div>
               <div className="text-[17px] sm:text-[18px] font-semibold tabular-nums" style={{ color: INK }}>
@@ -317,7 +333,7 @@ export default function OpsDashboard({
         {unpostedFinals.length > 0 && (
           <Card>
             <SectionLabel>
-              {stuckFinals.length > 0 ? "Stuck Finals" : "Just finished"}
+              {stuckFinals.length > 0 ? "Games not tweeted yet" : "Just finished"}
             </SectionLabel>
             <div className="divide-y divide-[#d9dee7]">
               {unpostedFinals.map((f) => {
@@ -363,7 +379,7 @@ export default function OpsDashboard({
 
         <div className="grid md:grid-cols-2 gap-5">
           <Card>
-            <SectionLabel>Bot trigger · last {botCron?.runs.length ?? 0} runs</SectionLabel>
+            <SectionLabel>Tweet bot · last {botCron?.runs.length ?? 0} runs</SectionLabel>
             <div className="px-4 pb-1 text-[13px]" style={{ color: MUTED }}>
               Height is duration. Blue is OK, rust is a failed tick.
             </div>
@@ -372,7 +388,7 @@ export default function OpsDashboard({
             </div>
           </Card>
           <Card>
-            <SectionLabel>Posts · last 14 days PT</SectionLabel>
+            <SectionLabel>Tweets · last 14 days</SectionLabel>
             <div className="px-4 pb-1 text-[13px]" style={{ color: MUTED }}>
               Navy is Finals. Pale blue is Score Updates.
             </div>
@@ -384,14 +400,14 @@ export default function OpsDashboard({
 
         <div className="grid md:grid-cols-2 gap-5">
           <Card>
-            <SectionLabel>Supabase REST</SectionLabel>
+            <SectionLabel>Database API</SectionLabel>
             <Meter
-              label="Last 60 minutes"
+              label="Last hour"
               rate={apiHour.available ? apiHour.successRate : null}
               detail={
                 !apiHour.available
-                  ? "set SUPABASE_ACCESS_TOKEN"
-                  : `${apiHour.total.toLocaleString()} req · ${apiHour.errors} 5xx`
+                  ? "missing API token"
+                  : `${apiHour.total.toLocaleString()} calls · ${apiHour.errors} errors`
               }
               ok={!apiHour.available || apiHour.successRate === null || apiHour.successRate >= 0.99}
               warn={
@@ -407,8 +423,8 @@ export default function OpsDashboard({
                 rate={apiDay.available ? apiDay.successRate : null}
                 detail={
                   !apiDay.available
-                    ? apiPct(apiDay)
-                    : `${apiDay.total.toLocaleString()} req · ${apiDay.errors} 5xx`
+                    ? prettyPct(apiDay.successRate)
+                    : `${apiDay.total.toLocaleString()} calls · ${apiDay.errors} errors`
                 }
                 ok={!apiDay.available || apiDay.successRate === null || apiDay.successRate >= 0.99}
                 warn={
@@ -421,7 +437,7 @@ export default function OpsDashboard({
             </div>
           </Card>
           <Card>
-            <SectionLabel>Cron jobs</SectionLabel>
+            <SectionLabel>Scheduled jobs</SectionLabel>
             <div className="divide-y divide-[#d9dee7]">
               {cronJobs.map((j) => (
                 <div key={j.id} className="px-4 py-3">
@@ -431,7 +447,7 @@ export default function OpsDashboard({
                         ok={j.enabled && (j.successRate == null || j.successRate >= 0.96)}
                         warn={j.enabled && j.successRate != null && j.successRate >= 0.9 && j.successRate < 0.96}
                       />
-                      {j.title}
+                      {jobTitle(j.title)}
                     </div>
                     <div className="text-[12px] uppercase tracking-wider" style={{ color: j.enabled ? GREEN : MUTED }}>
                       {j.enabled ? "on" : "off"}
