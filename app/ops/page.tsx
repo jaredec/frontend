@@ -7,6 +7,8 @@ import {
   getPipelineHealth,
   getStaticFreshness,
   getRecentPosts,
+  getUnpostedFinals,
+  getSupabaseApiHealth,
 } from "@/lib/ops-queries";
 import NavBar from "@/components/nav-bar";
 import PageFooter from "@/components/page-footer";
@@ -81,12 +83,19 @@ export default async function OpsPage({
   }
 
   const now = Date.now();
-  const [pipeline, cronJobs, staticData, posts] = await Promise.all([
+  const [pipeline, cronJobs, staticData, posts, unpostedFinals, supabaseApi] = await Promise.all([
     getPipelineHealth(),
     getCronHealth(),
     getStaticFreshness(),
     getRecentPosts(),
+    getUnpostedFinals(),
+    getSupabaseApiHealth(),
   ]);
+
+  // A Final the MLB API reports but we haven't posted. null minutes = couldn't
+  // confirm end time, treated as stuck (better a false alarm than a silent miss).
+  const stuckFinals = unpostedFinals.filter((f) => f.minutesSinceFinal === null || f.minutesSinceFinal >= 15);
+  const pendingFinals = unpostedFinals.filter((f) => f.minutesSinceFinal !== null && f.minutesSinceFinal < 15);
 
   // Health judgments. Ingest: nightly job means data should never trail by
   // more than ~36h during the season. Static: should match the DB's max date
@@ -110,7 +119,7 @@ export default async function OpsPage({
     botCron.lastRun !== null &&
     now / 1000 - botCron.lastRun < 900;
 
-  const stats: { label: string; value: string; ok: boolean; sub?: string }[] = [
+  const stats: { label: string; value: string; ok: boolean; warn?: boolean; sub?: string }[] = [
     {
       label: "DB ingest",
       value: pipeline.lastGameDate ?? "—",
@@ -133,7 +142,40 @@ export default async function OpsPage({
       label: "Last Final post",
       value: relTime(pipeline.lastFinalPost, now),
       sub: `${pipeline.postsLast7d} posts in 7d`,
-      ok: pipeline.lastFinalPost !== null,
+      // Green unless a Final is genuinely stuck — a stale timestamp with no live
+      // games is fine, a stale timestamp with a game sitting Final is not.
+      ok: pipeline.lastFinalPost !== null && stuckFinals.length === 0,
+    },
+    {
+      label: "Unposted Finals",
+      value: unpostedFinals.length === 0 ? "none" : String(unpostedFinals.length),
+      sub:
+        stuckFinals.length > 0
+          ? `${stuckFinals.length} stuck >15m`
+          : pendingFinals.length > 0
+          ? `${pendingFinals.length} just finished`
+          : "all Finals posted",
+      ok: unpostedFinals.length === 0,
+      warn: stuckFinals.length === 0 && pendingFinals.length > 0,
+    },
+    {
+      label: "Supabase REST",
+      value: !supabaseApi.available
+        ? "no token"
+        : supabaseApi.successRate === null
+        ? "no traffic"
+        : `${(supabaseApi.successRate * 100).toFixed(1)}%`,
+      sub: supabaseApi.available
+        ? `${supabaseApi.total.toLocaleString()} reqs · ${supabaseApi.errors} 5xx (${supabaseApi.windowHours}h)`
+        : "set SUPABASE_ACCESS_TOKEN",
+      // Unavailable or idle → neutral green (no signal, not a failure). With
+      // traffic: green ≥99%, amber ≥95%, red below (today was 84.6%).
+      ok: !supabaseApi.available || supabaseApi.successRate === null || supabaseApi.successRate >= 0.99,
+      warn:
+        supabaseApi.available &&
+        supabaseApi.successRate !== null &&
+        supabaseApi.successRate >= 0.95 &&
+        supabaseApi.successRate < 0.99,
     },
   ];
 
@@ -160,7 +202,7 @@ export default async function OpsPage({
                 {s.label}
               </div>
               <div className="text-sm font-medium text-slate-900 dark:text-slate-100 tabular-nums">
-                <Dot ok={s.ok} />
+                <Dot ok={s.ok} warn={s.warn} />
                 {s.value}
               </div>
               {s.sub && (
@@ -169,6 +211,51 @@ export default async function OpsPage({
             </div>
           ))}
         </div>
+
+        {/* Unposted Finals — only shown when something's actually outstanding */}
+        {unpostedFinals.length > 0 && (
+          <div className={box}>
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-slate-300 dark:border-[#3e3e42]">
+                  <th className={th}>Unposted Final</th>
+                  <th className={th}>Score</th>
+                  <th className={th}>Final since</th>
+                  <th className={`${th} text-right`}>Game</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-[#2d2d30]">
+                {unpostedFinals.map((f) => {
+                  const stuck = f.minutesSinceFinal === null || f.minutesSinceFinal >= 15;
+                  return (
+                    <tr key={f.gamePk}>
+                      <td className={`${td} font-medium text-slate-900 dark:text-slate-100`}>
+                        <Dot ok={false} warn={!stuck} />
+                        {f.away} @ {f.home}
+                      </td>
+                      <td className={`${td} tabular-nums`}>
+                        {f.awayScore ?? "?"}-{f.homeScore ?? "?"}
+                      </td>
+                      <td className={`${td} tabular-nums`}>
+                        {f.minutesSinceFinal === null ? "unknown" : `${f.minutesSinceFinal}m ago`}
+                      </td>
+                      <td className={`${td} text-right`}>
+                        <a
+                          href={`https://www.mlb.com/gameday/${f.gamePk}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          gameday ↗
+                        </a>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Cron jobs */}
         <div className={box}>
