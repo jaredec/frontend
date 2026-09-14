@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MLB Scorigami
 
-## Getting Started
+Source for [mlbscorigami.com](https://mlbscorigami.com): an interactive heatmap of every unique final score in Major League Baseball history (1871–present).
 
-First, run the development server:
+Filter by team, era, or game type. Cell tooltips show frequency, the last game, and a box score. [@MLBgami](https://x.com/MLBgami) tweets after each final.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Based on [Scorigami](https://nflscorigami.com/) by Jon Bois. Historical games from [Retrosheet](https://www.retrosheet.org); modern results from the MLB Stats API. Negro League games are not included yet.
+
+## How it is put together
+
+This is a Next.js app. `main` deploys to Vercel.
+
+- **Grid.** `components/scorigami-page.tsx` plus the heatmap. Default All Games data is static JSON under `public/scorigami-data/` (traditional and home/away, per franchise). Game-type filters still hit `/api/scorigami`.
+- **Database.** Postgres (Supabase) holds `gamelogs` and bot records in `posted_updates`. Nightly ingest lives in the separate backend repo; a GitHub Action here dumps materialized yearly views to that static JSON and refreshes the OG image.
+- **Bot.** cron-job.org calls `/api/cron/check-games` every five minutes. Finals are classified (Scorigami, Modern Era, Playoffigami, Franchisigami, Rarigami, or a normal final) and posted to X. History lookups for posting go through the Postgres pool, not PostgREST.
+- **Ops.** `/ops` is a gated health page for ingest, cron, unposted Finals, and API error rate.
+
+`.env*` is gitignored. Do not commit secrets. Local and production credentials live in `.env.local` and Vercel, respectively.
+
+## Repo map
+
+```
+app/page.tsx                 homepage grid
+app/archive/                 first-occurrence archive
+app/about/                   about
+app/ops/                     health dashboard
+app/api/cron/check-games/    posting cron
+app/api/scorigami/           yearly data API (filters / fallback)
+components/                  heatmap, filters, ops UI
+lib/                         queries, MLB metadata, probability
+public/scorigami-data/       static yearly dumps
+scripts/dump-scorigami-data.js
+scripts/generate-og-image.js
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Local
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+[http://localhost:3000](http://localhost:3000). Without a `.env.local` the static grid still loads; live queries, posting, and ops will not.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+node scripts/dump-scorigami-data.js
+node scripts/generate-og-image.js
+```
