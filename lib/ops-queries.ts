@@ -6,6 +6,14 @@ import { pool } from "@/lib/db";
 
 const CRON_API = "https://api.cron-job.org";
 
+export interface CronRun {
+  at: number; // unix seconds
+  ok: boolean;
+  durationMs: number;
+  httpStatus: number;
+  statusText: string;
+}
+
 export interface CronJobHealth {
   id: number;
   title: string;
@@ -16,6 +24,7 @@ export interface CronJobHealth {
   successRate: number | null; // over the last ~50 executions
   failures: number;
   avgDurationMs: number | null;
+  runs: CronRun[];
 }
 
 interface CronHistoryEntry {
@@ -48,6 +57,7 @@ export async function getCronHealth(): Promise<CronJobHealth[]> {
           successRate: null,
           failures: 0,
           avgDurationMs: null,
+          runs: [],
         };
         try {
           const h = await fetch(`${CRON_API}/jobs/${j.jobId}/history`, { headers, cache: "no-store" });
@@ -61,6 +71,14 @@ export async function getCronHealth(): Promise<CronJobHealth[]> {
             out.lastRun = history[0].date;
             out.lastStatusText = history[0].statusText;
             out.lastHttpStatus = history[0].httpStatus;
+            // History arrives newest-first; charts want oldest-first.
+            out.runs = [...history].reverse().map((x) => ({
+              at: x.date,
+              ok: x.status === 1,
+              durationMs: x.duration || 0,
+              httpStatus: x.httpStatus,
+              statusText: x.statusText,
+            }));
           }
         } catch {
           // history fetch failed — job row still renders with lastExecution
@@ -276,11 +294,45 @@ export interface RecentPost {
   created_at: string;
 }
 
-export async function getRecentPosts(limit = 15): Promise<RecentPost[]> {
+export async function getRecentPosts(limit = 24): Promise<RecentPost[]> {
   const result = await pool.query(
     `SELECT game_id, post_type, details, score_snapshot, tweet_id, created_at::text
      FROM posted_updates ORDER BY created_at DESC LIMIT $1`,
     [limit]
   );
   return result.rows;
+}
+
+export interface DayVolume {
+  day: string; // YYYY-MM-DD in America/Los_Angeles
+  finals: number;
+  updates: number;
+}
+
+export async function getPostVolume(days = 14): Promise<DayVolume[]> {
+  const { rows } = await pool.query(
+    `SELECT
+       (created_at AT TIME ZONE 'America/Los_Angeles')::date::text AS day,
+       COUNT(*) FILTER (WHERE post_type = 'Final')::int AS finals,
+       COUNT(*) FILTER (WHERE post_type = 'Score_Update')::int AS updates
+     FROM posted_updates
+     WHERE created_at > NOW() - ($1 * INTERVAL '1 day')
+     GROUP BY 1
+     ORDER BY 1`,
+    [days]
+  );
+  const byDay = new Map(rows.map((r) => [r.day as string, r]));
+  const out: DayVolume[] = [];
+  const now = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86400000);
+    const key = d.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+    const hit = byDay.get(key);
+    out.push({
+      day: key,
+      finals: hit?.finals ?? 0,
+      updates: hit?.updates ?? 0,
+    });
+  }
+  return out;
 }
