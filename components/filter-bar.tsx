@@ -188,7 +188,9 @@ const PILL: React.CSSProperties = {
 function HaltNote({ note, show }: { note?: string; show: boolean }) {
   return (
     <p
-      className="h-5 mt-0.5 text-center text-[12px] sm:text-[13px] leading-5 text-[#5a6a7a] transition-opacity duration-150"
+      className={`text-center text-[12px] sm:text-[13px] leading-5 text-[#5a6a7a] overflow-hidden transition-[opacity,height,margin] duration-150 ${
+        show ? "h-5 mt-0.5" : "h-0 mt-0"
+      }`}
       style={{
         fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
         opacity: show ? 1 : 0,
@@ -281,7 +283,7 @@ function BearYearSlider({
         aria-valuemax={sentinel}
         aria-valuenow={local}
         aria-valuetext={local === sentinel ? "ALL" : String(local)}
-        className="relative w-full h-8 flex items-center cursor-pointer select-none"
+        className="relative w-full h-10 sm:h-8 flex items-center cursor-pointer select-none"
         style={{ touchAction: "none" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -304,7 +306,7 @@ function BearYearSlider({
           }
         }}
       >
-        <div className="absolute left-0 right-0 h-2 rounded-full bg-[#cbcbcb]" />
+        <div className="absolute left-0 right-0 h-4 sm:h-2 rounded-full bg-[#cbcbcb]" />
         <span
           className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none whitespace-nowrap rounded-full px-[10px] pt-[2px] pb-[4px]"
           style={{
@@ -460,7 +462,7 @@ function BearRangeSlider({
         aria-valuemin={minYear}
         aria-valuemax={maxYear}
         aria-valuetext={isSingle ? String(lo) : `${lo} to ${hi}`}
-        className="relative w-full h-8 flex items-center cursor-grab active:cursor-grabbing select-none"
+        className="relative w-full h-10 sm:h-8 flex items-center cursor-grab active:cursor-grabbing select-none"
         style={{ touchAction: "none" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -485,10 +487,10 @@ function BearRangeSlider({
           }
         }}
       >
-        <div className="absolute left-0 right-0 h-2 rounded-full bg-[#cbcbcb]" />
+        <div className="absolute left-0 right-0 h-4 sm:h-2 rounded-full bg-[#cbcbcb]" />
         {!isSingle && (
           <div
-            className="absolute h-2 rounded-full bg-[#a8b0bc]"
+            className="absolute h-4 sm:h-2 rounded-full bg-[#a8b0bc]"
             style={{
               left: pillLeft(loPct),
               width: `calc(${Math.max(hiPct - loPct, 0)} * (100% - ${RANGE_PAD * 2}px))`,

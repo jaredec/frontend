@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useEffect, useLayoutEffect, useRef } from "react";
 import { Tooltip, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { X, Loader2, FilterX, ArrowLeftRight, ArrowUpDown, Repeat } from "lucide-react";
+import { X, Loader2, FilterX, ArrowLeftRight, ArrowUpDown, Repeat, Maximize2, Minimize2 } from "lucide-react";
 import { TEAM_NAMES, TEAM_IGAMI } from "@/lib/mlb-data";
 
 type ScorigamiType = "home_away" | "traditional";
@@ -99,6 +99,12 @@ const TooltipContent = ({
 const DESKTOP_CELL_SIZE = 20;
 const DESKTOP_HEADER_CELL_SIZE = 30;
 const BEAR_Y_AXIS_W = 16;
+const COMPACT_DESKTOP_COLS = 41;
+const COMPACT_DESKTOP_ROWS = 41;
+const COMPACT_MOBILE_COLS = 31; // scores 0–30
+const COMPACT_MOBILE_ROWS = 31;
+const EXPAND_COLS = 51;
+const EXPAND_ROWS = 51;
 
 const hex = [
   "#f3f4f6", "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa",
@@ -148,6 +154,8 @@ interface ScorigamiHeatmapProps {
   skeleton?: boolean;  // render the grid frame as gray cells (loading) instead of a spinner
   bearigamiGrid?: boolean; // bearigami-style structure: 0.5px gridline borders, white empties, dark diagonal
   onToggleType?: () => void;
+  onToggleExpand?: () => void;
+  expanded?: boolean;
   revealed?: boolean;
   onPainted?: () => void;
 }
@@ -166,11 +174,33 @@ export default function ScorigamiHeatmap({
   skeleton = false,
   bearigamiGrid = false,
   onToggleType,
+  onToggleExpand,
+  expanded = false,
   revealed = true,
   onPainted,
 }: ScorigamiHeatmapProps) {
-  const GRID_DIMENSION = colCount ?? gridSize;
-  const ROW_COUNT = rowCount ?? gridSize;
+  const [isDesktop, setIsDesktop] = useState(true);
+  useLayoutEffect(() => {
+    const sync = () => setIsDesktop(window.innerWidth >= 768);
+    sync();
+    window.addEventListener("resize", sync);
+    return () => window.removeEventListener("resize", sync);
+  }, []);
+
+  const GRID_DIMENSION = bearigamiGrid
+    ? expanded
+      ? EXPAND_COLS
+      : isDesktop
+        ? COMPACT_DESKTOP_COLS
+        : COMPACT_MOBILE_COLS
+    : (colCount ?? gridSize);
+  const ROW_COUNT = bearigamiGrid
+    ? expanded
+      ? EXPAND_ROWS
+      : isDesktop
+        ? COMPACT_DESKTOP_ROWS
+        : COMPACT_MOBILE_ROWS
+    : (rowCount ?? gridSize);
 
   const hasData = useMemo(() => Array.isArray(rows) && rows.length > 0, [rows]);
 
@@ -254,7 +284,14 @@ export default function ScorigamiHeatmap({
       if (bearigamiGrid) {
         const el = scrollRef.current ?? gridContainerRef.current;
         if (!el) return;
-        const visibleCols = window.innerWidth < 768 ? 20 : GRID_DIMENSION;
+        if (expanded) el.scrollLeft = 0;
+        // Compact: 41×41 desktop (fitted). Phone: 31-wide, ~20 visible, rest scrolls.
+        // Expand: 51×51 fitted, no sideways scroll.
+        const visibleCols = expanded
+          ? GRID_DIMENSION
+          : window.innerWidth < 768
+            ? 20
+            : COMPACT_DESKTOP_COLS;
         const next = el.clientWidth / visibleCols;
         setCellSize(next);
         setHeaderCellSize(next);
@@ -278,7 +315,7 @@ export default function ScorigamiHeatmap({
       window.addEventListener("resize", calculateSize);
       return () => window.removeEventListener("resize", calculateSize);
     }
-  }, [hasData, skeleton, GRID_DIMENSION, fillWidth, bearigamiGrid]);
+  }, [hasData, skeleton, GRID_DIMENSION, fillWidth, bearigamiGrid, expanded]);
 
   useEffect(() => {
     if (!bearigamiGrid) return;
@@ -305,12 +342,12 @@ export default function ScorigamiHeatmap({
   }, [bearigamiGrid, cellSize, GRID_DIMENSION, ROW_COUNT, gridReady]);
 
 
-  // Default variant scales ticks with the cell. Bearigami uses a fixed 14px
-  // "dinosaur" serif on both axes so X and Y numbers match.
+  // Compact/scrollable always labels every score. Expand may skip ticks
+  // when cells get too small to hold two-digit type.
   const tickFontSize = bearigamiGrid
-    ? Math.min(14, Math.max(9, cellSize * 0.75))
+    ? Math.min(14, Math.max(8, cellSize * (expanded ? 0.75 : 0.62)))
     : Math.min(cellSize * 0.65, 12);
-  const sparseTicks = bearigamiGrid && cellSize < 16;
+  const sparseTicks = Boolean(bearigamiGrid && !isDesktop && expanded && cellSize < 16);
   const tickStyle: React.CSSProperties = bearigamiGrid
     ? {
         fontSize: tickFontSize,
@@ -320,11 +357,12 @@ export default function ScorigamiHeatmap({
         color: "#343434",
         lineHeight: 1,
         overflow: "visible",
+        fontVariantNumeric: "tabular-nums",
       }
     : { fontSize: `${tickFontSize}px` };
 
   const xLabelH = bearigamiGrid ? cellSize : headerCellSize;
-  const yAxisW = bearigamiGrid ? (sparseTicks ? 22 : BEAR_Y_AXIS_W) : headerCellSize;
+  const yAxisW = bearigamiGrid ? BEAR_Y_AXIS_W : headerCellSize;
 
   const emptyCellColor = bearigamiGrid ? "#ffffff" : getLogScaledColor(0, maxOccurrencesInView);
   const impossibleCellColor = bearigamiGrid ? "#0b162a" : (isDarkMode ? "#1c1c1e" : "#eef2f7");
@@ -377,7 +415,7 @@ export default function ScorigamiHeatmap({
         <div className={bearigamiGrid ? "w-full" : "flex flex-col items-center"}>
           {bearigamiGrid && (
             <div
-              className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pb-[15px]"
+              className="flex items-center gap-x-3 sm:gap-x-4 pb-[15px] min-w-0"
               style={{
                 fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
                 fontSize: 14,
@@ -385,27 +423,44 @@ export default function ScorigamiHeatmap({
                 color: "#343434",
               }}
             >
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <span className="inline-flex items-center gap-1.5">
-                  <ArrowLeftRight className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  {xAxisTextLabel}
+              <div className="flex items-center gap-x-3 sm:gap-x-4 min-w-0">
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <ArrowLeftRight className="h-3.5 w-3.5 flex-none" strokeWidth={1.75} />
+                  <span className="truncate">{xAxisTextLabel}</span>
                 </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <ArrowUpDown className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  {yAxisTextLabel}
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <ArrowUpDown className="h-3.5 w-3.5 flex-none" strokeWidth={1.75} />
+                  <span className="truncate">{yAxisTextLabel}</span>
                 </span>
               </div>
-              {onToggleType && (
-                <button
-                  type="button"
-                  onClick={onToggleType}
-                  className="inline-flex items-center gap-1.5 underline underline-offset-4 decoration-[#343434]/50 hover:text-[#2d91ff] hover:decoration-[#2d91ff] cursor-pointer"
-                  title={scorigamiType === "traditional" ? "Switch to Home/Away view" : "Switch to Win/Loss view"}
-                >
-                  <Repeat className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  {scorigamiType === "traditional" ? "Home/Away" : "Win/Loss"}
-                </button>
-              )}
+              <div className="ml-auto flex items-center gap-0.5 shrink-0">
+                {onToggleType && (
+                  <button
+                    type="button"
+                    onClick={onToggleType}
+                    aria-label={scorigamiType === "traditional" ? "Switch to Home/Away view" : "Switch to Win/Loss view"}
+                    title={scorigamiType === "traditional" ? "Home/Away" : "Win/Loss"}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:text-[#2d91ff] cursor-pointer"
+                  >
+                    <Repeat className="h-4 w-4" strokeWidth={1.75} />
+                  </button>
+                )}
+                {onToggleExpand && (
+                  <button
+                    type="button"
+                    onClick={onToggleExpand}
+                    aria-label={expanded ? "Show compact grid" : "Show full grid"}
+                    title={expanded ? "Show less" : "Expand"}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:text-[#2d91ff] cursor-pointer"
+                  >
+                    {expanded ? (
+                      <Minimize2 className="h-4 w-4" strokeWidth={1.75} />
+                    ) : (
+                      <Maximize2 className="h-4 w-4" strokeWidth={1.75} />
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           )}
           {!bearigamiGrid && (
@@ -434,14 +489,19 @@ export default function ScorigamiHeatmap({
             )}
             {bearigamiGrid && (
               <div
-                className="flex-none"
-                style={{ width: yAxisW, paddingTop: xLabelH }}
+                className="flex-none overflow-visible"
+                style={{
+                  width: yAxisW,
+                  minWidth: yAxisW,
+                  maxWidth: yAxisW,
+                  paddingTop: xLabelH,
+                }}
               >
                 {Array.from({ length: ROW_COUNT }).map((_, score2_iterator) => (
                   <div
                     key={`yh-${score2_iterator}`}
                     className="flex items-center justify-end text-right"
-                    style={{ ...tickStyle, paddingRight: 4, height: cellSize }}
+                    style={{ ...tickStyle, paddingRight: 4, height: cellSize, minWidth: 0 }}
                   >
                     {sparseTicks && score2_iterator % 2 !== 0 ? "" : score2_iterator}
                   </div>
@@ -451,7 +511,15 @@ export default function ScorigamiHeatmap({
             <div className={bearigamiGrid ? "relative min-w-0 flex-1" : undefined}>
             <div
               ref={bearigamiGrid ? scrollRef : undefined}
-              className={bearigamiGrid ? "min-w-0 w-full overflow-x-auto overscroll-x-contain" : "relative overflow-hidden"}
+              className={
+                bearigamiGrid
+                  ? `min-w-0 w-full ${
+                      !expanded && !isDesktop
+                        ? "overflow-x-auto overscroll-x-contain"
+                        : "overflow-visible"
+                    }`
+                  : "relative overflow-hidden"
+              }
               style={bearigamiGrid ? { WebkitOverflowScrolling: "touch" } : {
                 width: `${yAxisW + gridWidth}px`,
                 height: `${gridHeight}px`,
@@ -485,7 +553,7 @@ export default function ScorigamiHeatmap({
                               : "text-slate-400 dark:text-slate-500"
                           }`
                     }
-                    style={tickStyle}
+                    style={{ ...tickStyle, minWidth: 0 }}
                   >
                     {sparseTicks && i % 2 !== 0 ? "" : i}
                   </div>
@@ -672,7 +740,7 @@ export default function ScorigamiHeatmap({
             </div>
             </div>
           </div>
-              {bearigamiGrid && (
+              {bearigamiGrid && !expanded && (
                 <>
                   {scrollFade.left && (
                     <div

@@ -269,6 +269,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   const [yearMode, setYearMode] = useState<"single" | "range">("single");
   const [gameFilter, setGameFilter] = useState<GameFilter>("all");
   const [gridSize, setGridSize] = useState<GridSize>(36);
+  const [gridExpanded, setGridExpanded] = useState(false);
   // Track when filter dropdowns close to suppress ghost clicks on heatmap
   const dropdownCloseTimeRef = useRef(0);
   const handleDropdownOpenChange = (open: boolean) => {
@@ -445,7 +446,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   return (
     <div className="min-h-screen flex flex-col" style={variant === "single" ? { backgroundColor: "#f2f2f2", fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}>
       {variant === "single" ? (
-        <header className="max-w-[1150px] mx-auto w-full px-3 sm:px-4 pt-8 sm:pt-10 pb-5 sm:pb-6 text-center">
+        <header className="max-w-[1150px] mx-auto w-full px-3 sm:px-4 pt-[15px] pb-2 sm:pb-3 text-center">
             {(() => {
               const igamiTitle = statsClub === "ALL" ? "MLB Scorigami" : (TEAM_IGAMI[statsClub] ?? "MLB Scorigami");
               const logoSrc = statsClub === "ALL" ? "/logo3.svg" : (getTeamLogoUrl(statsClub) ?? "/logo3.svg");
@@ -464,21 +465,21 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
                     : "Last Scorigami";
               return (
                 <>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
-                    <div className="h-[88px] w-[88px] sm:h-[112px] sm:w-[112px] flex items-center justify-center flex-none">
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 mt-5 mb-5 max-[459px]:mt-[30px]">
+                    <div className="h-[88px] w-[88px] sm:h-[112px] sm:w-[115px] flex items-center justify-center flex-none">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={logoSrc}
                         alt={igamiTitle}
                         className={`object-contain ${
                           statsClub === "ALL"
-                            ? "h-[64px] w-[64px] sm:h-[80px] sm:w-[80px]"
+                            ? "h-[76px] w-[76px] sm:h-[96px] sm:w-[96px]"
                             : "h-full w-full"
                         }`}
                       />
                     </div>
                     <span
-                      className="text-[36px] sm:text-[48px] tracking-tight leading-tight text-[#343434] px-1"
+                      className="flex items-center sm:h-[77px] text-[36px] sm:text-[48px] leading-none tracking-tight text-[#343434] px-1"
                       style={{
                         fontFamily: "var(--v2-title-font)",
                         fontWeight: "var(--v2-title-weight)",
@@ -585,9 +586,9 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
         />
       )}
 
-      <main className={`flex-1 mx-auto w-full px-4 py-4 ${variant === "single" ? "max-w-[1150px]" : "max-w-5xl"}`}>
+      <main className={`flex-1 mx-auto w-full px-4 ${variant === "single" ? "max-w-[1150px] pt-1 pb-4" : "max-w-5xl py-4"}`}>
         {/* Filters */}
-        <div className={variant === "single" ? "mb-6" : "mb-3"}>
+        <div className={variant === "single" ? "mb-2" : "mb-3"}>
           <FilterBar {...filterProps} stacked={variant === "single"} />
         </div>
 
@@ -645,8 +646,8 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
               gridSize={gridSize}
               isGhostClick={isGhostClick}
               dark={variant !== "single"}
-              colCount={variant === "single" ? 51 : undefined}
-              rowCount={variant === "single" ? 41 : undefined}
+              colCount={variant === "single" ? (gridExpanded ? 51 : 30) : undefined}
+              rowCount={variant === "single" ? (gridExpanded ? 51 : 30) : undefined}
               skeleton={false}
               bearigamiGrid={variant === "single"}
               revealed={variant === "single" ? revealed : true}
@@ -655,6 +656,11 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
                 ? () => setScorigamiType(scorigamiType === "traditional" ? "home_away" : "traditional")
                 : undefined
               }
+              onToggleExpand={variant === "single"
+                ? () => setGridExpanded((v) => !v)
+                : undefined
+              }
+              expanded={variant === "single" ? gridExpanded : false}
             />
           )}
         </div>
