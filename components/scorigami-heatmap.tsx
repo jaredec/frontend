@@ -99,6 +99,7 @@ const TooltipContent = ({
 const DESKTOP_CELL_SIZE = 20;
 const DESKTOP_HEADER_CELL_SIZE = 30;
 const BEAR_Y_AXIS_W = 16;
+const BEAR_LABEL_H = 20;
 const COMPACT_DESKTOP_COLS = 41;
 const COMPACT_DESKTOP_ROWS = 41;
 const COMPACT_MOBILE_COLS = 31; // scores 0–30
@@ -284,8 +285,7 @@ export default function ScorigamiHeatmap({
       if (bearigamiGrid) {
         const el = scrollRef.current ?? gridContainerRef.current;
         if (!el) return;
-        el.scrollLeft = 0;
-        window.scrollTo(0, window.scrollY);
+        if (expanded) el.scrollLeft = 0;
         // Compact: 41×41 desktop (fitted). Phone: 31-wide, ~20 visible, rest scrolls.
         // Expand: 51×51 fitted, no sideways scroll.
         const visibleCols = expanded
@@ -362,7 +362,8 @@ export default function ScorigamiHeatmap({
       }
     : { fontSize: `${tickFontSize}px` };
 
-  const xLabelH = bearigamiGrid ? cellSize : headerCellSize;
+  const fittedGrid = Boolean(bearigamiGrid && (expanded || isDesktop));
+  const xLabelH = bearigamiGrid ? BEAR_LABEL_H : headerCellSize;
   const yAxisW = bearigamiGrid ? BEAR_Y_AXIS_W : headerCellSize;
 
   const emptyCellColor = bearigamiGrid ? "#ffffff" : getLogScaledColor(0, maxOccurrencesInView);
@@ -516,8 +517,8 @@ export default function ScorigamiHeatmap({
                 bearigamiGrid
                   ? `min-w-0 w-full max-w-full ${
                       !expanded && !isDesktop
-                        ? "overflow-x-auto overscroll-x-contain"
-                        : "overflow-x-hidden"
+                        ? "overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
+                        : "overflow-visible"
                     }`
                   : "relative overflow-hidden"
               }
@@ -529,11 +530,17 @@ export default function ScorigamiHeatmap({
               <div
                 onMouseLeave={bearigamiGrid ? () => setHoveredCellKey(null) : undefined}
                 style={{
-                  width: bearigamiGrid ? gridWidth : yAxisW + gridWidth,
+                  width: bearigamiGrid
+                    ? fittedGrid
+                      ? "100%"
+                      : gridWidth
+                    : yAxisW + gridWidth,
                   height: gridHeight,
                   display: "grid",
                   gridTemplateColumns: bearigamiGrid
-                    ? `repeat(${GRID_DIMENSION}, ${cellSize}px)`
+                    ? fittedGrid
+                      ? `repeat(${GRID_DIMENSION}, minmax(0, 1fr))`
+                      : `repeat(${GRID_DIMENSION}, ${cellSize}px)`
                     : `${yAxisW}px repeat(${GRID_DIMENSION}, ${cellSize}px)`,
                   gridTemplateRows: `${xLabelH}px repeat(${ROW_COUNT}, ${cellSize}px)`,
                 }}
@@ -554,7 +561,13 @@ export default function ScorigamiHeatmap({
                               : "text-slate-400 dark:text-slate-500"
                           }`
                     }
-                    style={{ ...tickStyle, minWidth: 0 }}
+                    style={{
+                      ...tickStyle,
+                      minWidth: 0,
+                      ...(bearigamiGrid && i === GRID_DIMENSION - 1
+                        ? { paddingRight: 1, overflow: "visible" }
+                        : {}),
+                    }}
                   >
                     {sparseTicks && i % 2 !== 0 ? "" : i}
                   </div>
