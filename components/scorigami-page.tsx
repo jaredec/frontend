@@ -444,7 +444,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={variant === "single" ? { backgroundColor: "#f2f2f2", fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}>
+    <div className="min-h-screen flex flex-col overflow-x-hidden" style={variant === "single" ? { backgroundColor: "#f2f2f2", fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}>
       {variant === "single" ? (
         <header className="max-w-[1150px] mx-auto w-full px-3 sm:px-4 pt-[15px] pb-2 sm:pb-3 text-center">
             {(() => {

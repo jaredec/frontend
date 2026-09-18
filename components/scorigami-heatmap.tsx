@@ -284,7 +284,8 @@ export default function ScorigamiHeatmap({
       if (bearigamiGrid) {
         const el = scrollRef.current ?? gridContainerRef.current;
         if (!el) return;
-        if (expanded) el.scrollLeft = 0;
+        el.scrollLeft = 0;
+        window.scrollTo(0, window.scrollY);
         // Compact: 41×41 desktop (fitted). Phone: 31-wide, ~20 visible, rest scrolls.
         // Expand: 51×51 fitted, no sideways scroll.
         const visibleCols = expanded
@@ -433,7 +434,7 @@ export default function ScorigamiHeatmap({
                   <span className="truncate">{yAxisTextLabel}</span>
                 </span>
               </div>
-              <div className="ml-auto flex items-center gap-0.5 shrink-0">
+              <div className="ml-auto flex items-center gap-0.5 shrink-0 sm:-mr-4">
                 {onToggleType && (
                   <button
                     type="button"
@@ -476,7 +477,7 @@ export default function ScorigamiHeatmap({
           <div
             className={`relative ${bearigamiGrid ? "w-[calc(100%+2rem)] -mx-4 max-sm:w-full max-sm:mx-0" : ""}`}
           >
-          <div className="flex items-start">
+          <div className="flex items-start min-w-0 w-full">
             {!bearigamiGrid && (
               <div
                 style={{ width: `${yAxisW}px` }}
@@ -513,10 +514,10 @@ export default function ScorigamiHeatmap({
               ref={bearigamiGrid ? scrollRef : undefined}
               className={
                 bearigamiGrid
-                  ? `min-w-0 w-full ${
+                  ? `min-w-0 w-full max-w-full ${
                       !expanded && !isDesktop
                         ? "overflow-x-auto overscroll-x-contain"
-                        : "overflow-visible"
+                        : "overflow-x-hidden"
                     }`
                   : "relative overflow-hidden"
               }
