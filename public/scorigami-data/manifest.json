@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-26T17:45:05.679Z",
+  "generated_at": "2026-09-27T14:00:13.857Z",
   "types": [
     "traditional",
     "homeaway"
@@ -41,22 +41,22 @@
     {
       "file": "traditional/ALL.json",
       "rows": 18511,
-      "gzipped_bytes": 395612
+      "gzipped_bytes": 395607
     },
     {
       "file": "traditional/LAA.json",
-      "rows": 3574,
-      "gzipped_bytes": 66687
+      "rows": 3575,
+      "gzipped_bytes": 66705
     },
     {
       "file": "traditional/ARI.json",
       "rows": 1689,
-      "gzipped_bytes": 32800
+      "gzipped_bytes": 32794
     },
     {
       "file": "traditional/ATL.json",
       "rows": 8644,
-      "gzipped_bytes": 172679
+      "gzipped_bytes": 172674
     },
     {
       "file": "traditional/BAL.json",
@@ -71,7 +71,7 @@
     {
       "file": "traditional/CWS.json",
       "rows": 7001,
-      "gzipped_bytes": 126138
+      "gzipped_bytes": 126137
     },
     {
       "file": "traditional/CHC.json",
@@ -80,38 +80,38 @@
     },
     {
       "file": "traditional/CIN.json",
-      "rows": 8302,
-      "gzipped_bytes": 162947
+      "rows": 8303,
+      "gzipped_bytes": 162961
     },
     {
       "file": "traditional/CLE.json",
       "rows": 7180,
-      "gzipped_bytes": 129310
+      "gzipped_bytes": 129308
     },
     {
       "file": "traditional/COL.json",
       "rows": 2128,
-      "gzipped_bytes": 40774
+      "gzipped_bytes": 40782
     },
     {
       "file": "traditional/DET.json",
       "rows": 7312,
-      "gzipped_bytes": 130851
+      "gzipped_bytes": 130852
     },
     {
       "file": "traditional/HOU.json",
       "rows": 3463,
-      "gzipped_bytes": 64245
+      "gzipped_bytes": 64243
     },
     {
       "file": "traditional/KC.json",
-      "rows": 3243,
-      "gzipped_bytes": 60640
+      "rows": 3244,
+      "gzipped_bytes": 60656
     },
     {
       "file": "traditional/LAD.json",
       "rows": 7958,
-      "gzipped_bytes": 155802
+      "gzipped_bytes": 155804
     },
     {
       "file": "traditional/MIA.json",
@@ -121,12 +121,12 @@
     {
       "file": "traditional/MIL.json",
       "rows": 3213,
-      "gzipped_bytes": 60196
+      "gzipped_bytes": 60199
     },
     {
       "file": "traditional/MIN.json",
       "rows": 7171,
-      "gzipped_bytes": 128655
+      "gzipped_bytes": 128657
     },
     {
       "file": "traditional/NYY.json",
@@ -136,82 +136,82 @@
     {
       "file": "traditional/NYM.json",
       "rows": 3399,
-      "gzipped_bytes": 62858
+      "gzipped_bytes": 62861
     },
     {
       "file": "traditional/OAK.json",
       "rows": 7175,
-      "gzipped_bytes": 129297
+      "gzipped_bytes": 129298
     },
     {
       "file": "traditional/PHI.json",
       "rows": 8238,
-      "gzipped_bytes": 160551
+      "gzipped_bytes": 160549
     },
     {
       "file": "traditional/PIT.json",
       "rows": 8135,
-      "gzipped_bytes": 158229
+      "gzipped_bytes": 158235
     },
     {
       "file": "traditional/SD.json",
-      "rows": 3058,
-      "gzipped_bytes": 57112
+      "rows": 3059,
+      "gzipped_bytes": 57127
     },
     {
       "file": "traditional/SEA.json",
       "rows": 2801,
-      "gzipped_bytes": 52347
+      "gzipped_bytes": 52345
     },
     {
       "file": "traditional/SFG.json",
       "rows": 8083,
-      "gzipped_bytes": 157452
+      "gzipped_bytes": 157451
     },
     {
       "file": "traditional/STL.json",
       "rows": 8269,
-      "gzipped_bytes": 161763
+      "gzipped_bytes": 161761
     },
     {
       "file": "traditional/TB.json",
-      "rows": 1630,
-      "gzipped_bytes": 31495
+      "rows": 1631,
+      "gzipped_bytes": 31513
     },
     {
       "file": "traditional/TEX.json",
       "rows": 3740,
-      "gzipped_bytes": 69495
+      "gzipped_bytes": 69498
     },
     {
       "file": "traditional/TOR.json",
       "rows": 2813,
-      "gzipped_bytes": 52893
+      "gzipped_bytes": 52889
     },
     {
       "file": "traditional/WSH.json",
       "rows": 3072,
-      "gzipped_bytes": 57430
+      "gzipped_bytes": 57432
     },
     {
       "file": "homeaway/ALL.json",
       "rows": 30086,
-      "gzipped_bytes": 627361
+      "gzipped_bytes": 627359
     },
     {
       "file": "homeaway/LAA.json",
-      "rows": 5224,
-      "gzipped_bytes": 94024
+      "rows": 5225,
+      "gzipped_bytes": 94047
     },
     {
       "file": "homeaway/ARI.json",
       "rows": 2394,
-      "gzipped_bytes": 44881
+      "gzipped_bytes": 44878
     },
     {
       "file": "homeaway/ATL.json",
       "rows": 12058,
-      "gzipped_bytes": 231458
+      "gzipped_bytes": 231455
     },
     {
       "file": "homeaway/BAL.json",
@@ -226,7 +226,7 @@
     {
       "file": "homeaway/CWS.json",
       "rows": 9966,
-      "gzipped_bytes": 173315
+      "gzipped_bytes": 173311
     },
     {
       "file": "homeaway/CHC.json",
@@ -235,43 +235,43 @@
     },
     {
       "file": "homeaway/CIN.json",
-      "rows": 11777,
-      "gzipped_bytes": 221767
+      "rows": 11778,
+      "gzipped_bytes": 221780
     },
     {
       "file": "homeaway/CLE.json",
-      "rows": 10230,
-      "gzipped_bytes": 177813
+      "rows": 10231,
+      "gzipped_bytes": 177831
     },
     {
       "file": "homeaway/COL.json",
       "rows": 2994,
-      "gzipped_bytes": 55314
+      "gzipped_bytes": 55313
     },
     {
       "file": "homeaway/DET.json",
       "rows": 10369,
-      "gzipped_bytes": 179788
+      "gzipped_bytes": 179791
     },
     {
       "file": "homeaway/HOU.json",
       "rows": 5053,
-      "gzipped_bytes": 90589
+      "gzipped_bytes": 90587
     },
     {
       "file": "homeaway/KC.json",
-      "rows": 4710,
-      "gzipped_bytes": 85065
+      "rows": 4711,
+      "gzipped_bytes": 85084
     },
     {
       "file": "homeaway/LAD.json",
       "rows": 11292,
-      "gzipped_bytes": 212171
+      "gzipped_bytes": 212169
     },
     {
       "file": "homeaway/MIA.json",
-      "rows": 2678,
-      "gzipped_bytes": 49447
+      "rows": 2679,
+      "gzipped_bytes": 49463
     },
     {
       "file": "homeaway/MIL.json",
@@ -281,7 +281,7 @@
     {
       "file": "homeaway/MIN.json",
       "rows": 10201,
-      "gzipped_bytes": 177189
+      "gzipped_bytes": 177194
     },
     {
       "file": "homeaway/NYY.json",
@@ -291,62 +291,62 @@
     {
       "file": "homeaway/NYM.json",
       "rows": 4985,
-      "gzipped_bytes": 89314
+      "gzipped_bytes": 89313
     },
     {
       "file": "homeaway/OAK.json",
       "rows": 10160,
-      "gzipped_bytes": 177367
+      "gzipped_bytes": 177372
     },
     {
       "file": "homeaway/PHI.json",
       "rows": 11596,
-      "gzipped_bytes": 217711
+      "gzipped_bytes": 217706
     },
     {
       "file": "homeaway/PIT.json",
       "rows": 11531,
-      "gzipped_bytes": 215566
+      "gzipped_bytes": 215564
     },
     {
       "file": "homeaway/SD.json",
-      "rows": 4456,
-      "gzipped_bytes": 80621
+      "rows": 4457,
+      "gzipped_bytes": 80635
     },
     {
       "file": "homeaway/SEA.json",
-      "rows": 4014,
-      "gzipped_bytes": 73121
+      "rows": 4015,
+      "gzipped_bytes": 73140
     },
     {
       "file": "homeaway/SFG.json",
       "rows": 11451,
-      "gzipped_bytes": 214773
+      "gzipped_bytes": 214775
     },
     {
       "file": "homeaway/STL.json",
       "rows": 11637,
-      "gzipped_bytes": 218600
+      "gzipped_bytes": 218598
     },
     {
       "file": "homeaway/TB.json",
-      "rows": 2356,
-      "gzipped_bytes": 43978
+      "rows": 2357,
+      "gzipped_bytes": 43995
     },
     {
       "file": "homeaway/TEX.json",
       "rows": 5373,
-      "gzipped_bytes": 96357
+      "gzipped_bytes": 96355
     },
     {
       "file": "homeaway/TOR.json",
       "rows": 4088,
-      "gzipped_bytes": 74289
+      "gzipped_bytes": 74286
     },
     {
       "file": "homeaway/WSH.json",
       "rows": 4454,
-      "gzipped_bytes": 80594
+      "gzipped_bytes": 80591
     }
   ]
 }
