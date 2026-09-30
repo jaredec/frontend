@@ -152,6 +152,49 @@ interface PlayoffBreakdown {
   ds: number;
   wc: number;
   last_date: string | null;
+  // Details of the most recent postseason occurrence, for the "No playoffigami"
+  // clause ("...most recently on {date} in {stage} ({team} vs {team})").
+  last_game_type: string | null;
+  last_year: number | null;
+  last_home_team: string | null;
+  last_visitor_team: string | null;
+  last_home_score: number | null;
+  last_visitor_score: number | null;
+}
+
+// League of each current franchise (canonical names), for rendering NLDS/ALDS and
+// NLCS/ALCS. Houston (NL->AL in 2013) and Milwaukee (AL->NL in 1998) are the only
+// franchises ever to switch leagues, so they're resolved by year in postseasonLeague.
+const AL_TEAMS = new Set([
+  'Baltimore Orioles', 'Boston Red Sox', 'New York Yankees', 'Tampa Bay Rays', 'Toronto Blue Jays',
+  'Chicago White Sox', 'Cleveland Guardians', 'Detroit Tigers', 'Kansas City Royals', 'Minnesota Twins',
+  'Los Angeles Angels', 'Athletics', 'Seattle Mariners', 'Texas Rangers',
+]);
+const NL_TEAMS = new Set([
+  'Atlanta Braves', 'Miami Marlins', 'New York Mets', 'Philadelphia Phillies', 'Washington Nationals',
+  'Chicago Cubs', 'Cincinnati Reds', 'Pittsburgh Pirates', 'St. Louis Cardinals',
+  'Arizona Diamondbacks', 'Colorado Rockies', 'Los Angeles Dodgers', 'San Diego Padres', 'San Francisco Giants',
+]);
+
+function postseasonLeague(team: string, year: number): 'AL' | 'NL' | null {
+  const c = canonicalFranchise(team);
+  if (c === 'Houston Astros') return year >= 2013 ? 'AL' : 'NL';
+  if (c === 'Milwaukee Brewers') return year >= 1998 ? 'NL' : 'AL';
+  if (AL_TEAMS.has(c)) return 'AL';
+  if (NL_TEAMS.has(c)) return 'NL';
+  return null;
+}
+
+// Friendly stage name. World Series and Wild Card are league-agnostic; LCS/DS get
+// the league prefix (NLCS/ALCS, NLDS/ALDS). Falls back to the plain form if the
+// league can't be determined (shouldn't happen for real LCS/DS teams).
+function playoffStageName(gameType: string | null, teamForLeague: string, year: number): string {
+  if (gameType === 'W') return 'the World Series';
+  if (gameType === 'F') return 'the Wild Card round';
+  const lg = postseasonLeague(teamForLeague, year);
+  if (gameType === 'L') return lg ? `the ${lg}CS` : 'the LCS';
+  if (gameType === 'D') return lg ? `the ${lg}DS` : 'the Division Series';
+  return 'the postseason';
 }
 
 interface ScoreHistory {
@@ -373,10 +416,14 @@ async function getPlayoffBreakdown(s1: number, s2: number, excludeGameId: number
     GROUP BY game_type
   `, [win, lose, excludeGameId]);
 
-  if (result.rows.length === 0) return { total: 0, ws: 0, lcs: 0, ds: 0, wc: 0, last_date: null };
+  const empty = {
+    total: 0, ws: 0, lcs: 0, ds: 0, wc: 0, last_date: null,
+    last_game_type: null, last_year: null, last_home_team: null, last_visitor_team: null,
+    last_home_score: null, last_visitor_score: null,
+  };
+  if (result.rows.length === 0) return empty;
 
   let ws = 0, lcs = 0, ds = 0, wc = 0, total = 0;
-  let maxDate: string | null = null;
   for (const row of result.rows) {
     const c = row.count as number;
     total += c;
@@ -384,12 +431,30 @@ async function getPlayoffBreakdown(s1: number, s2: number, excludeGameId: number
     else if (row.game_type === 'L') lcs = c;
     else if (row.game_type === 'D') ds = c;
     else if (row.game_type === 'F') wc = c;
-    const d = row.last_date instanceof Date ? row.last_date.toISOString().slice(0, 10) : String(row.last_date);
-    if (!maxDate || d > maxDate) maxDate = d;
   }
+
+  // Fetch the single most recent postseason occurrence for the "most recently
+  // ... (team vs team)" clause. Same score/round/year filters as the count above.
+  const recent = await pool.query(`
+    SELECT date, game_type, home_team, visitor_team, home_score, visitor_score
+    FROM gamelogs
+    WHERE ((home_score = $1 AND visitor_score = $2) OR (home_score = $2 AND visitor_score = $1))
+      AND game_type IN ('W','L','D','F')
+      AND game_id <> $3
+      AND EXTRACT(YEAR FROM date) >= ${START_YEAR}
+    ORDER BY date DESC, ended_at DESC NULLS LAST, game_id DESC
+    LIMIT 1
+  `, [win, lose, excludeGameId]);
+  const r = recent.rows[0];
   return {
     total, ws, lcs, ds, wc,
-    last_date: maxDate ? new Date(maxDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }) : null,
+    last_date: r ? new Date(r.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }) : null,
+    last_game_type: r?.game_type ?? null,
+    last_year: r ? new Date(r.date).getUTCFullYear() : null,
+    last_home_team: r?.home_team ?? null,
+    last_visitor_team: r?.visitor_team ?? null,
+    last_home_score: r?.home_score ?? null,
+    last_visitor_score: r?.visitor_score ?? null,
   };
 }
 
@@ -796,6 +861,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           const rarePhrase = totalOccurrences === 1 ? 'only once' : `only ${formatNum(totalOccurrences)} times`;
           postText = `${header}\n\nRarigami. This score has happened ${rarePhrase} in MLB history${recencyClause}${teamContext}.`;
           revalidateTag('archive');
+        } else if (isPostseason && playoffBreakdown && playoffBreakdown.total > 0) {
+          // No playoffigami — a common score, framed in postseason terms rather
+          // than all-time. (A postseason-first score would have hit Playoffigami
+          // above, so total > 0 here means it has happened in October before.)
+          const n = playoffBreakdown.total;
+          const homeWon = (playoffBreakdown.last_home_score ?? 0) > (playoffBreakdown.last_visitor_score ?? 0);
+          const winner = (homeWon ? playoffBreakdown.last_home_team : playoffBreakdown.last_visitor_team) ?? '';
+          const loser  = (homeWon ? playoffBreakdown.last_visitor_team : playoffBreakdown.last_home_team) ?? '';
+          // League-aware round name (NLDS/ALCS etc.), derived from that game's teams + year.
+          const stage = playoffStageName(playoffBreakdown.last_game_type, winner, playoffBreakdown.last_year ?? 0);
+          // Same convention as every other post: 3-letter codes when both are
+          // current franchises, full names otherwise. Returns " (WIN vs. LOSE)".
+          const teams = buildTeamContext(winner, loser);
+          postText = n === 1
+            ? `${header}\n\nNo playoffigami. This score has happened once in the postseason, on ${playoffBreakdown.last_date} in ${stage}${teams}.`
+            : `${header}\n\nNo playoffigami. This score has happened ${formatNum(n)} times in the postseason, most recently on ${playoffBreakdown.last_date} in ${stage}${teams}.`;
         } else {
           postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
         }
