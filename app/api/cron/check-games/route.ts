@@ -300,7 +300,7 @@ async function getScoreHistory(s1: number, s2: number, excludeGameId: number): P
   const lastDate = asDateStr(row.date);
   return {
     occurrences: row.n || 0,
-    last_game_date: new Date(lastDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
+    last_game_date: new Date(lastDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }),
     last_game_date_raw: lastDate,
     last_home_team: row.home_team,
     last_visitor_team: row.visitor_team,
@@ -448,7 +448,7 @@ async function getPlayoffBreakdown(s1: number, s2: number, excludeGameId: number
   const r = recent.rows[0];
   return {
     total, ws, lcs, ds, wc,
-    last_date: r ? new Date(r.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }) : null,
+    last_date: r ? new Date(r.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }) : null,
     last_game_type: r?.game_type ?? null,
     last_year: r ? new Date(r.date).getUTCFullYear() : null,
     last_home_team: r?.home_team ?? null,
@@ -875,7 +875,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           // current franchises, full names otherwise. Returns " (WIN vs. LOSE)".
           const teams = buildTeamContext(winner, loser);
           postText = n === 1
-            ? `${header}\n\nNo playoffigami. This score has happened once in the postseason, on ${playoffBreakdown.last_date} in ${stage}${teams}.`
+            ? `${header}\n\nNo playoffigami. This score has happened once before in the postseason, on ${playoffBreakdown.last_date} in ${stage}${teams}.`
             : `${header}\n\nNo playoffigami. This score has happened ${formatNum(n)} times in the postseason, most recently on ${playoffBreakdown.last_date} in ${stage}${teams}.`;
         } else {
           postText = `${header}\n\nNo scorigami. This score has happened ${formatNum(totalOccurrences)} times in MLB history${recencyClause}${teamContext}.`;
