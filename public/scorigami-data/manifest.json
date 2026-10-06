@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-05T21:29:37.200Z",
+  "generated_at": "2026-10-06T15:14:59.930Z",
   "types": [
     "traditional",
     "homeaway"
@@ -41,7 +41,7 @@
     {
       "file": "traditional/ALL.json",
       "rows": 18511,
-      "gzipped_bytes": 395621
+      "gzipped_bytes": 395615
     },
     {
       "file": "traditional/LAA.json",
@@ -71,7 +71,7 @@
     {
       "file": "traditional/CWS.json",
       "rows": 7001,
-      "gzipped_bytes": 126145
+      "gzipped_bytes": 126151
     },
     {
       "file": "traditional/CHC.json",
@@ -86,7 +86,7 @@
     {
       "file": "traditional/CLE.json",
       "rows": 7180,
-      "gzipped_bytes": 129317
+      "gzipped_bytes": 129318
     },
     {
       "file": "traditional/COL.json",
@@ -131,7 +131,7 @@
     {
       "file": "traditional/NYY.json",
       "rows": 7171,
-      "gzipped_bytes": 129446
+      "gzipped_bytes": 129448
     },
     {
       "file": "traditional/NYM.json",
@@ -176,7 +176,7 @@
     {
       "file": "traditional/TB.json",
       "rows": 1632,
-      "gzipped_bytes": 31534
+      "gzipped_bytes": 31532
     },
     {
       "file": "traditional/TEX.json",
@@ -196,7 +196,7 @@
     {
       "file": "homeaway/ALL.json",
       "rows": 30086,
-      "gzipped_bytes": 627379
+      "gzipped_bytes": 627382
     },
     {
       "file": "homeaway/LAA.json",
@@ -226,7 +226,7 @@
     {
       "file": "homeaway/CWS.json",
       "rows": 9966,
-      "gzipped_bytes": 173321
+      "gzipped_bytes": 173326
     },
     {
       "file": "homeaway/CHC.json",
@@ -241,7 +241,7 @@
     {
       "file": "homeaway/CLE.json",
       "rows": 10231,
-      "gzipped_bytes": 177842
+      "gzipped_bytes": 177847
     },
     {
       "file": "homeaway/COL.json",
@@ -286,7 +286,7 @@
     {
       "file": "homeaway/NYY.json",
       "rows": 10210,
-      "gzipped_bytes": 178049
+      "gzipped_bytes": 178045
     },
     {
       "file": "homeaway/NYM.json",
@@ -331,7 +331,7 @@
     {
       "file": "homeaway/TB.json",
       "rows": 2358,
-      "gzipped_bytes": 44020
+      "gzipped_bytes": 44021
     },
     {
       "file": "homeaway/TEX.json",
