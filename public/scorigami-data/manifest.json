@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-06T19:32:03.931Z",
+  "generated_at": "2026-10-07T15:35:53.169Z",
   "types": [
     "traditional",
     "homeaway"
@@ -41,7 +41,7 @@
     {
       "file": "traditional/ALL.json",
       "rows": 18511,
-      "gzipped_bytes": 395615
+      "gzipped_bytes": 395612
     },
     {
       "file": "traditional/LAA.json",
@@ -56,7 +56,7 @@
     {
       "file": "traditional/ATL.json",
       "rows": 8644,
-      "gzipped_bytes": 172700
+      "gzipped_bytes": 172695
     },
     {
       "file": "traditional/BAL.json",
@@ -111,7 +111,7 @@
     {
       "file": "traditional/LAD.json",
       "rows": 7958,
-      "gzipped_bytes": 155810
+      "gzipped_bytes": 155815
     },
     {
       "file": "traditional/MIA.json",
@@ -121,7 +121,7 @@
     {
       "file": "traditional/MIL.json",
       "rows": 3213,
-      "gzipped_bytes": 60206
+      "gzipped_bytes": 60204
     },
     {
       "file": "traditional/MIN.json",
@@ -156,7 +156,7 @@
     {
       "file": "traditional/SD.json",
       "rows": 3059,
-      "gzipped_bytes": 57137
+      "gzipped_bytes": 57139
     },
     {
       "file": "traditional/SEA.json",
@@ -196,7 +196,7 @@
     {
       "file": "homeaway/ALL.json",
       "rows": 30086,
-      "gzipped_bytes": 627382
+      "gzipped_bytes": 627386
     },
     {
       "file": "homeaway/LAA.json",
@@ -211,7 +211,7 @@
     {
       "file": "homeaway/ATL.json",
       "rows": 12059,
-      "gzipped_bytes": 231486
+      "gzipped_bytes": 231485
     },
     {
       "file": "homeaway/BAL.json",
@@ -266,7 +266,7 @@
     {
       "file": "homeaway/LAD.json",
       "rows": 11292,
-      "gzipped_bytes": 212178
+      "gzipped_bytes": 212179
     },
     {
       "file": "homeaway/MIA.json",
@@ -276,7 +276,7 @@
     {
       "file": "homeaway/MIL.json",
       "rows": 4654,
-      "gzipped_bytes": 84061
+      "gzipped_bytes": 84063
     },
     {
       "file": "homeaway/MIN.json",
