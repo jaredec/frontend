@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-08T19:56:24.764Z",
+  "generated_at": "2026-10-09T15:20:51.270Z",
   "types": [
     "traditional",
     "homeaway"
@@ -41,7 +41,7 @@
     {
       "file": "traditional/ALL.json",
       "rows": 18511,
-      "gzipped_bytes": 395626
+      "gzipped_bytes": 395627
     },
     {
       "file": "traditional/LAA.json",
@@ -71,7 +71,7 @@
     {
       "file": "traditional/CWS.json",
       "rows": 7001,
-      "gzipped_bytes": 126154
+      "gzipped_bytes": 126156
     },
     {
       "file": "traditional/CHC.json",
@@ -196,7 +196,7 @@
     {
       "file": "homeaway/ALL.json",
       "rows": 30086,
-      "gzipped_bytes": 627383
+      "gzipped_bytes": 627381
     },
     {
       "file": "homeaway/LAA.json",
@@ -226,7 +226,7 @@
     {
       "file": "homeaway/CWS.json",
       "rows": 9966,
-      "gzipped_bytes": 173325
+      "gzipped_bytes": 173322
     },
     {
       "file": "homeaway/CHC.json",
@@ -241,7 +241,7 @@
     {
       "file": "homeaway/CLE.json",
       "rows": 10231,
-      "gzipped_bytes": 177850
+      "gzipped_bytes": 177847
     },
     {
       "file": "homeaway/COL.json",
