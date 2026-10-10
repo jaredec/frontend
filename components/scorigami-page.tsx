@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, startTransition } from "react";
 import useSWR, { preload, useSWRConfig } from "swr";
 import { AlertTriangle, ArrowLeftRight, Maximize2, Minimize2 } from "lucide-react";
 
@@ -366,8 +366,8 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     yearRange: [number, number];
   };
   const [view, setView] = useState<ViewSnap | null>(null);
-  const prevClubRef = useRef(club);
-  const prevGameFilterRef = useRef(gameFilter);
+  const shownViewRef = useRef(view);
+  shownViewRef.current = view;
   const yearRangeRef = useRef(yearRange);
   yearRangeRef.current = yearRange;
 
@@ -392,10 +392,11 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     if (wantHa && !cachedHa) return;
 
     const [spanMin, spanMax] = sliderSpan(cachedYearly, gameFilter);
-    const clubChanged = prevClubRef.current !== club;
-    const gameFilterChanged = prevGameFilterRef.current !== gameFilter;
-    prevClubRef.current = club;
-    prevGameFilterRef.current = gameFilter;
+    // Compared against the committed view, so a re-run while a transition is
+    // still pending keeps treating the switch as a change.
+    const shown = shownViewRef.current;
+    const clubChanged = !!shown && shown.club !== club;
+    const gameFilterChanged = !!shown && shown.gameFilter !== gameFilter;
 
     const [lo, hi] = yearRangeRef.current;
     let nextRange: [number, number];
@@ -407,16 +408,22 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
       nextRange = clampedLo > clampedHi ? [spanMin, spanMax] : [clampedLo, clampedHi];
     }
 
-    if (lo !== nextRange[0] || hi !== nextRange[1]) setYearRange(nextRange);
-    setView({
-      yearly: cachedYearly,
-      ha: cachedHa,
-      records,
-      club,
-      scorigamiType,
-      gameFilter,
-      yearRange: nextRange,
-    });
+    const apply = () => {
+      if (lo !== nextRange[0] || hi !== nextRange[1]) setYearRange(nextRange);
+      setView({
+        yearly: cachedYearly,
+        ha: cachedHa,
+        records,
+        club,
+        scorigamiType,
+        gameFilter,
+        yearRange: nextRange,
+      });
+    };
+    // A team switch re-renders the whole grid; as a transition, the header's
+    // new logo and title paint first instead of waiting on it (slow phones).
+    if (clubChanged) startTransition(apply);
+    else apply();
   }, [cache, dataKey, haKey, haFilteredKey, baseData, filteredData, haData, haFilteredData, club, scorigamiType, gameFilter, variant]);
 
   const dataYearBounds = useMemo<[number, number]>(() => {
@@ -440,13 +447,17 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     });
   }, [cache, baseData, club, scorigamiType, gameFilter]);
 
+  // Keyed on range values, not the selection, so picking a new team doesn't
+  // rebuild (and re-render) the old grid while its data is swapped in.
+  const synced =
+    !!view &&
+    view.club === club &&
+    view.scorigamiType === scorigamiType &&
+    view.gameFilter === gameFilter;
+  const [rangeLo, rangeHi] = synced ? yearRange : view?.yearRange ?? yearRange;
   const display = useMemo(() => {
     if (!view) return null;
-    const synced =
-      view.club === club &&
-      view.scorigamiType === scorigamiType &&
-      view.gameFilter === gameFilter;
-    const range = synced ? yearRange : view.yearRange;
+    const range: [number, number] = [rangeLo, rangeHi];
     const rows = aggregateRows(view.yearly, range);
     const stats = computeHeaderStats(
       rows,
@@ -464,7 +475,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
       scorigamiType: view.scorigamiType,
       yearRange: range,
     };
-  }, [view, yearRange, club, scorigamiType, gameFilter]);
+  }, [view, rangeLo, rangeHi]);
 
   const rows = display?.rows;
   const headerStats = display?.stats ?? null;
@@ -520,13 +531,54 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     },
   };
 
+  // Memoized so renders that don't touch the grid (e.g. the header swapping to
+  // a newly picked team) skip re-rendering ~1,700 cells.
+  const heatmapLoading = isLoading && !view;
+  const heatmapType = display?.scorigamiType ?? scorigamiType;
+  const heatmapClub = display?.club ?? club;
+  const heatmap = useMemo(
+    () => (
+      <ScorigamiHeatmap
+        rows={rows}
+        isLoading={heatmapLoading}
+        scorigamiType={heatmapType}
+        club={heatmapClub}
+        gridSize={gridSize}
+        isGhostClick={isGhostClick}
+        dark={variant !== "single"}
+        colCount={variant === "single" ? (gridExpanded ? 51 : 30) : undefined}
+        rowCount={variant === "single" ? (gridExpanded ? 51 : 30) : undefined}
+        skeleton={false}
+        bearigamiGrid={variant === "single"}
+        revealed={variant === "single" ? revealed : true}
+        onPainted={variant === "single" ? markRevealed : undefined}
+        onToggleType={variant === "single"
+          ? () => setScorigamiType(scorigamiType === "traditional" ? "home_away" : "traditional")
+          : undefined
+        }
+        onToggleExpand={variant === "single"
+          ? () => setGridExpanded((v) => !v)
+          : undefined
+        }
+        expanded={variant === "single" ? gridExpanded : false}
+      />
+    ),
+    // isGhostClick only reads a ref, so a stale closure is fine.
+    [rows, heatmapLoading, heatmapType, heatmapClub, gridSize, variant, gridExpanded, revealed, markRevealed, scorigamiType],
+  );
+
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden" style={variant === "single" ? { backgroundColor: "#f2f2f2", fontFamily: "var(--v2-ui-font), system-ui, sans-serif", ...themeVars } : undefined}>
       {variant === "single" ? (
         <header className="max-w-[1150px] mx-auto w-full px-3 sm:px-4 pt-[15px] pb-2 sm:pb-3 text-center">
             {(() => {
-              const igamiTitle = statsClub === "ALL" ? "MLB Scorigami" : (TEAM_IGAMI[statsClub] ?? "MLB Scorigami");
-              const logoSrc = statsClub === "ALL" ? "/logo3.svg" : (getTeamLogoUrl(statsClub) ?? "/logo3.svg");
+              const igamiFor = (c: FranchiseCode | "ALL") =>
+                c === "ALL" ? "MLB Scorigami" : (TEAM_IGAMI[c] ?? "MLB Scorigami");
+              // Logo and title follow the selection at once; the stats below
+              // follow the grid.
+              const igamiTitle = igamiFor(club);
+              const statsTitle = igamiFor(statsClub);
+              const logoSrc = club === "ALL" ? "/logo3.svg" : (getTeamLogoUrl(club) ?? "/logo3.svg");
               const countLabel = "Unique scores";
               const shownRange = display?.yearRange ?? yearRange;
               const isSingleSeason = shownRange[0] === shownRange[1];
@@ -534,7 +586,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
               const recentLabel = isSingleSeason
                 ? "Rarest score"
                 : statsClub !== "ALL"
-                  ? `Last ${igamiTitle}`
+                  ? `Last ${statsTitle}`
                   : statsType === "home_away"
                     ? (headerStats?.recent && headerStats.recent.score1 < headerStats.recent.score2
                         ? "Last Awayigami"
@@ -549,7 +601,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
                         src={logoSrc}
                         alt={igamiTitle}
                         className={`object-contain ${
-                          statsClub === "ALL"
+                          club === "ALL"
                             ? "h-[76px] w-[76px] sm:h-[96px] sm:w-[96px]"
                             : "h-full w-full"
                         }`}
@@ -715,30 +767,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
               </p>
             </div>
           ) : (
-            <ScorigamiHeatmap
-              rows={rows}
-              isLoading={isLoading && !view}
-              scorigamiType={display?.scorigamiType ?? scorigamiType}
-              club={display?.club ?? club}
-              gridSize={gridSize}
-              isGhostClick={isGhostClick}
-              dark={variant !== "single"}
-              colCount={variant === "single" ? (gridExpanded ? 51 : 30) : undefined}
-              rowCount={variant === "single" ? (gridExpanded ? 51 : 30) : undefined}
-              skeleton={false}
-              bearigamiGrid={variant === "single"}
-              revealed={variant === "single" ? revealed : true}
-              onPainted={variant === "single" ? markRevealed : undefined}
-              onToggleType={variant === "single"
-                ? () => setScorigamiType(scorigamiType === "traditional" ? "home_away" : "traditional")
-                : undefined
-              }
-              onToggleExpand={variant === "single"
-                ? () => setGridExpanded((v) => !v)
-                : undefined
-              }
-              expanded={variant === "single" ? gridExpanded : false}
-            />
+            heatmap
           )}
         </div>
       </main>
