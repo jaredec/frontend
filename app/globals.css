@@ -52,6 +52,10 @@ body {
   --v2-title-font: var(--font-anonymous-pro, "Anonymous Pro", ui-monospace, monospace);
   --v2-title-weight: 700;
   --v2-ui-font: var(--font-source-sans, "Source Sans 3", system-ui, sans-serif);
+  /* Overridden per team by scorigami-page.tsx (lib/team-theme.mjs) */
+  --team-dark: #0b162a;
+  --team-accent: #2d91ff;
+  --team-link: #2d91ff;
   --radius: 0.125rem;
   --background: #f2f2f2;
   --foreground: oklch(0.145 0 0);

@@ -1,5 +1,5 @@
 const linkCls =
-  "text-[#2d91ff] underline underline-offset-2 decoration-[#2d91ff] hover:text-[#0b162a] hover:decoration-[#0b162a] transition-colors duration-200";
+  "text-[var(--team-link)] underline underline-offset-2 decoration-[var(--team-link)] hover:text-[var(--team-dark)] hover:decoration-[var(--team-dark)] transition-colors duration-200";
 
 const h3Style = {
   fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
@@ -52,7 +52,7 @@ export default function V2About() {
 
         <h3 style={h3Style}>How does the grid work?</h3>
         <p style={pStyle}>
-          The winning team&apos;s score is displayed along the horizontal axis, and the losing team&apos;s score is shown along the vertical axis. Darker blue cells have happened more often. White cells have never occurred. Navy cells are impossible, because a losing team cannot outscore the winner. Click any cell for the count, the most recent game, and a box score when one exists. Use the filters and year slider to explore a team, a season, or Home/Away scoring.
+          The winning team&apos;s score is displayed along the horizontal axis, and the losing team&apos;s score is shown along the vertical axis. Darker cells have happened more often. White cells have never occurred. The solid block below the diagonal is impossible, because a losing team cannot outscore the winner. Click any cell for the count, the most recent game, and a box score when one exists. Use the filters and year slider to explore a team, a season, or Home/Away scoring.
         </p>
 
         <h3 style={h3Style}>How was this created?</h3>

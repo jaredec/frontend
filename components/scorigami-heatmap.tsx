@@ -5,6 +5,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger } from "@/components/ui/toolti
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { X, Loader2, FilterX, ArrowLeftRight, ArrowUpDown, Repeat, Maximize2, Minimize2 } from "lucide-react";
 import { TEAM_NAMES, TEAM_IGAMI } from "@/lib/mlb-data";
+import { getTeamTheme, rampColor } from "@/lib/team-theme.mjs";
 
 type ScorigamiType = "home_away" | "traditional";
 
@@ -17,7 +18,7 @@ interface ApiRow {
   last_visitor_team: string | null;
   last_home_score?: number | null;
   last_visitor_score?: number | null;
-  last_game_id: number | null;
+  last_game_id: number | string | null;
   source: string | null;
   box_url: string | null;
 }
@@ -260,8 +261,10 @@ export default function ScorigamiHeatmap({
     [hoveredCellKey]
   );
 
+  const theme = useMemo(() => getTeamTheme(club), [club]);
+
   const getLogScaledColor = (currentOccurrences: number, maxInView: number) => {
-    // Light v2 canvas, but the same occurrence blues as production (darkHex).
+    if (bearigamiGrid) return rampColor(theme.ramp, currentOccurrences, maxInView);
     const currentHexSet = isDarkMode ? darkHex : hex;
     if (currentOccurrences === 0) return currentHexSet[0];
     if (currentOccurrences === 1) return currentHexSet[1];
@@ -367,7 +370,7 @@ export default function ScorigamiHeatmap({
   const yAxisW = bearigamiGrid ? BEAR_Y_AXIS_W : headerCellSize;
 
   const emptyCellColor = bearigamiGrid ? "#ffffff" : getLogScaledColor(0, maxOccurrencesInView);
-  const impossibleCellColor = bearigamiGrid ? "#0b162a" : (isDarkMode ? "#1c1c1e" : "#eef2f7");
+  const impossibleCellColor = bearigamiGrid ? theme.dark : (isDarkMode ? "#1c1c1e" : "#eef2f7");
   const cellStructure = (isImp: boolean): React.CSSProperties =>
     bearigamiGrid
       ? {
@@ -442,7 +445,7 @@ export default function ScorigamiHeatmap({
                     onClick={onToggleType}
                     aria-label={scorigamiType === "traditional" ? "Switch to Home/Away view" : "Switch to Win/Loss view"}
                     title={scorigamiType === "traditional" ? "Home/Away" : "Win/Loss"}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:text-[#2d91ff] cursor-pointer"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:text-[var(--team-link)] cursor-pointer"
                   >
                     <Repeat className="h-4 w-4" strokeWidth={1.75} />
                   </button>
@@ -453,7 +456,7 @@ export default function ScorigamiHeatmap({
                     onClick={onToggleExpand}
                     aria-label={expanded ? "Show compact grid" : "Show full grid"}
                     title={expanded ? "Show less" : "Expand"}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:text-[#2d91ff] cursor-pointer"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:text-[var(--team-link)] cursor-pointer"
                   >
                     {expanded ? (
                       <Minimize2 className="h-4 w-4" strokeWidth={1.75} />
@@ -630,7 +633,7 @@ export default function ScorigamiHeatmap({
                           const CellBase = (
                             <div
                               style={{
-                                backgroundColor: isFocus ? (bearigamiGrid ? "#2d91ff" : "#f38e55") : baseColor,
+                                backgroundColor: isFocus ? (bearigamiGrid ? theme.accent : "#f38e55") : baseColor,
                                 ...cellStructure(isImpossible),
                                 ...(isCross && !isFocus
                                   ? {

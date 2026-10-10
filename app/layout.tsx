@@ -81,8 +81,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${sourceSans.variable} ${anonymousPro.variable} scroll-smooth`} suppressHydrationWarning>
       <body className={`${GeistSans.variable} ${GeistMono.variable} ${cookie.variable} font-sans antialiased`}>
-        <link rel="preload" href="/scorigami-data/traditional/ALL.json" as="fetch" crossOrigin="anonymous" />
-        <link rel="preload" href="/scorigami-data/homeaway/ALL.json" as="fetch" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

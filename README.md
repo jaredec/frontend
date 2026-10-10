@@ -10,7 +10,7 @@ Based on [Scorigami](https://nflscorigami.com/) by Jon Bois. Historical games fr
 
 This is a Next.js app. `main` deploys to Vercel.
 
-- **Grid.** `components/scorigami-page.tsx` plus the heatmap. Default All Games data is static JSON under `public/scorigami-data/` (traditional and home/away, per franchise). Game-type filters still hit `/api/scorigami`.
+- **Grid.** `components/scorigami-page.tsx` plus the heatmap. Grid data is static JSON under `public/scorigami-data/` (traditional and home/away, per franchise) in a compact columnar format split by game type (`lib/static-data.mjs`), so every game-type filter is computed client-side. `/api/scorigami` is only a fallback.
 - **Database.** Postgres (Supabase) holds `gamelogs` and bot records in `posted_updates`. Nightly ingest lives in the separate backend repo; a GitHub Action here dumps materialized yearly views to that static JSON and refreshes the OG image.
 - **Bot.** cron-job.org calls `/api/cron/check-games` every five minutes. Finals are classified (Scorigami, Modern Era, Playoffigami, Franchisigami, Rarigami, or a normal final) and posted to X. History lookups for posting go through the Postgres pool, not PostgREST.
 - **Ops.** `/ops` is a gated health page for ingest, cron, unposted Finals, and API error rate.

@@ -1,4 +1,4 @@
-// Dump the scorigami materialized views to static JSON files.
+// Dump yearly scorigami data to static JSON files.
 //
 // Output layout:
 //   public/scorigami-data/manifest.json                 — index + version stamp
@@ -7,7 +7,11 @@
 //   public/scorigami-data/homeaway/ALL.json
 //   public/scorigami-data/homeaway/<CODE>.json
 //
-// Each file matches the shape of YearlyRow[] returned by /api/scorigami?mode=yearly.
+// Files use the compact v2 format in lib/static-data.mjs. Rows are split by
+// game_type so the site can apply every game filter (regular, postseason
+// rounds) client-side without hitting /api/scorigami. Franchise traditional
+// files also carry per-year W/L/T records so the header doesn't need the
+// home/away file.
 // Run locally: node scripts/dump-scorigami-data.js
 require("dotenv").config({ path: ".env.local" });
 const { Pool } = require("pg");
@@ -37,58 +41,79 @@ function fmtBytes(n) {
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 
-async function fetchView(view, teamId) {
+// Same grouping and "last game" tiebreak as the scorigami_by_year(_ha) views
+// and /api/scorigami, plus game_type.
+const LAST = (col) =>
+  `(ARRAY_AGG(g.${col} ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1]`;
+
+async function fetchRows(type, teamId) {
+  const isAll = teamId === 0;
+  const scoreSelect = type === "traditional"
+    ? `GREATEST(g.home_score, g.visitor_score) AS score1, LEAST(g.home_score, g.visitor_score) AS score2`
+    : isAll
+      ? `g.home_score AS score1, g.visitor_score AS score2`
+      : `CASE WHEN g.home_team_id = $1 THEN g.home_score ELSE g.visitor_score END AS score1,
+         CASE WHEN g.home_team_id = $1 THEN g.visitor_score ELSE g.home_score END AS score2`;
+  const where = isAll
+    ? `g.is_negro_league = false`
+    : `(g.home_team_id = $1 OR g.visitor_team_id = $1)`;
   const { rows } = await pool.query(
-    `SELECT v.year, v.score1, v.score2, v.occurrences::int,
-            v.last_date::text, v.last_home_team, v.last_visitor_team,
-            bx.home_score AS last_home_score, bx.visitor_score AS last_visitor_score,
-            v.last_game_id, v.source, bx.box_url
-     FROM ${view} v
-     LEFT JOIN gamelogs bx ON bx.game_id = v.last_game_id
-     WHERE v.team_id = $1
-     ORDER BY v.year, v.score1, v.score2`,
-    [teamId]
+    `SELECT EXTRACT(YEAR FROM g.date)::int AS year, ${scoreSelect}, g.game_type,
+            COUNT(*)::int AS occurrences, MAX(g.date)::text AS last_date,
+            ${LAST("home_team")} AS last_home_team, ${LAST("visitor_team")} AS last_visitor_team,
+            ${LAST("home_score")} AS last_home_score, ${LAST("visitor_score")} AS last_visitor_score,
+            ${LAST("game_id")} AS last_game_id, ${LAST("source")} AS source, ${LAST("box_url")} AS box_url
+     FROM gamelogs g
+     WHERE ${where}
+     GROUP BY 1, 2, 3, g.game_type
+     ORDER BY 1, 2, 3, g.game_type`,
+    isAll ? [] : [teamId]
   );
   return rows;
 }
 
-function writeJson(relPath, data) {
+// Per-year W/L/T by game type, from a franchise's home/away rows (score1 = team).
+function recordsFrom(haRows) {
+  const byKey = new Map();
+  for (const r of haRows) {
+    const k = `${r.year}|${r.game_type}`;
+    let rec = byKey.get(k);
+    if (!rec) byKey.set(k, (rec = { year: r.year, game_type: r.game_type, wins: 0, losses: 0, ties: 0 }));
+    if (r.score1 > r.score2) rec.wins += r.occurrences;
+    else if (r.score1 < r.score2) rec.losses += r.occurrences;
+    else rec.ties += r.occurrences;
+  }
+  return [...byKey.values()];
+}
+
+function writeJson(relPath, rows, records, encodeYearly) {
   const full = path.join(OUT_DIR, relPath);
   fs.mkdirSync(path.dirname(full), { recursive: true });
-  const json = JSON.stringify(data);
+  const json = JSON.stringify(encodeYearly(rows, records));
   fs.writeFileSync(full, json);
   const gz = zlib.gzipSync(json).length;
-  return { rows: data.length, raw: json.length, gz };
+  return { rows: rows.length, raw: json.length, gz };
 }
 
 (async () => {
   const t0 = Date.now();
+  const { encodeYearly } = await import("../lib/static-data.mjs");
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  const targets = [
-    { type: "traditional", view: "scorigami_by_year" },
-    { type: "homeaway", view: "scorigami_by_year_ha" },
-  ];
-
   const summary = [];
-  for (const { type, view } of targets) {
-    // ALL teams
-    const allRows = await fetchView(view, 0);
-    const allStats = writeJson(`${type}/ALL.json`, allRows);
-    summary.push({ file: `${type}/ALL.json`, ...allStats });
-
-    // Each franchise
-    for (const [code, teamId] of Object.entries(FRANCHISE_CODE_TO_ID_MAP)) {
-      const rows = await fetchView(view, teamId);
-      const stats = writeJson(`${type}/${code}.json`, rows);
-      summary.push({ file: `${type}/${code}.json`, ...stats });
-    }
+  const teams = [["ALL", 0], ...Object.entries(FRANCHISE_CODE_TO_ID_MAP)];
+  for (const [code, teamId] of teams) {
+    const [trad, ha] = await Promise.all([fetchRows("traditional", teamId), fetchRows("homeaway", teamId)]);
+    const records = teamId === 0 ? null : recordsFrom(ha);
+    summary.push({ file: `traditional/${code}.json`, ...writeJson(`traditional/${code}.json`, trad, records, encodeYearly) });
+    summary.push({ file: `homeaway/${code}.json`, ...writeJson(`homeaway/${code}.json`, ha, null, encodeYearly) });
   }
 
   // Manifest — used by the frontend to check freshness and confirm files exist
   const manifest = {
     generated_at: new Date().toISOString(),
-    types: targets.map((t) => t.type),
+    format: 2,
+    types: ["traditional", "homeaway"],
     teams: ["ALL", ...Object.keys(FRANCHISE_CODE_TO_ID_MAP)],
     files: summary.map((s) => ({ file: s.file, rows: s.rows, gzipped_bytes: s.gz })),
   };

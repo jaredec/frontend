@@ -19,6 +19,11 @@ import {
   getTeamLogoUrl,
 } from "@/lib/mlb-data";
 import type { YearlyRow } from "@/lib/scorigami-queries";
+import { getTeamTheme } from "@/lib/team-theme.mjs";
+import { decodeYearly, recordsForFilter, staticDataUrl, yearlyForFilter } from "@/lib/static-data.mjs";
+
+type RecordRow = { year: number; game_type: string; wins: number; losses: number; ties: number };
+type StaticData = { rows: YearlyRow[]; records: RecordRow[] | null; typed: boolean };
 
 const formatMetaDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", {
@@ -34,19 +39,13 @@ const MIN_YEAR = 1871;
 // Flip to false to immediately revert to API-only behavior.
 const USE_STATIC_JSON = true;
 
-const STATIC_TYPE_DIR: Record<string, string> = {
-  traditional: "traditional",
-  home_away: "homeaway",
-};
-
 // Two-URL fetcher: try the primary, fall back to the secondary on any failure.
-// Encoded as "primary|fallback" in the SWR key. SWR keys remain unique per
-// (team, type, gameFilter) combo, so caching still works.
-const fetcher = async (key: string) => {
+// Encoded as "primary|fallback" in the SWR key.
+const fetcher = async (key: string): Promise<StaticData> => {
   const [primary, fallback] = key.includes("|") ? key.split("|") : [key, null];
   try {
     const r = await fetch(primary);
-    if (r.ok) return await r.json();
+    if (r.ok) return decodeYearly(await r.json()) as StaticData;
     if (!fallback) {
       const json = await r.json().catch(() => ({}));
       throw new Error(json.error || `HTTP ${r.status}`);
@@ -57,17 +56,35 @@ const fetcher = async (key: string) => {
   const r = await fetch(fallback);
   const json = await r.json();
   if (!r.ok) throw new Error(json.error || "API error");
-  return json;
+  return decodeYearly(json) as StaticData;
 };
 
+const apiKey = (club: string, scorigamiType: string, gameFilter: string) =>
+  `/api/scorigami?team=${club}&type=${scorigamiType}&mode=yearly&gameFilter=${gameFilter}`;
+
+// Static files carry every game type, so one key per team+type serves all game
+// filters and switching them never refetches. The API fallback is "all" only;
+// see filteredKey for filtered views when the static file is unavailable.
 function buildDataKey(club: string, scorigamiType: string, gameFilter: string): string {
-  const apiUrl = `/api/scorigami?team=${club}&type=${scorigamiType}&mode=yearly&gameFilter=${gameFilter}`;
-  // Static JSON only covers the "all games" case — game filters still hit the API.
-  if (!USE_STATIC_JSON || gameFilter !== "all") return apiUrl;
-  const dir = STATIC_TYPE_DIR[scorigamiType];
-  if (!dir) return apiUrl;
-  const staticUrl = `/scorigami-data/${dir}/${club}.json`;
-  return `${staticUrl}|${apiUrl}`;
+  const staticUrl = staticDataUrl(club, scorigamiType);
+  if (!USE_STATIC_JSON || !staticUrl) return apiKey(club, scorigamiType, gameFilter);
+  return `${staticUrl}|${apiKey(club, scorigamiType, "all")}`;
+}
+
+const SWR_OPTS = {
+  revalidateOnFocus: false,
+  revalidateIfStale: false,
+  dedupingInterval: 3600000,
+} as const;
+
+
+function whenIdle(fn: () => void): () => void {
+  if (typeof window.requestIdleCallback === "function") {
+    const id = window.requestIdleCallback(fn, { timeout: 3000 });
+    return () => window.cancelIdleCallback(id);
+  }
+  const id = window.setTimeout(fn, 1500);
+  return () => window.clearTimeout(id);
 }
 
 type AggRow = {
@@ -79,7 +96,7 @@ type AggRow = {
   last_visitor_team: string | null;
   last_home_score?: number | null;
   last_visitor_score?: number | null;
-  last_game_id: number | null;
+  last_game_id: number | string | null;
   source: string | null;
   box_url: string | null;
 };
@@ -134,6 +151,7 @@ function computeHeaderStats(
   rows: AggRow[],
   yearly: YearlyRow[],
   ha: YearlyRow[] | undefined,
+  records: RecordRow[] | null,
   statsClub: FranchiseCode | "ALL",
   statsType: ScorigamiType,
   yearRange: [number, number],
@@ -158,6 +176,15 @@ function computeHeaderStats(
   if (statsClub === "ALL") {
     for (const r of rows) {
       if (r.score1 === r.score2) ties += Number(r.occurrences);
+    }
+  } else if (statsType === "traditional" && records) {
+    wins = 0;
+    losses = 0;
+    for (const r of records) {
+      if (r.year < yearRange[0] || r.year > yearRange[1]) continue;
+      wins += r.wins;
+      losses += r.losses;
+      ties += r.ties;
     }
   } else if (Array.isArray(recordRows)) {
     wins = 0;
@@ -266,7 +293,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>("traditional");
   const [club, setClub] = useState<FranchiseCode | "ALL">(initialClub);
   const [yearRange, setYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
-  const [yearMode, setYearMode] = useState<"single" | "range">("single");
+  const [yearMode, setYearMode] = useState<"single" | "range">("range");
   const [gameFilter, setGameFilter] = useState<GameFilter>("all");
   const [gridSize, setGridSize] = useState<GridSize>(36);
   const [gridExpanded, setGridExpanded] = useState(false);
@@ -277,20 +304,23 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   };
   const isGhostClick = () => Date.now() - dropdownCloseTimeRef.current < 400;
 
-  // Warm the browser cache with every team logo so the header logo swaps instantly
-  // (no blank flash) when the filter changes. Single-page variant only.
+  // Warm the browser cache with every header logo so it swaps instantly (no
+  // blank flash) when the filter changes. Single-page variant only. The images
+  // are held so they stay in the memory cache; /logo3.svg is max-age=0 and
+  // would otherwise revalidate on every swap.
+  const warmLogosRef = useRef<HTMLImageElement[]>([]);
   useEffect(() => {
     if (variant !== "single") return;
-    CURRENT_FRANCHISE_CODES.forEach((code) => {
-      const url = getTeamLogoUrl(code);
-      if (url) {
+    warmLogosRef.current = ["/logo3.svg", ...CURRENT_FRANCHISE_CODES.map((code) => getTeamLogoUrl(code))]
+      .filter((url): url is string => Boolean(url))
+      .map((url) => {
         const img = new window.Image();
         img.src = url;
-      }
-    });
+        return img;
+      });
   }, [variant]);
 
-  // Load all yearly data once per team+type combo
+  // One file per team+type covers every game filter.
   const dataKey = useMemo(
     () => buildDataKey(club, scorigamiType, gameFilter),
     [club, scorigamiType, gameFilter]
@@ -299,30 +329,37 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   const { cache } = useSWRConfig();
 
   const {
-    data: yearlyRows,
+    data: baseData,
     error,
     isLoading,
     isValidating,
-  } = useSWR<YearlyRow[]>(dataKey, fetcher, {
-    revalidateOnFocus: false,
-    revalidateIfStale: false,
-    dedupingInterval: 3600000,
-  });
+  } = useSWR<StaticData>(dataKey, fetcher, SWR_OPTS);
 
-  // Team W/L needs home/away rows even when the grid is on the traditional view.
-  const haKey = useMemo(
-    () => (variant === "single" ? buildDataKey(club, "home_away", gameFilter) : null),
-    [variant, club, gameFilter]
+  // Only when the static file failed and we fell back to the "all" API rows.
+  const filteredKey =
+    USE_STATIC_JSON && baseData && !baseData.typed && gameFilter !== "all"
+      ? apiKey(club, scorigamiType, gameFilter)
+      : null;
+  const { data: filteredData } = useSWR<StaticData>(filteredKey, fetcher, SWR_OPTS);
+
+  // Team W/L on the traditional view comes from the file's records; older or
+  // API-sourced data needs the home/away rows instead.
+  const needHa =
+    variant === "single" && club !== "ALL" && scorigamiType === "traditional" &&
+    Boolean(baseData) && !baseData?.records;
+  const haKey = needHa ? buildDataKey(club, "home_away", gameFilter) : null;
+  const haFilteredKey = needHa && USE_STATIC_JSON && gameFilter !== "all" ? apiKey(club, "home_away", gameFilter) : null;
+  const { data: haData } = useSWR<StaticData>(haKey, fetcher, SWR_OPTS);
+  const { data: haFilteredData } = useSWR<StaticData>(
+    haData && !haData.typed ? haFilteredKey : null,
+    fetcher,
+    SWR_OPTS,
   );
-  const { data: haYearly } = useSWR<YearlyRow[]>(haKey, fetcher, {
-    revalidateOnFocus: false,
-    revalidateIfStale: false,
-    dedupingInterval: 3600000,
-  });
 
   type ViewSnap = {
     yearly: YearlyRow[];
     ha: YearlyRow[] | undefined;
+    records: RecordRow[] | null;
     club: FranchiseCode | "ALL";
     scorigamiType: ScorigamiType;
     gameFilter: GameFilter;
@@ -335,12 +372,24 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   yearRangeRef.current = yearRange;
 
   useLayoutEffect(() => {
-    const cachedYearly = cache.get(dataKey)?.data as YearlyRow[] | undefined;
-    if (!Array.isArray(cachedYearly)) return;
+    const cached = (key: string | null) =>
+      key ? (cache.get(key)?.data as StaticData | undefined) : undefined;
+    // Rows for this game filter: typed static rows filter locally; untyped
+    // "all" rows need the server-filtered key.
+    const forFilter = (base: StaticData | undefined, filteredApiKey: string | null) => {
+      if (!base) return undefined;
+      if (base.typed || gameFilter === "all" || !USE_STATIC_JSON) return yearlyForFilter(base.rows, gameFilter);
+      return cached(filteredApiKey)?.rows;
+    };
 
-    const needHa = variant === "single" && club !== "ALL" && scorigamiType === "traditional";
-    const cachedHa = haKey ? (cache.get(haKey)?.data as YearlyRow[] | undefined) : undefined;
-    if (needHa && !Array.isArray(cachedHa)) return;
+    const base = cached(dataKey);
+    const cachedYearly = forFilter(base, apiKey(club, scorigamiType, gameFilter));
+    if (!base || !cachedYearly) return;
+
+    const records = recordsForFilter(base.records, gameFilter);
+    const wantHa = variant === "single" && club !== "ALL" && scorigamiType === "traditional" && !records;
+    const cachedHa = wantHa ? forFilter(cached(haKey), haFilteredKey) : undefined;
+    if (wantHa && !cachedHa) return;
 
     const [spanMin, spanMax] = sliderSpan(cachedYearly, gameFilter);
     const clubChanged = prevClubRef.current !== club;
@@ -362,12 +411,13 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     setView({
       yearly: cachedYearly,
       ha: cachedHa,
+      records,
       club,
       scorigamiType,
       gameFilter,
       yearRange: nextRange,
     });
-  }, [cache, dataKey, haKey, yearlyRows, haYearly, club, scorigamiType, gameFilter, variant]);
+  }, [cache, dataKey, haKey, haFilteredKey, baseData, filteredData, haData, haFilteredData, club, scorigamiType, gameFilter, variant]);
 
   const dataYearBounds = useMemo<[number, number]>(() => {
     if (!view || !Array.isArray(view.yearly) || view.yearly.length === 0) {
@@ -376,11 +426,19 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     return sliderSpan(view.yearly, view.gameFilter);
   }, [view]);
 
+  // Once the grid is up, warm the likely next views off the critical path:
+  // All Teams (from a team page) and the other view type.
   useEffect(() => {
-    if (!yearlyRows) return;
+    if (!baseData) return;
     const altType = scorigamiType === "traditional" ? "home_away" : "traditional";
-    preload(buildDataKey(club, altType, gameFilter), fetcher);
-  }, [yearlyRows, club, scorigamiType, gameFilter]);
+    const keys = [
+      ...(club !== "ALL" ? [buildDataKey("ALL", scorigamiType, gameFilter)] : []),
+      buildDataKey(club, altType, gameFilter),
+    ];
+    return whenIdle(() => {
+      for (const key of keys) if (!cache.get(key)?.data) preload(key, fetcher);
+    });
+  }, [cache, baseData, club, scorigamiType, gameFilter]);
 
   const display = useMemo(() => {
     if (!view) return null;
@@ -394,6 +452,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
       rows,
       view.yearly,
       view.ha,
+      view.records,
       view.club,
       view.scorigamiType,
       range,
@@ -411,6 +470,20 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   const headerStats = display?.stats ?? null;
   const statsClub = display?.club ?? club;
 
+  const theme = getTeamTheme(variant === "single" ? statsClub : "ALL");
+  const themeVars = useMemo(
+    () => ({ "--team-dark": theme.dark, "--team-accent": theme.accent, "--team-link": theme.link }),
+    [theme]
+  );
+  // Dropdowns and tooltips portal to <body>, outside the wrapper's inline vars.
+  useLayoutEffect(() => {
+    const root = document.documentElement.style;
+    for (const [k, v] of Object.entries(themeVars)) root.setProperty(k, v);
+    return () => {
+      for (const k of Object.keys(themeVars)) root.removeProperty(k);
+    };
+  }, [themeVars]);
+
   const sortedTeamsForDropdown = useMemo(() => {
     return CURRENT_FRANCHISE_CODES.map((code) => ({
       code,
@@ -425,7 +498,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     setClub(initialClub);
     setGameFilter("all");
     setYearRange([MIN_YEAR, CURRENT_YEAR]);
-    setYearMode("single");
+    setYearMode("range");
   };
 
   const filterProps = {
@@ -441,10 +514,14 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     sortedTeamsForDropdown,
     onDropdownOpenChange: handleDropdownOpenChange,
     onReset: handleReset,
+    onPrefetchTeam: (code: FranchiseCode | "ALL") => {
+      const key = buildDataKey(code, scorigamiType, gameFilter);
+      if (!cache.get(key)?.data) preload(key, fetcher);
+    },
   };
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden" style={variant === "single" ? { backgroundColor: "#f2f2f2", fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}>
+    <div className="min-h-screen flex flex-col overflow-x-hidden" style={variant === "single" ? { backgroundColor: "#f2f2f2", fontFamily: "var(--v2-ui-font), system-ui, sans-serif", ...themeVars } : undefined}>
       {variant === "single" ? (
         <header className="max-w-[1150px] mx-auto w-full px-3 sm:px-4 pt-[15px] pb-2 sm:pb-3 text-center">
             {(() => {
@@ -510,7 +587,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
                                   </span>
                                 </span>
                                 <span>
-                                  <span style={{ color: "#0b162a" }}>{countLabel}: </span>
+                                  <span style={{ color: "var(--team-dark)" }}>{countLabel}: </span>
                                   <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
                                     {headerStats.uniqueScores.toLocaleString()}
                                   </span>
@@ -526,7 +603,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
                                     </span>
                                   </span>
                                   <span>
-                                    <span style={{ color: "#0b162a" }}>{countLabel}: </span>
+                                    <span style={{ color: "var(--team-dark)" }}>{countLabel}: </span>
                                     <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
                                       {headerStats.uniqueScores.toLocaleString()}
                                     </span>
@@ -559,7 +636,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
                           </div>
                           {headerStats.recent && (
                             <div>
-                              <span style={{ color: "#0b162a" }}>{recentLabel}: </span>
+                              <span style={{ color: "var(--team-dark)" }}>{recentLabel}: </span>
                               <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
                                 {headerStats.recent.score1}–{headerStats.recent.score2}
                               </span>
@@ -621,7 +698,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
             </div>
           )}
 
-          {isValidating && yearlyRows && (
+          {isValidating && baseData && (
             <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden z-50">
               <div className="h-full w-full bg-gradient-to-r from-transparent via-blue-500/40 to-transparent animate-shimmer" />
             </div>

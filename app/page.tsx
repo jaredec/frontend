@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { preload } from "react-dom";
 import ScorigamiPage from "@/components/scorigami-page";
+import { staticDataUrl } from "@/lib/static-data.mjs";
 
 export const metadata: Metadata = {
   title: "MLB Scorigami | Every Final Score in Baseball History",
@@ -16,6 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
+  preload(staticDataUrl("ALL", "traditional")!, { as: "fetch", crossOrigin: "anonymous" });
   return (
     <>
       <h1 className="sr-only">
