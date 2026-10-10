@@ -55,7 +55,7 @@ function GameTypeDropdown({
   };
 
   const itemCls = stacked
-    ? "w-full text-left px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] text-[#343434] hover:bg-[#0b162a] hover:text-white rounded-md cursor-pointer"
+    ? "w-full text-left px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] text-[#343434] hover:bg-[var(--team-dark)] hover:text-white rounded-md cursor-pointer"
     : "w-full text-left px-3 py-2 text-sm text-slate-800 dark:text-slate-200 hover:bg-blue-500 hover:text-white rounded cursor-pointer";
 
   return (
@@ -70,7 +70,7 @@ function GameTypeDropdown({
         style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif", fontWeight: 500 } : undefined}
       >
         <span className="flex-1 truncate">{triggerLabel}</span>
-        <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 ml-1 ${stacked ? "text-[#0b162a]" : "text-slate-400"}`} />
+        <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 ml-1 ${stacked ? "text-[var(--team-dark)]" : "text-slate-400"}`} />
       </button>
 
       {open && (
@@ -88,12 +88,12 @@ function GameTypeDropdown({
             type="button"
             onClick={() => setPostExpanded(e => !e)}
             className={stacked
-              ? "w-full flex items-center justify-between px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] text-[#343434] hover:bg-[#0b162a] hover:text-white rounded-md cursor-pointer"
+              ? "w-full flex items-center justify-between px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] text-[#343434] hover:bg-[var(--team-dark)] hover:text-white rounded-md cursor-pointer"
               : "w-full flex items-center justify-between px-3 py-2 text-sm text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#2d2d30] rounded cursor-pointer"
             }
           >
             <span>Postseason</span>
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${postExpanded ? "rotate-180" : ""} ${stacked ? "text-[#0b162a]" : "text-slate-400"}`} />
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${postExpanded ? "rotate-180" : ""} ${stacked ? "text-[var(--team-dark)]" : "text-slate-400"}`} />
           </button>
 
           {postExpanded && (
@@ -178,7 +178,7 @@ function yearToSliderValue(yearRange: [number, number], sentinel: number) {
 }
 
 const PILL: React.CSSProperties = {
-  background: "#0b162a",
+  background: "var(--team-dark)",
   color: "#ffffff",
   fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
   fontSize: 12,
@@ -536,6 +536,7 @@ interface FilterBarProps {
   sortedTeamsForDropdown: { code: string; name: string }[];
   onDropdownOpenChange?: (open: boolean) => void;
   onReset?: () => void;
+  onPrefetchTeam?: (code: FranchiseCode | "ALL") => void;
   stacked?: boolean;
   yearMode?: "single" | "range";
   setYearMode?: (mode: "single" | "range") => void;
@@ -552,6 +553,7 @@ export default function FilterBar({
   sortedTeamsForDropdown,
   onDropdownOpenChange,
   onReset,
+  onPrefetchTeam,
   stacked = false,
   yearMode = "single",
   setYearMode,
@@ -575,6 +577,7 @@ export default function FilterBar({
   const tapStartRef = useRef<{ x: number; y: number } | null>(null);
   const lastTapRef = useRef<{ x: number; y: number; t: number } | null>(null);
   const yearSnapRef = useRef<[number, number]>(yearRange);
+  const rangeBeforeSingleRef = useRef<[number, number] | null>(null);
   useEffect(() => {
     return () => {
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
@@ -587,6 +590,16 @@ export default function FilterBar({
     : `linear-gradient(to right, #94a3b8 0%, #94a3b8 ${modernStartPct}%, #e2e8f0 ${modernStartPct}%, #e2e8f0 100%)`;
 
   const clampYear = (y: number) => Math.max(dataMin, Math.min(dataMax, y));
+
+  // Year under clientX on the range slider's track (same geometry as BearRangeSlider).
+  const yearAtRangeTrack = (container: HTMLElement, clientX: number) => {
+    const track = container.querySelector<HTMLElement>('[role="slider"]');
+    if (!track) return null;
+    const rect = track.getBoundingClientRect();
+    const usable = Math.max(rect.width - RANGE_PAD * 2, 1);
+    const pct = (clientX - rect.left - RANGE_PAD) / usable;
+    return clampYear(Math.round(dataMin + pct * (dataMax - dataMin)));
+  };
 
   const clampedSet = (lo: number, hi: number) => {
     const cLo = clampYear(lo);
@@ -670,7 +683,7 @@ export default function FilterBar({
                 </Select.Value>
               </span>
               <Select.Icon className="flex-shrink-0 ml-1">
-                <ChevronDown className={`h-3.5 w-3.5 ${stacked ? "text-[#0b162a]" : "text-slate-400"}`} />
+                <ChevronDown className={`h-3.5 w-3.5 ${stacked ? "text-[var(--team-dark)]" : "text-slate-400"}`} />
               </Select.Icon>
             </Select.Trigger>
             <Select.Portal>
@@ -686,8 +699,10 @@ export default function FilterBar({
                 <Select.Viewport>
                   <Select.Item
                     value="ALL"
+                    onPointerEnter={() => onPrefetchTeam?.("ALL")}
+                    onFocus={() => onPrefetchTeam?.("ALL")}
                     className={stacked
-                      ? "cursor-pointer select-none rounded-md px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] outline-none text-[#343434] data-[highlighted]:bg-[#0b162a] data-[highlighted]:text-white"
+                      ? "cursor-pointer select-none rounded-md px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] outline-none text-[#343434] data-[highlighted]:bg-[var(--team-dark)] data-[highlighted]:text-white"
                       : "cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white"
                     }
                   >
@@ -697,8 +712,11 @@ export default function FilterBar({
                     <Select.Item
                       key={team.code}
                       value={team.code}
+                      onPointerEnter={() => onPrefetchTeam?.(team.code as FranchiseCode)}
+                      onPointerDown={() => onPrefetchTeam?.(team.code as FranchiseCode)}
+                      onFocus={() => onPrefetchTeam?.(team.code as FranchiseCode)}
                       className={stacked
-                        ? "cursor-pointer select-none rounded-md px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] outline-none text-[#343434] data-[highlighted]:bg-[#0b162a] data-[highlighted]:text-white"
+                        ? "cursor-pointer select-none rounded-md px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] outline-none text-[#343434] data-[highlighted]:bg-[var(--team-dark)] data-[highlighted]:text-white"
                         : "cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white"
                       }
                     >
@@ -745,17 +763,17 @@ export default function FilterBar({
               tapStartRef.current = null;
               const [lo, hi] = yearSnapRef.current;
               if (yearMode === "single") {
+                // Back to the range from before the single-year switch.
+                const [prevLo, prevHi] = rangeBeforeSingleRef.current ?? [dataMin, dataMax];
+                const rLo = clampYear(prevLo);
+                const rHi = clampYear(prevHi);
                 setYearMode("range");
-                setYearRange(
-                  lo === hi
-                    ? lo >= dataMax
-                      ? [dataMin, dataMax]
-                      : [lo, dataMax]
-                    : [dataMin, dataMax],
-                );
+                setYearRange(rLo < rHi ? [rLo, rHi] : [dataMin, dataMax]);
               } else {
+                rangeBeforeSingleRef.current = [lo, hi];
+                const year = yearAtRangeTrack(e.currentTarget, e.clientX);
                 setYearMode("single");
-                setYearRange(lo === hi ? [lo, hi] : [dataMin, dataMax]);
+                setYearRange(year != null ? [year, year] : lo === hi ? [lo, hi] : [dataMin, dataMax]);
               }
               return;
             }

@@ -1,4 +1,5 @@
 import { pool } from "@/lib/db";
+import { decodeYearly } from "@/lib/static-data.mjs";
 
 // All ops data is fetched live on request — the dashboard is private and
 // low-traffic, so freshness beats caching everywhere except the static-data
@@ -274,7 +275,7 @@ export async function getStaticFreshness(): Promise<StaticFreshness> {
   try {
     const res = await fetch(url, { next: { revalidate: 1800 } });
     if (!res.ok) return { staticLastDate: null, checkedUrl: url, error: true };
-    const rows = (await res.json()) as { last_date: string | null }[];
+    const { rows } = decodeYearly(await res.json());
     let max: string | null = null;
     for (const r of rows) {
       if (r.last_date && (!max || r.last_date > max)) max = r.last_date;

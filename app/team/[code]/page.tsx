@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { TEAM_NAMES, CURRENT_FRANCHISE_CODES, FranchiseCode } from "@/lib/mlb-data";
+import { preload } from "react-dom";
+import { staticDataUrl } from "@/lib/static-data.mjs";
+import { TEAM_NAMES, TEAM_IGAMI, CURRENT_FRANCHISE_CODES, FranchiseCode } from "@/lib/mlb-data";
 import ScorigamiPage from "@/components/scorigami-page";
 
 interface TeamPageProps {
@@ -19,6 +21,7 @@ export async function generateMetadata({ params }: TeamPageProps): Promise<Metad
 
   const title = `${name} Scorigami | Every Final Score in Franchise History`;
   const description = `Explore every unique final score in ${name} history. See which scores have never happened, when each result last occurred, and browse box scores.`;
+  const ogImage = `/og/team/${code.toLowerCase()}.png`;
 
   return {
     title,
@@ -28,13 +31,13 @@ export async function generateMetadata({ params }: TeamPageProps): Promise<Metad
       title,
       description,
       url: `https://mlbscorigami.com/team/${code.toLowerCase()}`,
-      images: [{ url: "/og.png", width: 1200, height: 630, alt: `${name} Scorigami heatmap` }],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: `${TEAM_IGAMI[upper] ?? `${name} Scorigami`} heatmap` }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ["/og.png"],
+      images: [ogImage],
     },
   };
 }
@@ -46,6 +49,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
   if (!TEAM_NAMES[upper]) {
     notFound();
   }
+  preload(staticDataUrl(upper, "traditional")!, { as: "fetch", crossOrigin: "anonymous" });
 
   return (
     <>
