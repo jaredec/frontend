@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-12T22:08:31.513Z",
+  "generated_at": "2026-10-13T16:01:19.629Z",
   "format": 2,
   "types": [
     "traditional",
@@ -41,13 +41,13 @@
   "files": [
     {
       "file": "traditional/ALL.json",
-      "rows": 20166,
-      "gzipped_bytes": 286564
+      "rows": 20168,
+      "gzipped_bytes": 286584
     },
     {
       "file": "homeaway/ALL.json",
-      "rows": 31818,
-      "gzipped_bytes": 443655
+      "rows": 31820,
+      "gzipped_bytes": 443679
     },
     {
       "file": "traditional/LAA.json",
@@ -131,13 +131,13 @@
     },
     {
       "file": "traditional/CLE.json",
-      "rows": 7293,
-      "gzipped_bytes": 85922
+      "rows": 7294,
+      "gzipped_bytes": 85940
     },
     {
       "file": "homeaway/CLE.json",
-      "rows": 10333,
-      "gzipped_bytes": 119144
+      "rows": 10334,
+      "gzipped_bytes": 119158
     },
     {
       "file": "traditional/COL.json",
@@ -181,13 +181,13 @@
     },
     {
       "file": "traditional/LAD.json",
-      "rows": 8216,
-      "gzipped_bytes": 107768
+      "rows": 8217,
+      "gzipped_bytes": 107779
     },
     {
       "file": "homeaway/LAD.json",
-      "rows": 11524,
-      "gzipped_bytes": 146642
+      "rows": 11525,
+      "gzipped_bytes": 146653
     },
     {
       "file": "traditional/MIA.json",
@@ -201,13 +201,13 @@
     },
     {
       "file": "traditional/MIL.json",
-      "rows": 3272,
-      "gzipped_bytes": 39915
+      "rows": 3273,
+      "gzipped_bytes": 39927
     },
     {
       "file": "homeaway/MIL.json",
-      "rows": 4707,
-      "gzipped_bytes": 55748
+      "rows": 4708,
+      "gzipped_bytes": 55758
     },
     {
       "file": "traditional/MIN.json",
@@ -311,13 +311,13 @@
     },
     {
       "file": "traditional/TB.json",
-      "rows": 1684,
-      "gzipped_bytes": 21060
+      "rows": 1685,
+      "gzipped_bytes": 21083
     },
     {
       "file": "homeaway/TB.json",
-      "rows": 2402,
-      "gzipped_bytes": 28950
+      "rows": 2403,
+      "gzipped_bytes": 28964
     },
     {
       "file": "traditional/TEX.json",
