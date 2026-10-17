@@ -56,7 +56,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
       <h1 className="sr-only">
         {TEAM_NAMES[upper]} Scorigami: every final score in franchise history
       </h1>
-      <ScorigamiPage initialClub={upper as FranchiseCode} />
+      <ScorigamiPage initialClub={upper as FranchiseCode} variant="classic" />
     </>
   );
 }

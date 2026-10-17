@@ -538,6 +538,7 @@ interface FilterBarProps {
   onReset?: () => void;
   onPrefetchTeam?: (code: FranchiseCode | "ALL") => void;
   stacked?: boolean;
+  inline?: boolean; // with stacked: dropdowns and slider share one row on desktop
   yearMode?: "single" | "range";
   setYearMode?: (mode: "single" | "range") => void;
 }
@@ -555,6 +556,7 @@ export default function FilterBar({
   onReset,
   onPrefetchTeam,
   stacked = false,
+  inline = false,
   yearMode = "single",
   setYearMode,
 }: FilterBarProps) {
@@ -621,15 +623,22 @@ export default function FilterBar({
 
   return (
     <div className={stacked
-      ? "w-full space-y-4"
+      ? inline
+        ? "w-full space-y-3 md:space-y-0 md:flex md:items-end md:gap-8"
+        : "w-full space-y-4"
       : "space-y-3 md:space-y-0 md:flex md:items-end md:gap-5"
     }>
 
       {/* Row 1 on mobile: Games dropdown + Team dropdown */}
-      <div className={stacked ? "flex items-end gap-3 w-full md:w-[70%] max-w-[950px] mx-auto" : "flex items-end gap-2 md:contents"}>
+      <div className={stacked
+        ? inline
+          ? "flex items-end gap-3 w-full md:w-auto md:flex-none"
+          : "flex items-end gap-3 w-full md:w-[70%] max-w-[950px] mx-auto"
+        : "flex items-end gap-2 md:contents"
+      }>
 
         {/* Game Type dropdown */}
-        <div className={stacked ? "flex-1 min-w-0" : "flex-1 min-w-0 md:w-52 md:flex-none"}>
+        <div className={stacked ? (inline ? "flex-1 min-w-0 md:w-[190px] md:flex-none" : "flex-1 min-w-0") : "flex-1 min-w-0 md:w-52 md:flex-none"}>
           <label
             className={stacked
               ? "block text-[13px] md:text-[15px] mb-1 text-[#343434]"
@@ -648,7 +657,7 @@ export default function FilterBar({
         </div>
 
         {/* Team dropdown */}
-        <div className={stacked ? "flex-1 min-w-0" : "flex-1 min-w-0 md:w-52 md:flex-none"}>
+        <div className={stacked ? (inline ? "flex-1 min-w-0 md:w-[240px] md:flex-none" : "flex-1 min-w-0") : "flex-1 min-w-0 md:w-52 md:flex-none"}>
           <label
             className={stacked
               ? "block text-[13px] md:text-[15px] mb-1 text-[#343434]"
@@ -745,7 +754,7 @@ export default function FilterBar({
       {/* Row 2: Year slider */}
       {stacked ? (
         <div
-          className="w-full md:w-[90%] max-w-[1150px] mx-auto"
+          className={inline ? "w-full md:flex-1 md:min-w-0" : "w-full md:w-[90%] max-w-[1150px] mx-auto"}
           style={{ touchAction: "none" }}
           onPointerDownCapture={(e) => {
             if (!setYearMode) return;

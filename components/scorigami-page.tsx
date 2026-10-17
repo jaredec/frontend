@@ -286,10 +286,12 @@ export type GridSize = 36 | 51;
 
 interface ScorigamiPageProps {
   initialClub?: FranchiseCode | "ALL";
-  variant?: "default" | "single";
+  variant?: "default" | "single" | "classic";
 }
 
 export default function ScorigamiPage({ initialClub = "ALL", variant = "single" }: ScorigamiPageProps) {
+  const light = variant !== "default";
+  const classic = variant === "classic";
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>("traditional");
   const [club, setClub] = useState<FranchiseCode | "ALL">(initialClub);
   const [yearRange, setYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
@@ -310,7 +312,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   // would otherwise revalidate on every swap.
   const warmLogosRef = useRef<HTMLImageElement[]>([]);
   useEffect(() => {
-    if (variant !== "single") return;
+    if (!light) return;
     warmLogosRef.current = ["/logo3.svg", ...CURRENT_FRANCHISE_CODES.map((code) => getTeamLogoUrl(code))]
       .filter((url): url is string => Boolean(url))
       .map((url) => {
@@ -318,7 +320,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
         img.src = url;
         return img;
       });
-  }, [variant]);
+  }, [light]);
 
   // One file per team+type covers every game filter.
   const dataKey = useMemo(
@@ -345,7 +347,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   // Team W/L on the traditional view comes from the file's records; older or
   // API-sourced data needs the home/away rows instead.
   const needHa =
-    variant === "single" && club !== "ALL" && scorigamiType === "traditional" &&
+    light && club !== "ALL" && scorigamiType === "traditional" &&
     Boolean(baseData) && !baseData?.records;
   const haKey = needHa ? buildDataKey(club, "home_away", gameFilter) : null;
   const haFilteredKey = needHa && USE_STATIC_JSON && gameFilter !== "all" ? apiKey(club, "home_away", gameFilter) : null;
@@ -387,7 +389,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
     if (!base || !cachedYearly) return;
 
     const records = recordsForFilter(base.records, gameFilter);
-    const wantHa = variant === "single" && club !== "ALL" && scorigamiType === "traditional" && !records;
+    const wantHa = light && club !== "ALL" && scorigamiType === "traditional" && !records;
     const cachedHa = wantHa ? forFilter(cached(haKey), haFilteredKey) : undefined;
     if (wantHa && !cachedHa) return;
 
@@ -417,7 +419,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
       gameFilter,
       yearRange: nextRange,
     });
-  }, [cache, dataKey, haKey, haFilteredKey, baseData, filteredData, haData, haFilteredData, club, scorigamiType, gameFilter, variant]);
+  }, [cache, dataKey, haKey, haFilteredKey, baseData, filteredData, haData, haFilteredData, club, scorigamiType, gameFilter, light]);
 
   const dataYearBounds = useMemo<[number, number]>(() => {
     if (!view || !Array.isArray(view.yearly) || view.yearly.length === 0) {
@@ -474,7 +476,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   const headerStats = display?.stats ?? null;
   const statsClub = display?.club ?? club;
 
-  const theme = getTeamTheme(variant === "single" ? statsClub : "ALL");
+  const theme = getTeamTheme(light ? statsClub : "ALL");
   const themeVars = useMemo(
     () => ({ "--team-dark": theme.dark, "--team-accent": theme.accent, "--team-link": theme.link }),
     [theme]
@@ -538,48 +540,103 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
         club={heatmapClub}
         gridSize={gridSize}
         isGhostClick={isGhostClick}
-        dark={variant !== "single"}
-        colCount={variant === "single" ? (gridExpanded ? 51 : 30) : undefined}
-        rowCount={variant === "single" ? (gridExpanded ? 51 : 30) : undefined}
+        dark={!light}
+        colCount={light ? (gridExpanded ? 51 : 30) : undefined}
+        rowCount={light ? (gridExpanded ? 51 : 30) : undefined}
         skeleton={false}
-        bearigamiGrid={variant === "single"}
-        revealed={variant === "single" ? revealed : true}
-        onPainted={variant === "single" ? markRevealed : undefined}
-        onToggleType={variant === "single"
+        bearigamiGrid={light}
+        classic={classic}
+        revealed={light ? revealed : true}
+        onPainted={light ? markRevealed : undefined}
+        onToggleType={light
           ? () => setScorigamiType(scorigamiType === "traditional" ? "home_away" : "traditional")
           : undefined
         }
-        onToggleExpand={variant === "single"
+        onToggleExpand={light
           ? () => setGridExpanded((v) => !v)
           : undefined
         }
-        expanded={variant === "single" ? gridExpanded : false}
+        expanded={light ? gridExpanded : false}
       />
     ),
     // isGhostClick only reads a ref, so a stale closure is fine.
-    [rows, heatmapLoading, heatmapType, heatmapClub, gridSize, variant, gridExpanded, revealed, markRevealed, scorigamiType],
+    [rows, heatmapLoading, heatmapType, heatmapClub, gridSize, light, classic, gridExpanded, revealed, markRevealed, scorigamiType],
   );
 
+  const igamiTitle = statsClub === "ALL" ? "MLB Scorigami" : (TEAM_IGAMI[statsClub] ?? "MLB Scorigami");
+  const logoSrc = statsClub === "ALL" ? "/logo3.svg" : (getTeamLogoUrl(statsClub) ?? "/logo3.svg");
+  const countLabel = "Unique scores";
+  const shownRange = display?.yearRange ?? yearRange;
+  const isSingleSeason = shownRange[0] === shownRange[1];
+  const statsType = display?.scorigamiType ?? scorigamiType;
+  const recentLabel = isSingleSeason
+    ? "Rarest score"
+    : statsClub !== "ALL"
+      ? `Last ${igamiTitle}`
+      : statsType === "home_away"
+        ? (headerStats?.recent && headerStats.recent.score1 < headerStats.recent.score2
+            ? "Last Awayigami"
+            : "Last Homeigami")
+        : "Last Scorigami";
+
+  const classicStats = (align: "end" | "center") =>
+    headerStats && (
+      <div
+        className={`flex flex-col gap-0.5 text-[14px] leading-snug text-[#343434] tabular-nums ${
+          align === "end" ? "items-end text-right" : "items-center text-center"
+        }`}
+        style={{ opacity: revealed ? 1 : 0, transition: revealed ? "opacity 160ms ease-out" : undefined }}
+      >
+        <div className={`flex flex-wrap gap-x-3 ${align === "end" ? "justify-end" : "justify-center"}`}>
+          <span>Games: <b>{headerStats.totalGames.toLocaleString()}</b></span>
+          <span><span style={{ color: "var(--team-dark)" }}>{countLabel}:</span> <b>{headerStats.uniqueScores.toLocaleString()}</b></span>
+          {statsClub !== "ALL" && headerStats.wins != null && headerStats.losses != null && (
+            <span>
+              <b style={{ color: "#2d7a4f" }}>{headerStats.wins.toLocaleString()}</b>
+              <span className="text-[#8b8b8b]">–</span>
+              <b style={{ color: "#8a4a4a" }}>{headerStats.losses.toLocaleString()}</b>
+              {headerStats.ties > 0 && (
+                <>
+                  <span className="text-[#8b8b8b]">–</span>
+                  <b style={{ color: "#5a6a7a" }}>{headerStats.ties.toLocaleString()}</b>
+                </>
+              )}
+            </span>
+          )}
+        </div>
+        {headerStats.recent && (
+          <div>
+            <span style={{ color: "var(--team-dark)" }}>{recentLabel}:</span>{" "}
+            <b>{headerStats.recent.score1}–{headerStats.recent.score2}</b>
+            {headerStats.recent.date && <b> · {formatMetaDate(headerStats.recent.date)}</b>}
+          </div>
+        )}
+      </div>
+    );
+
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden" style={variant === "single" ? { backgroundColor: "#f2f2f2", fontFamily: "var(--v2-ui-font), system-ui, sans-serif", ...themeVars } : undefined}>
-      {variant === "single" ? (
+    <div className="min-h-screen flex flex-col overflow-x-hidden" style={light ? { backgroundColor: "#f2f2f2", fontFamily: "var(--v2-ui-font), system-ui, sans-serif", ...themeVars } : undefined}>
+      {classic ? (
+        <header className="w-full border-b border-[#e2e2e2] bg-white">
+          <div className="max-w-[1150px] mx-auto px-4 h-14 sm:h-16 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoSrc} alt="" className="h-9 w-9 sm:h-11 sm:w-11 object-contain flex-none" />
+              <span
+                className="truncate text-[24px] sm:text-[28px] leading-none tracking-tight text-[#343434]"
+                style={{
+                  fontFamily: "var(--v2-title-font)",
+                  fontWeight: "var(--v2-title-weight)",
+                  WebkitTextStroke: "0.3px #343434",
+                }}
+              >{igamiTitle}</span>
+            </div>
+            <div className="hidden md:block flex-none">{classicStats("end")}</div>
+          </div>
+        </header>
+      ) : variant === "single" ? (
         <header className="max-w-[1150px] mx-auto w-full px-3 sm:px-4 pt-[15px] pb-2 sm:pb-3 text-center">
             {(() => {
-              const igamiTitle = statsClub === "ALL" ? "MLB Scorigami" : (TEAM_IGAMI[statsClub] ?? "MLB Scorigami");
-              const logoSrc = statsClub === "ALL" ? "/logo3.svg" : (getTeamLogoUrl(statsClub) ?? "/logo3.svg");
-              const countLabel = "Unique scores";
-              const shownRange = display?.yearRange ?? yearRange;
-              const isSingleSeason = shownRange[0] === shownRange[1];
-              const statsType = display?.scorigamiType ?? scorigamiType;
-              const recentLabel = isSingleSeason
-                ? "Rarest score"
-                : statsClub !== "ALL"
-                  ? `Last ${igamiTitle}`
-                  : statsType === "home_away"
-                    ? (headerStats?.recent && headerStats.recent.score1 < headerStats.recent.score2
-                        ? "Last Awayigami"
-                        : "Last Homeigami")
-                    : "Last Scorigami";
               return (
                 <>
                   <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 mt-5 mb-5 max-[459px]:mt-[30px]">
@@ -703,19 +760,19 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
         />
       )}
 
-      <main className={`flex-1 mx-auto w-full px-4 ${variant === "single" ? "max-w-[1150px] pt-1 pb-4" : "max-w-5xl py-4"}`}>
+      <main className={`flex-1 mx-auto w-full px-4 ${classic ? "max-w-[1150px] pt-3 pb-4" : light ? "max-w-[1150px] pt-1 pb-4" : "max-w-5xl py-4"}`}>
         {/* Filters */}
-        <div className={variant === "single" ? "mb-2" : "mb-3"}>
-          <FilterBar {...filterProps} stacked={variant === "single"} />
+        <div className={classic ? "mb-1" : light ? "mb-2" : "mb-3"}>
+          <FilterBar {...filterProps} stacked={light} inline={classic} />
         </div>
 
         {/* Heatmap — full width. Single-page: no card; grid sits on the gray canvas. */}
-        <div className={variant === "single"
+        <div className={light
           ? "relative"
           : "relative bg-white dark:bg-[#252526] rounded-lg overflow-hidden min-h-[400px] md:min-h-[500px]"
         }>
 
-          {variant !== "single" && (
+          {!light && (
             <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
               <button
                 onClick={() => setScorigamiType(scorigamiType === "traditional" ? "home_away" : "traditional")}
@@ -758,9 +815,11 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
             heatmap
           )}
         </div>
+
+        {classic && <div className="md:hidden mt-3">{classicStats("center")}</div>}
       </main>
 
-      {variant === "single" && <V2About />}
+      {light && <V2About />}
 
       <PageFooter />
     </div>
