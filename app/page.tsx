@@ -24,7 +24,7 @@ export default function Home() {
       <h1 className="sr-only">
         MLB Scorigami: every unique final score in Major League Baseball history
       </h1>
-      <ScorigamiPage />
+      <ScorigamiPage variant="classic" />
     </>
   );
 }

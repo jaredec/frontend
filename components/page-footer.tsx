@@ -6,7 +6,42 @@ const XLogoIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export default function PageFooter() {
+const lightLinkCls = "text-[#343434] hover:text-[var(--team-link)] transition-colors";
+
+/** `light`: the single-page theme — matches the About card's width and type. `className` overrides the light width. */
+export default function PageFooter({
+  light = false,
+  className = "w-[90%] max-[900px]:w-[95%] max-w-[1150px] mx-auto",
+}: { light?: boolean; className?: string }) {
+  if (light) {
+    return (
+      <footer
+        className={`${className} py-8 text-[14px] leading-relaxed text-[#6b6b6b]`}
+        style={{ fontFamily: "var(--v2-ui-font), system-ui, sans-serif" }}
+      >
+        <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-3 text-center md:text-left">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
+            <span>Created by Jared Connolly</span>
+            <a href="https://x.com/MLBgami" target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-1.5 ${lightLinkCls}`}>
+              <XLogoIcon className="w-3.5 h-3.5" />
+              <span>@MLBgami</span>
+            </a>
+            <a href="mailto:scorigami.mlb@gmail.com" className={`inline-flex items-center gap-1.5 ${lightLinkCls}`}>
+              <Mail className="w-4 h-4" />
+              <span>Contact</span>
+            </a>
+          </div>
+          <p className="max-w-md md:text-right">
+            Modern results via the MLB Stats API. 1871–1900 and Federal League records from{" "}
+            <a href="https://www.retrosheet.org" target="_blank" rel="noopener noreferrer" className={`underline underline-offset-2 ${lightLinkCls}`}>
+              Retrosheet
+            </a>
+            .
+          </p>
+        </div>
+      </footer>
+    );
+  }
   return (
     <footer className="mt-8">
       <div className="max-w-5xl mx-auto w-full px-4 py-6 border-t border-slate-200/60 dark:border-[#2d2d30]">

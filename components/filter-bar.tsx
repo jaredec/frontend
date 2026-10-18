@@ -538,6 +538,7 @@ interface FilterBarProps {
   onReset?: () => void;
   onPrefetchTeam?: (code: FranchiseCode | "ALL") => void;
   stacked?: boolean;
+  inline?: boolean; // with stacked: dropdowns and slider share one row on desktop
   yearMode?: "single" | "range";
   setYearMode?: (mode: "single" | "range") => void;
 }
@@ -555,6 +556,7 @@ export default function FilterBar({
   onReset,
   onPrefetchTeam,
   stacked = false,
+  inline = false,
   yearMode = "single",
   setYearMode,
 }: FilterBarProps) {
@@ -621,24 +623,33 @@ export default function FilterBar({
 
   return (
     <div className={stacked
-      ? "w-full space-y-4"
+      ? inline
+        ? "w-full space-y-2 md:space-y-0 md:flex md:items-center md:gap-4"
+        : "w-full space-y-4"
       : "space-y-3 md:space-y-0 md:flex md:items-end md:gap-5"
     }>
 
       {/* Row 1 on mobile: Games dropdown + Team dropdown */}
-      <div className={stacked ? "flex items-end gap-3 w-full md:w-[70%] max-w-[950px] mx-auto" : "flex items-end gap-2 md:contents"}>
+      <div className={stacked
+        ? inline
+          ? "flex items-end gap-3 md:gap-2.5 w-full md:w-auto md:flex-none"
+          : "flex items-end gap-3 w-full md:w-[70%] max-w-[950px] mx-auto"
+        : "flex items-end gap-2 md:contents"
+      }>
 
         {/* Game Type dropdown */}
-        <div className={stacked ? "flex-1 min-w-0" : "flex-1 min-w-0 md:w-52 md:flex-none"}>
-          <label
-            className={stacked
-              ? "block text-[13px] md:text-[15px] mb-1 text-[#343434]"
-              : "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5"
-            }
-            style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}
-          >
-            Game Type
-          </label>
+        <div className={stacked ? (inline ? "flex-1 min-w-0 md:w-[184px] md:flex-none" : "flex-1 min-w-0") : "flex-1 min-w-0 md:w-52 md:flex-none"}>
+          {!inline && (
+            <label
+              className={stacked
+                ? "block text-[13px] md:text-[15px] mb-1 text-[#343434]"
+                : "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5"
+              }
+              style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}
+            >
+              Game Type
+            </label>
+          )}
           <GameTypeDropdown
             value={gameFilter}
             onChange={setGameFilter}
@@ -648,22 +659,25 @@ export default function FilterBar({
         </div>
 
         {/* Team dropdown */}
-        <div className={stacked ? "flex-1 min-w-0" : "flex-1 min-w-0 md:w-52 md:flex-none"}>
-          <label
-            className={stacked
-              ? "block text-[13px] md:text-[15px] mb-1 text-[#343434]"
-              : "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5"
-            }
-            style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}
-          >
-            Team
-          </label>
+        <div className={stacked ? (inline ? "flex-1 min-w-0 md:w-[184px] md:flex-none" : "flex-1 min-w-0") : "flex-1 min-w-0 md:w-52 md:flex-none"}>
+          {!inline && (
+            <label
+              className={stacked
+                ? "block text-[13px] md:text-[15px] mb-1 text-[#343434]"
+                : "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5"
+              }
+              style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}
+            >
+              Team
+            </label>
+          )}
           <Select.Root
             value={club}
             onValueChange={(val: string) => setClub(val as FranchiseCode | "ALL")}
             onOpenChange={onDropdownOpenChange}
           >
             <Select.Trigger
+              aria-label="Team"
               className={stacked
                 ? "flex w-full items-center justify-between rounded-[15px] border border-[#d9dee7] bg-white px-3 py-1.5 md:py-2 text-[15px] md:text-[17px] text-[#343434] text-left focus:outline-none overflow-hidden"
                 : "flex w-full items-center justify-between rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] px-3 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 overflow-hidden"
@@ -744,8 +758,9 @@ export default function FilterBar({
 
       {/* Row 2: Year slider */}
       {stacked ? (
+        <div className={inline ? "w-full md:flex-1 md:min-w-0" : "w-full"}>
         <div
-          className="w-full md:w-[90%] max-w-[1150px] mx-auto"
+          className={inline ? "w-full" : "w-full md:w-[90%] max-w-[1150px] mx-auto"}
           style={{ touchAction: "none" }}
           onPointerDownCapture={(e) => {
             if (!setYearMode) return;
@@ -816,6 +831,7 @@ export default function FilterBar({
             note={club === "ALL" ? undefined : `No games before ${dataMin}`}
             show={club !== "ALL" && yearRange[0] === yearRange[1] && yearRange[0] === dataMin}
           />
+        </div>
         </div>
       ) : (
       <div className="flex-1 min-w-0">
