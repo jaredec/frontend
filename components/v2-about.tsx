@@ -14,10 +14,11 @@ const pStyle = {
   fontWeight: 500,
 };
 
-export default function V2About() {
+/** `className` overrides the default width classes. */
+export default function V2About({ className = "w-[90%] max-[900px]:w-[95%] max-w-[1150px] mx-auto" }: { className?: string }) {
   return (
     <section
-      className="w-[90%] max-[900px]:w-[95%] max-w-[1150px] mx-auto mt-10 mb-0 bg-white pt-10 pb-[65px] text-center"
+      className={`${className} mt-10 mb-0 bg-white pt-10 pb-[65px] text-center`}
       style={{
         fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
         fontWeight: 500,

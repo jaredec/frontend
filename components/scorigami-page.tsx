@@ -20,6 +20,7 @@ import {
 } from "@/lib/mlb-data";
 import type { YearlyRow } from "@/lib/scorigami-queries";
 import { getTeamTheme } from "@/lib/team-theme.mjs";
+import { CLASSIC_PAGE_CLS } from "@/lib/classic-layout";
 import { decodeYearly, recordsForFilter, staticDataUrl, yearlyForFilter } from "@/lib/static-data.mjs";
 
 type RecordRow = { year: number; game_type: string; wins: number; losses: number; ties: number };
@@ -579,46 +580,150 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
             : "Last Homeigami")
         : "Last Scorigami";
 
-  const classicStats = (align: "end" | "center") =>
-    headerStats && (
-      <div
-        className={`flex flex-col gap-0.5 text-[14px] leading-snug text-[#343434] tabular-nums ${
-          align === "end" ? "items-end text-right" : "items-center text-center"
-        }`}
-        style={{ opacity: revealed ? 1 : 0, transition: revealed ? "opacity 160ms ease-out" : undefined }}
-      >
-        <div className={`flex flex-wrap gap-x-3 ${align === "end" ? "justify-end" : "justify-center"}`}>
-          <span>Games: <b>{headerStats.totalGames.toLocaleString()}</b></span>
-          <span><span style={{ color: "var(--team-dark)" }}>{countLabel}:</span> <b>{headerStats.uniqueScores.toLocaleString()}</b></span>
-          {statsClub !== "ALL" && headerStats.wins != null && headerStats.losses != null && (
-            <span>
-              <b style={{ color: "#2d7a4f" }}>{headerStats.wins.toLocaleString()}</b>
-              <span className="text-[#8b8b8b]">–</span>
-              <b style={{ color: "#8a4a4a" }}>{headerStats.losses.toLocaleString()}</b>
-              {headerStats.ties > 0 && (
-                <>
-                  <span className="text-[#8b8b8b]">–</span>
-                  <b style={{ color: "#5a6a7a" }}>{headerStats.ties.toLocaleString()}</b>
-                </>
+  const statsLines = (align: "center" | "start") => {
+    if (!headerStats) return null;
+    const c = align === "center";
+    return (
+      <div className={`flex flex-col ${c ? "items-center" : "items-start"} gap-1.5 sm:gap-0`}>
+        <div className={`flex flex-col ${c ? "items-center sm:justify-center" : "items-start"} gap-1.5 sm:flex-row sm:flex-wrap sm:gap-x-3 sm:gap-y-0.5`}>
+          {statsClub === "ALL" ? (
+            <>
+              <span>
+                <span style={{ color: "#343434" }}>Games: </span>
+                <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
+                  {headerStats.totalGames.toLocaleString()}
+                </span>
+              </span>
+              <span>
+                <span style={{ color: "var(--team-dark)" }}>{countLabel}: </span>
+                <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
+                  {headerStats.uniqueScores.toLocaleString()}
+                </span>
+              </span>
+            </>
+          ) : (
+            <>
+              <span className={`flex flex-wrap items-center ${c ? "justify-center" : ""} gap-x-3`}>
+                <span>
+                  <span style={{ color: "#343434" }}>Games: </span>
+                  <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
+                    {headerStats.totalGames.toLocaleString()}
+                  </span>
+                </span>
+                <span>
+                  <span style={{ color: "var(--team-dark)" }}>{countLabel}: </span>
+                  <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
+                    {headerStats.uniqueScores.toLocaleString()}
+                  </span>
+                </span>
+              </span>
+              {headerStats.wins != null && headerStats.losses != null && (
+                <span className={`flex flex-wrap items-center ${c ? "justify-center" : ""} gap-x-3`}>
+                  <span>
+                    <span style={{ color: "#2d7a4f" }}>Wins: </span>
+                    <span className="font-bold tabular-nums" style={{ color: "#2d7a4f" }}>
+                      {headerStats.wins.toLocaleString()}
+                    </span>
+                  </span>
+                  <span>
+                    <span style={{ color: "#8a4a4a" }}>Losses: </span>
+                    <span className="font-bold tabular-nums" style={{ color: "#8a4a4a" }}>
+                      {headerStats.losses.toLocaleString()}
+                    </span>
+                  </span>
+                  <span>
+                    <span style={{ color: "#5a6a7a" }}>Ties: </span>
+                    <span className="font-bold tabular-nums" style={{ color: "#5a6a7a" }}>
+                      {headerStats.ties.toLocaleString()}
+                    </span>
+                  </span>
+                </span>
               )}
-            </span>
+            </>
           )}
         </div>
         {headerStats.recent && (
           <div>
-            <span style={{ color: "var(--team-dark)" }}>{recentLabel}:</span>{" "}
-            <b>{headerStats.recent.score1}–{headerStats.recent.score2}</b>
-            {headerStats.recent.date && <b> · {formatMetaDate(headerStats.recent.date)}</b>}
+            <span style={{ color: "var(--team-dark)" }}>{recentLabel}: </span>
+            <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
+              {headerStats.recent.score1}–{headerStats.recent.score2}
+            </span>
+            {headerStats.recent.date && (
+              <span className="font-bold" style={{ color: "#343434" }}>
+                {" "}
+                · {formatMetaDate(headerStats.recent.date)}
+              </span>
+            )}
           </div>
         )}
       </div>
     );
+  };
+
+  // One line, fixed height: the grid sizes itself from its top edge, so stats
+  // arriving late must not push it down. Narrow screens drop the extras.
+  const sep = <span className="text-[#b5b5b5]" aria-hidden>·</span>;
+  const classicStatsBar = (
+    <div className="w-full border-b border-[#e2e2e2] bg-[#fafafa]">
+      <div
+        className={`${CLASSIC_PAGE_CLS} h-8 flex items-center justify-center gap-x-2 sm:gap-x-2.5 whitespace-nowrap overflow-hidden text-[12.5px] sm:text-[13.5px] text-[#5f5f5f]`}
+        style={{ opacity: revealed && headerStats ? 1 : 0, transition: revealed ? "opacity 160ms ease-out" : undefined }}
+      >
+        {headerStats && (
+          <>
+            <span>
+              Games <b className="font-semibold tabular-nums text-[#343434]">{headerStats.totalGames.toLocaleString()}</b>
+            </span>
+            {sep}
+            <span>
+              <span className="sm:hidden">Unique</span>
+              <span className="hidden sm:inline">{countLabel}</span>{" "}
+              <b className="font-semibold tabular-nums text-[#343434]">{headerStats.uniqueScores.toLocaleString()}</b>
+            </span>
+            {headerStats.wins != null && headerStats.losses != null && (
+              <span className="hidden lg:inline-flex items-center gap-x-2.5">
+                {sep}
+                <span>
+                  W-L-T{" "}
+                  <b className="font-semibold tabular-nums text-[#343434]">
+                    {headerStats.wins.toLocaleString()}–{headerStats.losses.toLocaleString()}–{headerStats.ties.toLocaleString()}
+                  </b>
+                </span>
+              </span>
+            )}
+            {headerStats.recent && (
+              <>
+                {sep}
+                <span className="min-w-0 truncate">
+                  <span style={{ color: "var(--team-dark)" }}>{recentLabel}</span>{" "}
+                  <b className="font-semibold tabular-nums text-[#343434]">
+                    {headerStats.recent.score1}–{headerStats.recent.score2}
+                  </b>
+                  {headerStats.recent.date && (
+                    <span className="hidden sm:inline text-[#343434]"> ({formatMetaDate(headerStats.recent.date)})</span>
+                  )}
+                </span>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden" style={light ? { backgroundColor: "#f2f2f2", fontFamily: "var(--v2-ui-font), system-ui, sans-serif", ...themeVars } : undefined}>
+    <div
+      className="min-h-screen flex flex-col overflow-x-hidden"
+      style={light ? {
+        backgroundColor: "#f2f2f2",
+        fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
+        ...themeVars,
+      } : undefined}
+    >
       {classic ? (
+        <>
         <header className="w-full border-b border-[#e2e2e2] bg-white">
-          <div className="max-w-[1150px] mx-auto px-4 h-14 sm:h-16 flex items-center justify-between gap-4">
+          <div className={`${CLASSIC_PAGE_CLS} h-14 sm:h-16 flex items-center justify-center`}>
             <div className="flex items-center gap-2.5 min-w-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={logoSrc} alt="" className="h-9 w-9 sm:h-11 sm:w-11 object-contain flex-none" />
@@ -631,9 +736,10 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
                 }}
               >{igamiTitle}</span>
             </div>
-            <div className="hidden md:block flex-none">{classicStats("end")}</div>
           </div>
         </header>
+        {classicStatsBar}
+        </>
       ) : variant === "single" ? (
         <header className="max-w-[1150px] mx-auto w-full px-3 sm:px-4 pt-[15px] pb-2 sm:pb-3 text-center">
             {(() => {
@@ -671,83 +777,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
                       transition: revealed ? "opacity 160ms ease-out" : undefined,
                     }}
                   >
-                    {headerStats && (
-                      <>
-                        <div className="flex flex-col items-center gap-1.5 sm:gap-0">
-                          <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-3 sm:gap-y-0.5">
-                            {statsClub === "ALL" ? (
-                              <>
-                                <span>
-                                  <span style={{ color: "#343434" }}>Games: </span>
-                                  <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
-                                    {headerStats.totalGames.toLocaleString()}
-                                  </span>
-                                </span>
-                                <span>
-                                  <span style={{ color: "var(--team-dark)" }}>{countLabel}: </span>
-                                  <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
-                                    {headerStats.uniqueScores.toLocaleString()}
-                                  </span>
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                <span className="flex flex-wrap items-center justify-center gap-x-3">
-                                  <span>
-                                    <span style={{ color: "#343434" }}>Games: </span>
-                                    <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
-                                      {headerStats.totalGames.toLocaleString()}
-                                    </span>
-                                  </span>
-                                  <span>
-                                    <span style={{ color: "var(--team-dark)" }}>{countLabel}: </span>
-                                    <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
-                                      {headerStats.uniqueScores.toLocaleString()}
-                                    </span>
-                                  </span>
-                                </span>
-                                {headerStats.wins != null && headerStats.losses != null && (
-                                  <span className="flex flex-wrap items-center justify-center gap-x-3">
-                                    <span>
-                                      <span style={{ color: "#2d7a4f" }}>Wins: </span>
-                                      <span className="font-bold tabular-nums" style={{ color: "#2d7a4f" }}>
-                                        {headerStats.wins.toLocaleString()}
-                                      </span>
-                                    </span>
-                                    <span>
-                                      <span style={{ color: "#8a4a4a" }}>Losses: </span>
-                                      <span className="font-bold tabular-nums" style={{ color: "#8a4a4a" }}>
-                                        {headerStats.losses.toLocaleString()}
-                                      </span>
-                                    </span>
-                                    <span>
-                                      <span style={{ color: "#5a6a7a" }}>Ties: </span>
-                                      <span className="font-bold tabular-nums" style={{ color: "#5a6a7a" }}>
-                                        {headerStats.ties.toLocaleString()}
-                                      </span>
-                                    </span>
-                                  </span>
-                                )}
-                              </>
-                            )}
-                          </div>
-                          {headerStats.recent && (
-                            <div>
-                              <span style={{ color: "var(--team-dark)" }}>{recentLabel}: </span>
-                              <span className="font-bold tabular-nums" style={{ color: "#343434" }}>
-                                {headerStats.recent.score1}–{headerStats.recent.score2}
-                              </span>
-                              {headerStats.recent.date && (
-                                <span className="font-bold" style={{ color: "#343434" }}>
-                                  {" "}
-                                  · {formatMetaDate(headerStats.recent.date)}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
+                    {statsLines("center")}
                   </div>
                 </>
               );
@@ -760,9 +790,9 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
         />
       )}
 
-      <main className={`flex-1 mx-auto w-full px-4 ${classic ? "max-w-[1150px] pt-3 pb-4" : light ? "max-w-[1150px] pt-1 pb-4" : "max-w-5xl py-4"}`}>
+      <main className={`flex-1 ${classic ? `${CLASSIC_PAGE_CLS} pt-3 pb-4` : `mx-auto w-full px-4 ${light ? "max-w-[1150px] pt-1 pb-4" : "max-w-5xl py-4"}`}`}>
         {/* Filters */}
-        <div className={classic ? "mb-1" : light ? "mb-2" : "mb-3"}>
+        <div className={classic ? "mb-1 md:mb-3" : light ? "mb-2" : "mb-3"}>
           <FilterBar {...filterProps} stacked={light} inline={classic} />
         </div>
 
@@ -815,13 +845,11 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
             heatmap
           )}
         </div>
-
-        {classic && <div className="md:hidden mt-3">{classicStats("center")}</div>}
       </main>
 
-      {light && <V2About />}
+      {light && <V2About className={classic ? CLASSIC_PAGE_CLS : undefined} />}
 
-      <PageFooter />
+      <PageFooter light={light} className={classic ? CLASSIC_PAGE_CLS : undefined} />
     </div>
   );
 }
