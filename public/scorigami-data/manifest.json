@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-17T17:08:38.914Z",
+  "generated_at": "2026-10-18T12:38:27.993Z",
   "format": 2,
   "types": [
     "traditional",
@@ -42,12 +42,12 @@
     {
       "file": "traditional/ALL.json",
       "rows": 20172,
-      "gzipped_bytes": 286632
+      "gzipped_bytes": 286633
     },
     {
       "file": "homeaway/ALL.json",
       "rows": 31824,
-      "gzipped_bytes": 443720
+      "gzipped_bytes": 443718
     },
     {
       "file": "traditional/LAA.json",
@@ -132,12 +132,12 @@
     {
       "file": "traditional/CLE.json",
       "rows": 7296,
-      "gzipped_bytes": 85965
+      "gzipped_bytes": 85964
     },
     {
       "file": "homeaway/CLE.json",
-      "rows": 10336,
-      "gzipped_bytes": 119182
+      "rows": 10337,
+      "gzipped_bytes": 119195
     },
     {
       "file": "traditional/COL.json",
@@ -312,12 +312,12 @@
     {
       "file": "traditional/TB.json",
       "rows": 1687,
-      "gzipped_bytes": 21104
+      "gzipped_bytes": 21101
     },
     {
       "file": "homeaway/TB.json",
-      "rows": 2405,
-      "gzipped_bytes": 28989
+      "rows": 2406,
+      "gzipped_bytes": 29000
     },
     {
       "file": "traditional/TEX.json",
