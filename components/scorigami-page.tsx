@@ -680,17 +680,6 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
               <span className="hidden sm:inline">{countLabel}</span>{" "}
               <b className="font-semibold tabular-nums text-[#343434]">{headerStats.uniqueScores.toLocaleString()}</b>
             </span>
-            {headerStats.wins != null && headerStats.losses != null && (
-              <span className="hidden lg:inline-flex items-center gap-x-2.5">
-                {sep}
-                <span>
-                  W-L-T{" "}
-                  <b className="font-semibold tabular-nums text-[#343434]">
-                    {headerStats.wins.toLocaleString()}–{headerStats.losses.toLocaleString()}–{headerStats.ties.toLocaleString()}
-                  </b>
-                </span>
-              </span>
-            )}
             {headerStats.recent && (
               <>
                 {sep}
