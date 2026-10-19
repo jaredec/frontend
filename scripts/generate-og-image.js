@@ -28,19 +28,8 @@ const RAMP = [
 ];
 const INK = "#343434";
 const CARD_BG = "#f2f2f2";
-const CELL_BORDER = "#d9dee7";
 // The site's default accent is a blue that disappears into the blue grid.
 const SITE_HIGHLIGHT = "#f38e55";
-const SITE_HIGHLIGHT_TEXT = "#d9622b";
-
-// Blend hex a toward hex b by t (0..1).
-function mix(a, b, t) {
-  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
-  return "#" + [16, 8, 0]
-    .map((sh) => Math.round(((pa >> sh) & 255) * (1 - t) + ((pb >> sh) & 255) * t))
-    .map((v) => v.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 const TITLE_FONT = "Anonymous Pro";
 const UI_FONT = "Source Sans 3";
@@ -143,107 +132,97 @@ function batterMarkup(x, y, size, fill, opacity = 1) {
   return `<g transform="translate(${x},${y}) scale(${s})" fill="${fill}" opacity="${opacity}">${inner}</g>`;
 }
 
-// --- Share card: Bearigami-style panel on the left, live grid on the right.
-const CELL = 30;
-const GRID_X = 480; // x of the 0-win column; staircase runs down-right from here
-const COLS = Math.ceil((W - GRID_X) / CELL); // winning scores 0..23
-const ROWS = Math.ceil(H / CELL); // losing scores 0..20
-const CARD = { x: 48, y: 48, w: 400, h: H - 96 };
+// --- Share card: the site above the fold. Title bar, one-line stats bar, then
+// the gapless grid (scores 0–30 across, as on desktop) running off the bottom edge.
+const HEADER_H = 116;
+const STATS_H = 52;
+const LABEL_H = 30;
+const CELLS_Y = HEADER_H + STATS_H + 20 + LABEL_H;
+const GRID_W = 1088; // y-axis + cells; at the default 34px cell that's columns 0–30
+const MAX_CELL = 34;
+const LOGO_BOX = 72;
+
+// Cells shrink only when the last -igami sits below the default crop, so the
+// highlighted cell is always on the card; extra columns keep the width filled.
+function gridLayout(s) {
+  const needRows = s.recent ? s.recent.score2 + 1.6 : 0;
+  // Whole-pixel cells: fractional ones leave antialiased seams in the dark field.
+  const CELL = Math.floor(Math.min(MAX_CELL, (H - CELLS_Y) / needRows || MAX_CELL));
+  const AXIS_W = CELL;
+  const COLS = Math.min(51, Math.floor((GRID_W - AXIS_W) / CELL));
+  const CELLS_X = Math.round((W - (AXIS_W + COLS * CELL)) / 2) + AXIS_W;
+  const ROWS = Math.ceil((H - CELLS_Y) / CELL);
+  return { CELL, COLS, ROWS, CELLS_X };
+}
 
 function gridMarkup(s, theme) {
-  let out = "";
-  // Faint lattice over the dark "impossible" field, aligned with the grid.
-  out += `<g stroke="${mix(theme.dark, "#ffffff", 0.07)}" stroke-width="1">`;
-  for (let x = GRID_X % CELL; x <= W; x += CELL) out += `<line x1="${x}" y1="0" x2="${x}" y2="${H}"/>`;
-  for (let y = 0; y <= H; y += CELL) out += `<line x1="0" y1="${y}" x2="${W}" y2="${y}"/>`;
+  const { CELL, COLS, ROWS, CELLS_X } = gridLayout(s);
+  const tick = Math.round(CELL * 0.65);
+  let out = `<g font-family="${UI_FONT}" font-size="${tick}" fill="${INK}">`;
+  for (let c = 0; c < COLS; c++) {
+    out += `<text x="${CELLS_X + c * CELL + CELL / 2}" y="${CELLS_Y - 8}" text-anchor="middle">${c}</text>`;
+  }
+  for (let r = 0; r < ROWS; r++) {
+    out += `<text x="${CELLS_X - 6}" y="${CELLS_Y + r * CELL + CELL / 2 + tick * 0.35}" text-anchor="end">${r}</text>`;
+  }
   out += `</g>`;
 
   const hl = s.recent ? `${s.recent.score1}-${s.recent.score2}` : null;
-  for (let win = 0; win < COLS; win++) {
-    for (let lose = 0; lose <= win && lose < ROWS; lose++) {
+  for (let lose = 0; lose < ROWS; lose++) {
+    for (let win = 0; win < COLS; win++) {
       const key = `${win}-${lose}`;
       const n = s.occ.get(key) || 0;
-      const fill = key === hl ? theme.highlight : n === 0 ? "#ffffff" : theme.cellColor(n, s.maxOcc);
-      const x = GRID_X + win * CELL;
-      const y = lose * CELL;
-      out += `<rect x="${x + 0.5}" y="${y + 0.5}" width="${CELL - 1}" height="${CELL - 1}" fill="${fill}" stroke="${CELL_BORDER}" stroke-width="1"/>`;
+      const fill = win < lose
+        ? theme.dark
+        : key === hl ? theme.highlight : n === 0 ? "#ffffff" : theme.cellColor(n, s.maxOcc);
+      const x = CELLS_X + win * CELL;
+      const y = CELLS_Y + lose * CELL;
+      // +0.5 overlap so antialiased edges never show the page between cells.
+      out += `<rect x="${x}" y="${y}" width="${CELL + 0.5}" height="${CELL + 0.5}" fill="${fill}"/>`;
       if (key === hl) {
-        out += `<rect x="${x + 4.5}" y="${y + 4.5}" width="${CELL - 9}" height="${CELL - 9}" fill="none" stroke="#ffffff" stroke-width="2"/>`;
+        out += `<rect x="${x + 5}" y="${y + 5}" width="${CELL - 10}" height="${CELL - 10}" fill="none" stroke="#ffffff" stroke-width="2.5"/>`;
       }
     }
   }
   return out;
 }
 
-function cardMarkup({ logo, title, tagline, stats, theme }) {
-  const { x, y, w, h } = CARD;
-  const cx = x + w / 2;
-  const pad = 28;
-
+function headerMarkup(logoMarkup, title) {
   // Monospace title: Anonymous Pro advance is 1118/2048 em.
-  const titleSize = Math.min(58, Math.floor((w - 2 * pad) / (title.length * 0.546)));
-
-  const swatches = ["#ffffff", theme.cardRamp[0], theme.cardRamp[4], theme.dark];
-  const sw = 14, gap = 14;
-  const swTotal = swatches.length * sw + (swatches.length - 1) * gap;
-  const swatchRow = swatches
-    .map((c, i) => `<rect x="${cx - swTotal / 2 + i * (sw + gap)}" y="${y + 290}" width="${sw}" height="${sw}" fill="${c}" stroke="${c === "#ffffff" ? "#c3cad6" : c}" stroke-width="1"/>`)
-    .join("");
-
-  const colW = (w - 2 * pad) / 2;
-  // Caps labels share one size so the columns match; shrink only for the
-  // longest "Last ...igami" labels.
-  const longest = Math.max(...stats.map((st) => st.label.length));
-  const labelSize = Math.min(16, Math.floor((colW - 8) / (longest * 0.66)));
-  const statCol = (i, { value, label, sub, color }) => {
-    const sx = x + pad + colW * i + colW / 2;
-    return `
-      <text x="${sx}" y="${y + 448}" text-anchor="middle" font-family="${UI_FONT}" font-weight="700" font-size="42" fill="${color}">${esc(value)}</text>
-      <text x="${sx}" y="${y + 476}" text-anchor="middle" font-family="${UI_FONT}" font-weight="600" font-size="${labelSize}" letter-spacing="1" fill="#4a5a6a">${esc(label.toUpperCase())}</text>
-      <text x="${sx}" y="${y + 500}" text-anchor="middle" font-family="${UI_FONT}" font-size="19" fill="#4a5a6a">${esc(sub)}</text>`;
-  };
-
+  const titleSize = 54;
+  const titleW = title.length * 0.546 * titleSize;
+  const gap = 18;
+  const left = (W - (LOGO_BOX + gap + titleW)) / 2;
   return `
-  <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${CARD_BG}" stroke="#c3cad6" stroke-width="1"/>
-  ${logo}
-  <text x="${cx}" y="${y + 262}" text-anchor="middle" font-family="${TITLE_FONT}" font-weight="700" font-size="${titleSize}" fill="${INK}">${esc(title)}</text>
-  ${swatchRow}
-  <g font-family="${UI_FONT}" font-size="26" fill="${INK}" text-anchor="middle">
-    <text x="${cx}" y="${y + 346}">${esc(tagline[0])}</text>
-    <text x="${cx}" y="${y + 378}">${esc(tagline[1])}</text>
-  </g>
-  <line x1="${x + pad}" y1="${y + 402}" x2="${x + w - pad}" y2="${y + 402}" stroke="#d0d6e0" stroke-width="1"/>
-  ${stats.map((st, i) => statCol(i, st)).join("")}`;
+  <rect width="${W}" height="${HEADER_H}" fill="#ffffff"/>
+  <line x1="0" y1="${HEADER_H - 0.5}" x2="${W}" y2="${HEADER_H - 0.5}" stroke="#e2e2e2" stroke-width="1"/>
+  ${logoMarkup(left, (HEADER_H - LOGO_BOX) / 2, LOGO_BOX)}
+  <text x="${left + LOGO_BOX + gap}" y="${HEADER_H / 2 + titleSize * 0.33}" font-family="${TITLE_FONT}" font-weight="700" font-size="${titleSize}" fill="${INK}">${esc(title)}</text>`;
 }
 
-function shareCard({ s, logo, title, nickname, recentLabel, theme }) {
-  const stats = [
-    { value: fmt(s.uniqueScores), label: "Unique scores", sub: `in ${fmt(s.totalGames)} games`, color: INK },
-  ];
+function statsBarMarkup(s, recentLabel, theme) {
+  const b = (v) => `<tspan font-weight="600" fill="${INK}">${esc(v)}</tspan>`;
+  const sep = `<tspan fill="#b5b5b5">  ·  </tspan>`;
+  let line = `Games ${b(fmt(s.totalGames))}${sep}Unique scores ${b(fmt(s.uniqueScores))}`;
   if (s.recent) {
-    stats.push({
-      value: `${s.recent.score1}\u2013${s.recent.score2}`,
-      label: recentLabel,
-      sub: s.recent.last_date ? fmtDate(s.recent.last_date) : String(s.recent.year),
-      color: theme.highlightText,
-    });
+    const when = s.recent.last_date ? fmtDate(s.recent.last_date) : String(s.recent.year);
+    line += `${sep}<tspan fill="${theme.dark}">${esc(recentLabel)}</tspan> ${b(`${s.recent.score1}\u2013${s.recent.score2}`)}<tspan fill="${INK}"> (${esc(when)})</tspan>`;
   }
+  const y0 = HEADER_H;
+  return `
+  <rect y="${y0}" width="${W}" height="${STATS_H}" fill="#fafafa"/>
+  <line x1="0" y1="${y0 + STATS_H - 0.5}" x2="${W}" y2="${y0 + STATS_H - 0.5}" stroke="#e2e2e2" stroke-width="1"/>
+  <text x="${W / 2}" y="${y0 + STATS_H / 2 + 8}" text-anchor="middle" font-family="${UI_FONT}" font-size="23" fill="#5f5f5f" xml:space="preserve">${line}</text>`;
+}
+
+function shareCard({ s, logoMarkup, title, recentLabel, theme }) {
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-  <rect width="${W}" height="${H}" fill="${theme.dark}"/>
+  <rect width="${W}" height="${H}" fill="${CARD_BG}"/>
   ${gridMarkup(s, theme)}
-  ${cardMarkup({
-    logo,
-    title,
-    tagline: ["Track every unique", `${nickname} score since ${s.firstYear}`],
-    stats,
-    theme,
-  })}
+  ${headerMarkup(logoMarkup, title)}
+  ${statsBarMarkup(s, recentLabel, theme)}
 </svg>`;
 }
-
-const LOGO_BOX = 150;
-const logoX = CARD.x + (CARD.w - LOGO_BOX) / 2;
-const logoY = CARD.y + 44;
 
 async function writeShareCards(all, readRows) {
   const { getTeamTheme, rampColor } = await import("../lib/team-theme.mjs");
@@ -254,16 +233,13 @@ async function writeShareCards(all, readRows) {
       ...t,
       cellColor: (n, max) => rampColor(t.cardRamp, n, max),
       highlight: isSite ? SITE_HIGHLIGHT : t.accent,
-      highlightText: isSite ? SITE_HIGHLIGHT_TEXT : t.link,
     };
   };
 
-  const batterSize = 128;
   write("og.png", render(shareCard({
     s: all,
-    logo: batterMarkup(CARD.x + (CARD.w - batterSize) / 2, logoY + 12, batterSize, INK),
+    logoMarkup: (x, y, size) => batterMarkup(x, y + size * 0.02, size, INK),
     title: "MLB Scorigami",
-    nickname: "MLB",
     recentLabel: "Last Scorigami",
     theme: cardTheme("ALL"),
   })));
@@ -278,12 +254,11 @@ async function writeShareCards(all, readRows) {
     }
     const s = summarize(readRows(code));
     const logoSvg = fs.readFileSync(path.join(ASSETS, "logos", `${code}.svg`), "utf8");
-    const logo = `<image href="${svgDataUri(logoSvg)}" x="${logoX}" y="${logoY}" width="${LOGO_BOX}" height="${LOGO_BOX}"/>`;
+    const logoUri = svgDataUri(logoSvg);
     write(`og/team/${code.toLowerCase()}.png`, render(shareCard({
       s,
-      logo,
+      logoMarkup: (x, y, size) => `<image href="${logoUri}" x="${x}" y="${y}" width="${size}" height="${size}"/>`,
       title: igami,
-      nickname: igami.replace(/igami$/, ""),
       recentLabel: `Last ${igami}`,
       theme: cardTheme(code),
     })));

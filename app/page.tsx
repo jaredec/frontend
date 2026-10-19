@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     description:
       "Interactive heatmap of every unique final score in MLB history since 1871. See which scores have never happened, filter by team or era, and explore box scores.",
     url: "https://mlbscorigami.com",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "MLB Scorigami heatmap" }],
+    images: [{ url: "/og.png?v=2", width: 1200, height: 630, alt: "MLB Scorigami heatmap" }],
   },
 };
 
