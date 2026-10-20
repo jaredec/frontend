@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { preload } from "react-dom";
 import ScorigamiPage from "@/components/scorigami-page";
 import { staticDataUrl } from "@/lib/static-data.mjs";
+import { allTimeTotals } from "@/lib/unique-scores";
 
 export const metadata: Metadata = {
   title: "MLB Scorigami | Every Final Score in Baseball History",
@@ -24,7 +25,7 @@ export default function Home() {
       <h1 className="sr-only">
         MLB Scorigami: every unique final score in Major League Baseball history
       </h1>
-      <ScorigamiPage variant="classic" />
+      <ScorigamiPage variant="classic" allTimeTotals={allTimeTotals()} />
     </>
   );
 }

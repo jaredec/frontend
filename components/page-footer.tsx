@@ -6,7 +6,7 @@ const XLogoIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const lightLinkCls = "text-[#343434] hover:text-[var(--team-link)] transition-colors";
+const lightLinkCls = "text-[var(--ink)] hover:text-[var(--team-link)] transition-colors duration-150";
 
 /** `light`: the single-page theme — matches the About card's width and type. `className` overrides the light width. */
 export default function PageFooter({
@@ -16,28 +16,24 @@ export default function PageFooter({
   if (light) {
     return (
       <footer
-        className={`${className} py-8 text-[14px] leading-relaxed text-[#6b6b6b]`}
+        className={`${className} py-6 sm:py-7 text-[13.5px] text-[var(--ink-2)]`}
         style={{ fontFamily: "var(--v2-ui-font), system-ui, sans-serif" }}
       >
-        <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-3 text-center md:text-left">
-          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
-            <span>Created by Jared Connolly</span>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-y-2.5 gap-x-6">
+          <span>Created by Jared Connolly</span>
+          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
             <a href="https://x.com/MLBgami" target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-1.5 ${lightLinkCls}`}>
-              <XLogoIcon className="w-3.5 h-3.5" />
+              <XLogoIcon className="w-3 h-3" />
               <span>@MLBgami</span>
             </a>
             <a href="mailto:scorigami.mlb@gmail.com" className={`inline-flex items-center gap-1.5 ${lightLinkCls}`}>
-              <Mail className="w-4 h-4" />
+              <Mail className="w-3.5 h-3.5" />
               <span>Contact</span>
             </a>
-          </div>
-          <p className="max-w-md md:text-right">
-            Modern results via the MLB Stats API. 1871–1900 and Federal League records from{" "}
-            <a href="https://www.retrosheet.org" target="_blank" rel="noopener noreferrer" className={`underline underline-offset-2 ${lightLinkCls}`}>
-              Retrosheet
+            <a href="https://www.retrosheet.org" target="_blank" rel="noopener noreferrer" className={lightLinkCls}>
+              Data: Retrosheet &amp; MLB Stats API
             </a>
-            .
-          </p>
+          </nav>
         </div>
       </footer>
     );

@@ -35,6 +35,13 @@ export const getTeamLogoUrl = (code: string, isDark = false): string | null => {
   return `https://www.mlbstatic.com/team-logos/${variant}/${id}.svg`;
 };
 
+// Cap mark for the light or dark site theme.
+export const getTeamCapUrl = (code: string, onDark: boolean): string | null => {
+  const id = TEAM_IDS[code];
+  if (!id) return null;
+  return `https://www.mlbstatic.com/team-logos/${onDark ? "team-cap-on-dark" : "team-cap-on-light"}/${id}.svg`;
+};
+
 // Per-team "-igami" title, keyed by franchise code. Nickname + igami.
 export const TEAM_IGAMI: Record<string, string> = {
   LAA: "Angelsigami", ARI: "Dbacksigami", ATL: "Bravesigami",

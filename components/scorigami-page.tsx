@@ -8,7 +8,9 @@ import NavBar from "@/components/nav-bar";
 import FilterBar from "@/components/filter-bar";
 import ScorigamiHeatmap from "@/components/scorigami-heatmap";
 import PageFooter from "@/components/page-footer";
+import ThemeToggle from "@/components/theme-toggle";
 import V2About from "@/components/v2-about";
+import type { AllTimeTotals } from "@/lib/unique-scores";
 import {
   TEAM_NAMES,
   CURRENT_FRANCHISE_CODES,
@@ -17,7 +19,9 @@ import {
   GameFilter,
   TEAM_IGAMI,
   getTeamLogoUrl,
+  getTeamCapUrl,
 } from "@/lib/mlb-data";
+import TeamLogo from "@/components/team-logo";
 import type { YearlyRow } from "@/lib/scorigami-queries";
 import { getTeamTheme } from "@/lib/team-theme.mjs";
 import { CLASSIC_PAGE_CLS } from "@/lib/classic-layout";
@@ -288,9 +292,11 @@ export type GridSize = 36 | 51;
 interface ScorigamiPageProps {
   initialClub?: FranchiseCode | "ALL";
   variant?: "default" | "single" | "classic";
+  /** All-time totals for the About copy (computed at build time). */
+  allTimeTotals?: AllTimeTotals | null;
 }
 
-export default function ScorigamiPage({ initialClub = "ALL", variant = "single" }: ScorigamiPageProps) {
+export default function ScorigamiPage({ initialClub = "ALL", variant = "single", allTimeTotals }: ScorigamiPageProps) {
   const light = variant !== "default";
   const classic = variant === "classic";
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>("traditional");
@@ -314,14 +320,27 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
   const warmLogosRef = useRef<HTMLImageElement[]>([]);
   useEffect(() => {
     if (!light) return;
-    warmLogosRef.current = ["/logo3.svg", ...CURRENT_FRANCHISE_CODES.map((code) => getTeamLogoUrl(code))]
-      .filter((url): url is string => Boolean(url))
-      .map((url) => {
+    const warm = (urls: (string | null)[]) =>
+      urls.filter((url): url is string => Boolean(url)).map((url) => {
         const img = new window.Image();
         img.src = url;
         return img;
       });
-  }, [light]);
+    if (!classic) {
+      warmLogosRef.current = warm(["/logo3.svg", ...CURRENT_FRANCHISE_CODES.map((code) => getTeamLogoUrl(code))]);
+      return;
+    }
+    // Current theme's caps now; the other theme's once the page is idle, so a
+    // theme switch doesn't blank the logos either.
+    const dark = document.documentElement.classList.contains("dark");
+    warmLogosRef.current = warm(["/logo3.svg", ...CURRENT_FRANCHISE_CODES.map((code) => getTeamCapUrl(code, dark))]);
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
+    const cancel = window.cancelIdleCallback ?? window.clearTimeout;
+    const id = idle(() => {
+      warmLogosRef.current.push(...warm(CURRENT_FRANCHISE_CODES.map((code) => getTeamCapUrl(code, !dark))));
+    });
+    return () => cancel(id);
+  }, [light, classic]);
 
   // One file per team+type covers every game filter.
   const dataKey = useMemo(
@@ -479,7 +498,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
 
   const theme = getTeamTheme(light ? statsClub : "ALL");
   const themeVars = useMemo(
-    () => ({ "--team-dark": theme.dark, "--team-accent": theme.accent, "--team-link": theme.link }),
+    () => ({ "--tl-dark": theme.dark, "--team-accent": theme.accent, "--tl-link": theme.link }),
     [theme]
   );
   // Dropdowns and tooltips portal to <body>, outside the wrapper's inline vars.
@@ -662,34 +681,37 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
 
   // One line, fixed height: the grid sizes itself from its top edge, so stats
   // arriving late must not push it down. Narrow screens drop the extras.
-  const sep = <span className="text-[#b5b5b5]" aria-hidden>·</span>;
+  const sep = <span className="text-[var(--ink-faint)]" aria-hidden>·</span>;
   const classicStatsBar = (
-    <div className="w-full border-b border-[#e2e2e2] bg-[#fafafa]">
+    <div className="w-full border-b border-[var(--line)] bg-[var(--surface-2)]">
       <div
-        className={`${CLASSIC_PAGE_CLS} h-8 flex items-center justify-center gap-x-2 sm:gap-x-2.5 whitespace-nowrap overflow-hidden text-[12.5px] sm:text-[13.5px] text-[#5f5f5f]`}
-        style={{ opacity: revealed && headerStats ? 1 : 0, transition: revealed ? "opacity 160ms ease-out" : undefined }}
+        className={`${CLASSIC_PAGE_CLS} h-8 flex items-center justify-center gap-x-2 sm:gap-x-2.5 whitespace-nowrap overflow-hidden text-[12.5px] sm:text-[13.5px] text-[var(--ink-2)]`}
+        style={{
+          opacity: revealed && headerStats ? 1 : 0,
+          transition: revealed ? "opacity 160ms ease-out" : undefined,
+        }}
       >
         {headerStats && (
           <>
             <span>
-              Games <b className="font-semibold tabular-nums text-[#343434]">{headerStats.totalGames.toLocaleString()}</b>
+              Games <b className="font-semibold tabular-nums text-[var(--ink)]">{headerStats.totalGames.toLocaleString()}</b>
             </span>
             {sep}
             <span>
               <span className="sm:hidden">Unique</span>
               <span className="hidden sm:inline">{countLabel}</span>{" "}
-              <b className="font-semibold tabular-nums text-[#343434]">{headerStats.uniqueScores.toLocaleString()}</b>
+              <b className="font-semibold tabular-nums text-[var(--ink)]">{headerStats.uniqueScores.toLocaleString()}</b>
             </span>
             {headerStats.recent && (
               <>
                 {sep}
                 <span className="min-w-0 truncate">
-                  <span style={{ color: "var(--team-dark)" }}>{recentLabel}</span>{" "}
-                  <b className="font-semibold tabular-nums text-[#343434]">
+                  <span className="text-[var(--team-ink)]">{recentLabel}</span>{" "}
+                  <b className="font-semibold tabular-nums text-[var(--ink)]">
                     {headerStats.recent.score1}–{headerStats.recent.score2}
                   </b>
                   {headerStats.recent.date && (
-                    <span className="hidden sm:inline text-[#343434]"> ({formatMetaDate(headerStats.recent.date)})</span>
+                    <span className="hidden sm:inline text-[var(--ink)]"> ({formatMetaDate(headerStats.recent.date)})</span>
                   )}
                 </span>
               </>
@@ -702,28 +724,29 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
 
   return (
     <div
-      className="min-h-screen flex flex-col overflow-x-hidden"
+      className={`min-h-screen flex flex-col overflow-x-hidden ${light ? "team-scope bg-[var(--page)] text-[var(--ink)]" : ""}`}
       style={light ? {
-        backgroundColor: "#f2f2f2",
         fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
         ...themeVars,
       } : undefined}
     >
       {classic ? (
         <>
-        <header className="w-full border-b border-[#e2e2e2] bg-white">
-          <div className={`${CLASSIC_PAGE_CLS} h-14 sm:h-16 flex items-center justify-center`}>
-            <div className="flex items-center gap-2.5 min-w-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logoSrc} alt="" className="h-9 w-9 sm:h-11 sm:w-11 object-contain flex-none" />
+        <header className="w-full border-b border-[var(--line)] bg-[var(--surface)]">
+          <div className={`${CLASSIC_PAGE_CLS} relative h-14 sm:h-16 flex items-center justify-center`}>
+            <div className="flex items-center gap-2.5 min-w-0 max-w-[calc(100%-5.5rem)]">
+              <TeamLogo code={statsClub} className="h-9 w-9 sm:h-11 sm:w-11 object-contain flex-none" />
               <span
-                className="truncate text-[24px] sm:text-[28px] leading-none tracking-tight text-[#343434]"
+                className="truncate text-[24px] sm:text-[28px] leading-none tracking-tight text-[var(--ink)]"
                 style={{
                   fontFamily: "var(--v2-title-font)",
                   fontWeight: "var(--v2-title-weight)",
-                  WebkitTextStroke: "0.3px #343434",
+                  WebkitTextStroke: "0.3px var(--ink)",
                 }}
               >{igamiTitle}</span>
+            </div>
+            <div className="absolute inset-y-0 -right-2 flex items-center">
+              <ThemeToggle />
             </div>
           </div>
         </header>
@@ -781,7 +804,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
 
       <main className={`flex-1 ${classic ? `${CLASSIC_PAGE_CLS} pt-3 pb-4` : `mx-auto w-full px-4 ${light ? "max-w-[1150px] pt-1 pb-4" : "max-w-5xl py-4"}`}`}>
         {/* Filters */}
-        <div className={classic ? "mb-1 md:mb-3" : light ? "mb-2" : "mb-3"}>
+        <div className={classic ? "mb-1.5 md:mb-3" : light ? "mb-2" : "mb-3"}>
           <FilterBar {...filterProps} stacked={light} inline={classic} />
         </div>
 
@@ -816,7 +839,10 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
 
           {isValidating && baseData && (
             <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden z-50">
-              <div className="h-full w-full bg-gradient-to-r from-transparent via-blue-500/40 to-transparent animate-shimmer" />
+              <div
+                className="h-full w-full animate-shimmer"
+                style={{ backgroundImage: "linear-gradient(90deg, transparent, color-mix(in srgb, var(--team-accent) 60%, transparent), transparent)" }}
+              />
             </div>
           )}
 
@@ -836,7 +862,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single" 
         </div>
       </main>
 
-      {light && <V2About className={classic ? CLASSIC_PAGE_CLS : undefined} />}
+      {light && <V2About className={classic ? CLASSIC_PAGE_CLS : undefined} totals={allTimeTotals} />}
 
       <PageFooter light={light} className={classic ? CLASSIC_PAGE_CLS : undefined} />
     </div>

@@ -45,7 +45,138 @@
 
 html,
 body {
-  background-color: #f2f2f2;
+  background-color: var(--page);
+}
+
+/* Classic-site surfaces. Everything on the main pages paints from these, so the
+   theme switch is a single class flip on <html> with no React re-render. */
+:root {
+  --page: #f2f2f2;
+  --surface: #ffffff;
+  --surface-2: #fafafa;
+  --surface-hover: #f4f4f5;
+  --line: #e2e2e2;
+  --control-line: #d9dee7;
+  --control-line-hover: #b9c0cc;
+  --ink: #343434;
+  --ink-2: #5f5f5f;
+  --ink-3: #8a8a8a;
+  --ink-faint: #b5b5b5;
+  --cell-empty: #ffffff;
+  --cross-tint: rgba(0, 0, 0, 0.07);
+  --track: #cbcbcb;
+  --track-fill: #a8b0bc;
+  --shadow-pop: 0 1px 2px rgba(16, 24, 40, 0.05), 0 10px 28px -8px rgba(16, 24, 40, 0.16);
+  --shadow-soft: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Dark: soft neutral charcoal (ChatGPT-style #212121 base) — true grays, no hue. */
+.dark {
+  --page: #212121;
+  --surface: #2a2a2a;
+  --surface-2: #262626;
+  --surface-hover: #363636;
+  --line: #363636;
+  --control-line: #3d3d3d;
+  --control-line-hover: #525252;
+  --ink: #ececec;
+  --ink-2: #b4b4b4;
+  --ink-3: #8f8f8f;
+  --ink-faint: #5c5c5c;
+  --cell-empty: #343434;
+  --cross-tint: rgba(255, 255, 255, 0.08);
+  --track: #3a3a3a;
+  --track-fill: #555555;
+  --shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -10px rgba(0, 0, 0, 0.5);
+  --shadow-soft: none;
+}
+
+/* Team colors (set inline by scorigami-page.tsx) drive the light UI; dark mode
+   keeps the chrome neutral and leaves color to the grid. */
+:root,
+.team-scope {
+  --team-dark: var(--tl-dark, #0b162a);
+  --team-link: var(--tl-link, #2d91ff);
+  --team-ink: var(--tl-dark, #0b162a);
+  --pill: var(--team-dark);
+  --pill-fg: #ffffff;
+  --hl: var(--team-dark);
+  --hl-fg: #ffffff;
+}
+.dark,
+.dark .team-scope {
+  --team-dark: #ededed;
+  --team-link: #ededed;
+  --team-ink: #ffffff;
+  --pill: #ededed;
+  --pill-fg: #212121;
+  --hl: #3d3d3d;
+  --hl-fg: #fafafa;
+}
+
+/* Heatmap ramp: cells paint var(--r<i>); the grid sets both palettes inline. */
+.sg-cells {
+  --r0: var(--rl0); --r1: var(--rl1); --r2: var(--rl2); --r3: var(--rl3); --r4: var(--rl4);
+  --r5: var(--rl5); --r6: var(--rl6); --r7: var(--rl7); --r8: var(--rl8);
+  --imp: var(--imp-l);
+}
+.dark .sg-cells {
+  --r0: var(--rd0); --r1: var(--rd1); --r2: var(--rd2); --r3: var(--rd3); --r4: var(--rd4);
+  --r5: var(--rd5); --r6: var(--rd6); --r7: var(--rd7); --r8: var(--rd8);
+  --imp: #161616;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--team-accent) 28%, transparent);
+}
+
+/* Theme switch: a brief cross-fade (theme-toggle.tsx). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 150ms;
+  animation-timing-function: ease-out;
+}
+
+/* Menus and the cell popover fade in; no movement. */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade {
+  animation: fade-in 100ms ease-out;
+}
+
+/* Press feedback for buttons/controls. */
+.press {
+  transition-property: transform, background-color, border-color, color, box-shadow;
+  transition-duration: 120ms;
+  transition-timing-function: var(--ease-out);
+}
+.press:active {
+  transform: scale(var(--press-scale, 0.98));
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+/* Placeholder that stays invisible on fast loads and only shows (then pulses)
+   if data takes longer than ~350ms. */
+.animate-skeleton-late {
+  animation:
+    fade-in 300ms ease-out 350ms both,
+    skeleton-pulse 1.4s ease-in-out 650ms infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade,
+  .animate-skeleton-late {
+    animation: none;
+  }
+  .press:active {
+    transform: none;
+  }
 }
 
 :root {
@@ -53,9 +184,8 @@ body {
   --v2-title-weight: 700;
   --v2-ui-font: var(--font-source-sans, "Source Sans 3", system-ui, sans-serif);
   /* Overridden per team by scorigami-page.tsx (lib/team-theme.mjs) */
-  --team-dark: #0b162a;
   --team-accent: #2d91ff;
-  --team-link: #2d91ff;
+  color-scheme: light;
   --radius: 0.125rem;
   --background: #f2f2f2;
   --foreground: oklch(0.145 0 0);
@@ -92,7 +222,7 @@ body {
 
 .dark {
     color-scheme: dark;
-    --background: #1e1e1e;
+    --background: #212121;
     --foreground: #e0e0e0;
     --card: #252526;
     --card-foreground: #e0e0e0;

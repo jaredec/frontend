@@ -4,6 +4,7 @@ import { preload } from "react-dom";
 import { staticDataUrl } from "@/lib/static-data.mjs";
 import { TEAM_NAMES, TEAM_IGAMI, CURRENT_FRANCHISE_CODES, FranchiseCode } from "@/lib/mlb-data";
 import ScorigamiPage from "@/components/scorigami-page";
+import { allTimeTotals } from "@/lib/unique-scores";
 
 interface TeamPageProps {
   params: Promise<{ code: string }>;
@@ -56,7 +57,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
       <h1 className="sr-only">
         {TEAM_NAMES[upper]} Scorigami: every final score in franchise history
       </h1>
-      <ScorigamiPage initialClub={upper as FranchiseCode} variant="classic" />
+      <ScorigamiPage initialClub={upper as FranchiseCode} variant="classic" allTimeTotals={allTimeTotals()} />
     </>
   );
 }

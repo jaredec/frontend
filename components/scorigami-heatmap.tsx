@@ -5,7 +5,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger } from "@/components/ui/toolti
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { X, Loader2, FilterX, ArrowLeftRight, ArrowUpDown, Repeat, Maximize2, Minimize2 } from "lucide-react";
 import { TEAM_NAMES, TEAM_IGAMI } from "@/lib/mlb-data";
-import { getTeamTheme, rampColor } from "@/lib/team-theme.mjs";
+import { getTeamTheme, rampIndex } from "@/lib/team-theme.mjs";
 
 type ScorigamiType = "home_away" | "traditional";
 
@@ -89,13 +89,18 @@ const TooltipContent = ({
       sideOffset={8}
       collisionPadding={10}
       className={
-        "z-50 w-auto rounded-md bg-white dark:bg-[#252526] shadow-lg border border-slate-200 dark:border-[#3e3e42] p-3 " +
+        "animate-fade z-50 w-auto rounded-xl border border-[var(--control-line)] bg-[var(--surface)] text-[var(--ink)] shadow-[var(--shadow-pop)] px-3.5 py-3 " +
         className
       }
       {...props}
     />
   </TooltipPrimitive.Portal>
 );
+
+const TOOL_BTN =
+  "press [--press-scale:0.94] inline-flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full cursor-pointer text-[var(--ink-2)] hover:text-[var(--team-link)] hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-[var(--team-accent)]";
+// Axis label for the hovered row/column.
+const TICK_ON: React.CSSProperties = { color: "var(--team-ink)", fontWeight: 600 };
 
 const DESKTOP_CELL_SIZE = 20;
 const DESKTOP_HEADER_CELL_SIZE = 30;
@@ -119,9 +124,12 @@ const CLASSIC_HEIGHT_FIT_MIN_W = 1024; // matches the page's lg breakpoint
 // Classic labels every score, sized to its cell (like the original site), so
 // two-digit labels never touch.
 function classicTicks(cell: number) {
-  const font = Math.min(13, cell * 0.65);
+  // Small (phone) cells get a slightly larger share so labels stay legible.
+  const font = Math.min(13, Math.max(cell * 0.65, Math.min(cell * 0.75, 7.5)));
   const axisW = Math.min(CLASSIC_Y_AXIS_MAX_W, Math.max(BEAR_Y_AXIS_W, Math.ceil(font * 1.2 + 5)));
-  return { font, axisW };
+  // Label row tracks the font (20px at desktop's 13px) so phones get no dead band.
+  const labelH = Math.min(BEAR_LABEL_H, Math.round(font + 7));
+  return { font, axisW, labelH };
 }
 
 const hex = [
@@ -281,9 +289,17 @@ export default function ScorigamiHeatmap({
   );
 
   const theme = useMemo(() => getTeamTheme(club), [club]);
+  // Both palettes live on the grid; globals.css (.sg-cells) picks one per theme.
+  const rampVars = useMemo(() => {
+    const vars: Record<string, string> = {};
+    theme.ramp.forEach((c, i) => (vars[`--rl${i}`] = c));
+    theme.nightRamp.forEach((c, i) => (vars[`--rd${i}`] = c));
+    vars["--imp-l"] = theme.dark;
+    return vars as React.CSSProperties;
+  }, [theme]);
 
   const getLogScaledColor = (currentOccurrences: number, maxInView: number) => {
-    if (bearigamiGrid) return rampColor(theme.ramp, currentOccurrences, maxInView);
+    if (bearigamiGrid) return `var(--r${rampIndex(theme.ramp.length, currentOccurrences, maxInView)})`;
     const currentHexSet = isDarkMode ? darkHex : hex;
     if (currentOccurrences === 0) return currentHexSet[0];
     if (currentOccurrences === 1) return currentHexSet[1];
@@ -312,8 +328,10 @@ export default function ScorigamiHeatmap({
           // settle it in a couple of passes). On desktop the compact grid is also
           // capped so its first rows fit in the viewport below the grid's top edge.
           const containerW = gridContainerRef.current.clientWidth;
+          // Below desktop the row numbers sit in the page margin, so cells take the full width.
           let widthCell = (containerW - CLASSIC_Y_AXIS_MAX_W) / GRID_DIMENSION;
-          for (let i = 0; i < 2; i++) widthCell = (containerW - classicTicks(widthCell).axisW) / GRID_DIMENSION;
+          if (window.innerWidth < CLASSIC_HEIGHT_FIT_MIN_W) widthCell = containerW / GRID_DIMENSION;
+          else for (let i = 0; i < 2; i++) widthCell = (containerW - classicTicks(widthCell).axisW) / GRID_DIMENSION;
           let next = widthCell;
           if (window.innerWidth >= CLASSIC_HEIGHT_FIT_MIN_W && !expanded) {
             const top = el.getBoundingClientRect().top + window.scrollY;
@@ -398,7 +416,7 @@ export default function ScorigamiHeatmap({
         fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
         fontWeight: 400,
         fontStyle: "normal",
-        color: "#343434",
+        color: "var(--ink)",
         lineHeight: 1,
         overflow: "visible",
         fontVariantNumeric: "tabular-nums",
@@ -406,19 +424,21 @@ export default function ScorigamiHeatmap({
     : { fontSize: `${tickFontSize}px` };
 
   const fittedGrid = Boolean(bearigamiGrid && !classic && (expanded || isDesktop));
-  const xLabelH = bearigamiGrid ? BEAR_LABEL_H : headerCellSize;
+  const xLabelH = classicTick ? classicTick.labelH : bearigamiGrid ? BEAR_LABEL_H : headerCellSize;
   const yAxisW = classicTick ? classicTick.axisW : bearigamiGrid ? BEAR_Y_AXIS_W : headerCellSize;
 
-  const emptyCellColor = bearigamiGrid ? "#ffffff" : getLogScaledColor(0, maxOccurrencesInView);
-  const impossibleCellColor = bearigamiGrid ? theme.dark : (isDarkMode ? "#1c1c1e" : "#eef2f7");
+  const emptyCellColor = bearigamiGrid ? "var(--cell-empty)" : getLogScaledColor(0, maxOccurrencesInView);
+  const impossibleCellColor = bearigamiGrid ? "var(--imp)" : (isDarkMode ? "#1c1c1e" : "#eef2f7");
   const cellStructure = (isImp: boolean): React.CSSProperties =>
     classic
-      ? { borderRadius: 0 }
+      ? // Fractional cell sizes antialias each edge; overlapping the next cell by
+        // 1px keeps the page from showing through as faint gridlines.
+        { borderRadius: 0, width: "calc(100% + 1px)", height: "calc(100% + 1px)" }
       : bearigamiGrid
       ? {
           boxSizing: "border-box",
           borderRadius: 0,
-          border: `0.5px solid ${isImp ? impossibleCellColor : "#d9dee7"}`,
+          border: `0.5px solid ${isImp ? impossibleCellColor : "var(--control-line)"}`,
         }
       : {};
 
@@ -427,7 +447,7 @@ export default function ScorigamiHeatmap({
       <div ref={gridContainerRef} className="w-full">
         <div
           aria-hidden
-          className="w-full"
+          className="w-full rounded-[3px] bg-[var(--cell-empty)] animate-skeleton-late"
           style={{ aspectRatio: `${GRID_DIMENSION} / ${ROW_COUNT}`, minHeight: 240 }}
         />
       </div>
@@ -455,7 +475,7 @@ export default function ScorigamiHeatmap({
         className={bearigamiGrid ? "w-full overflow-visible" : "p-3 sm:p-6 flex flex-col items-center justify-center"}
         style={
           bearigamiGrid
-            ? { opacity: revealed ? 1 : 0, transition: revealed ? "opacity 160ms ease-out" : undefined }
+            ? { opacity: revealed ? 1 : 0, transition: revealed ? "opacity 200ms var(--ease-out)" : undefined }
             : { visibility: gridReady ? "visible" : "hidden" }
         }
       >
@@ -465,12 +485,11 @@ export default function ScorigamiHeatmap({
         >
           {bearigamiGrid && (
             <div
-              className={`flex items-center gap-x-3 sm:gap-x-4 min-w-0 ${classic ? "pb-1" : "pb-[15px]"}`}
+              className={`flex items-center gap-x-3 sm:gap-x-4 min-w-0 ${classic ? "pb-0.5 sm:pb-1 text-[13px] sm:text-[14px]" : "pb-[15px] text-[14px]"}`}
               style={{
                 fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
-                fontSize: 14,
                 fontWeight: 400,
-                color: "#343434",
+                color: "var(--ink)",
               }}
             >
               <div className="flex items-center gap-x-3 sm:gap-x-4 min-w-0">
@@ -483,14 +502,14 @@ export default function ScorigamiHeatmap({
                   <span className="truncate">{yAxisTextLabel}</span>
                 </span>
               </div>
-              <div className={`ml-auto flex items-center gap-0.5 shrink-0 ${classic ? "-mr-2" : "sm:-mr-4"}`}>
+              <div className={`ml-auto flex items-center gap-0.5 shrink-0 ${classic ? "-mr-1.5 sm:-mr-2" : "sm:-mr-4"}`}>
                 {onToggleType && (
                   <button
                     type="button"
                     onClick={onToggleType}
                     aria-label={scorigamiType === "traditional" ? "Switch to Home/Away view" : "Switch to Win/Loss view"}
                     title={scorigamiType === "traditional" ? "Home/Away" : "Win/Loss"}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:text-[var(--team-link)] cursor-pointer"
+                    className={TOOL_BTN}
                   >
                     <Repeat className="h-4 w-4" strokeWidth={1.75} />
                   </button>
@@ -501,7 +520,7 @@ export default function ScorigamiHeatmap({
                     onClick={onToggleExpand}
                     aria-label={expanded ? "Show compact grid" : "Show full grid"}
                     title={expanded ? "Show less" : "Expand"}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:text-[var(--team-link)] cursor-pointer"
+                    className={TOOL_BTN}
                   >
                     {expanded ? (
                       <Minimize2 className="h-4 w-4" strokeWidth={1.75} />
@@ -525,6 +544,7 @@ export default function ScorigamiHeatmap({
           )}
           <div
             className={`relative ${bearigamiGrid && !classic ? "w-[calc(100%+2rem)] -mx-4 max-sm:w-full max-sm:mx-0" : ""}`}
+            style={classic && !isWide ? { marginLeft: -yAxisW } : undefined}
           >
           <div className="flex items-start min-w-0 w-full">
             {!bearigamiGrid && (
@@ -551,7 +571,7 @@ export default function ScorigamiHeatmap({
                   <div
                     key={`yh-${score2_iterator}`}
                     className="flex items-center justify-end text-right"
-                    style={{ ...tickStyle, paddingRight: 4, height: cellSize, minWidth: 0 }}
+                    style={{ ...tickStyle, ...(hoverY === score2_iterator ? TICK_ON : null), paddingRight: 4, height: cellSize, minWidth: 0 }}
                   >
                     {sparseTicks && score2_iterator % 2 !== 0 ? "" : score2_iterator}
                   </div>
@@ -577,7 +597,9 @@ export default function ScorigamiHeatmap({
             >
               <div
                 onMouseLeave={bearigamiGrid ? () => setHoveredCellKey(null) : undefined}
+                className={bearigamiGrid ? "sg-cells" : undefined}
                 style={{
+                  ...(bearigamiGrid ? rampVars : null),
                   width: bearigamiGrid
                     ? fittedGrid
                       ? "100%"
@@ -611,6 +633,7 @@ export default function ScorigamiHeatmap({
                     }
                     style={{
                       ...tickStyle,
+                      ...(bearigamiGrid && hoverX === i ? TICK_ON : null),
                       minWidth: 0,
                       ...(bearigamiGrid && i === GRID_DIMENSION - 1
                         ? { paddingRight: 1, overflow: "visible" }
@@ -682,7 +705,7 @@ export default function ScorigamiHeatmap({
                                 ...cellStructure(isImpossible),
                                 ...(isCross && !isFocus
                                   ? classic
-                                    ? { boxShadow: "inset 0 0 0 9999px rgba(0,0,0,.07)" }
+                                    ? { boxShadow: "inset 0 0 0 9999px var(--cross-tint)" }
                                     : {
                                       outline: "1px solid rgba(0,0,0,.12)",
                                       boxShadow: "inset 0 0 0 9999px rgba(0,0,0,.05)",
@@ -742,7 +765,7 @@ export default function ScorigamiHeatmap({
                                 >
                                   <div className="flex flex-col items-start text-left min-w-[140px]">
                                     <div className="flex justify-between items-center w-full mb-1">
-                                      <span className="text-base font-semibold text-slate-900 dark:text-white leading-tight tabular-nums">
+                                      <span className="text-base font-semibold text-[var(--ink)] leading-tight tabular-nums">
                                         {score1_iterator} – {score2_iterator}
                                       </span>
                                       <button
@@ -757,23 +780,23 @@ export default function ScorigamiHeatmap({
                                           e.stopPropagation();
                                           closeTip();
                                         }}
-                                        className="ml-3 -mr-1 p-1.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                        className="press ml-3 -mr-1.5 -my-1 p-1.5 rounded-full text-[var(--ink-3)] hover:text-[var(--ink)] hover:bg-[var(--surface-hover)]"
                                       >
                                         <X className="w-3.5 h-3.5" />
                                       </button>
                                     </div>
-                                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                                    <span className="text-xs text-[var(--ink-2)]">
                                       {freqText(f)}
                                     </span>
                                     {f > 0 && rowData?.last_date && (
-                                      <div className="mt-2 pt-2 border-t border-slate-100 dark:border-[#3e3e42] w-full text-xs space-y-0.5">
-                                        <div className="text-slate-500 dark:text-slate-400">
-                                          <span className="font-medium text-slate-600 dark:text-slate-300">
+                                      <div className="mt-2 pt-2 border-t border-[var(--line)] w-full text-xs space-y-0.5">
+                                        <div className="text-[var(--ink-2)]">
+                                          <span className="font-medium text-[var(--ink)]">
                                             Last:
                                           </span>{" "}
                                           {formatDisplayDate(rowData.last_date)}
                                         </div>
-                                        <div className="text-slate-500 dark:text-slate-400">
+                                        <div className="text-[var(--ink-2)]">
                                           {lastMatchupLine(rowData, scorigamiType, club)}
                                         </div>
                                         {boxScoreHref(rowData) && (
@@ -782,7 +805,7 @@ export default function ScorigamiHeatmap({
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             onClick={(e) => e.stopPropagation()}
-                                            className="inline-flex items-center gap-1 mt-1 text-blue-600 dark:text-blue-400 hover:underline"
+                                            className="inline-flex items-center gap-1 mt-1 font-medium text-[var(--team-link)] underline-offset-2 hover:underline"
                                           >
                                             Box Score ↗
                                           </a>
@@ -809,13 +832,13 @@ export default function ScorigamiHeatmap({
                   {scrollFade.left && (
                     <div
                       className="pointer-events-none absolute top-0 bottom-0 w-8 z-10"
-                      style={{ left: yAxisW, background: "linear-gradient(to right, #f2f2f2, transparent)" }}
+                      style={{ left: yAxisW, background: "linear-gradient(to right, var(--page), transparent)" }}
                     />
                   )}
                   {scrollFade.right && (
                     <div
                       className="pointer-events-none absolute top-0 bottom-0 right-0 w-8 z-10"
-                      style={{ background: "linear-gradient(to left, #f2f2f2, transparent)" }}
+                      style={{ background: "linear-gradient(to left, var(--page), transparent)" }}
                     />
                   )}
                 </>

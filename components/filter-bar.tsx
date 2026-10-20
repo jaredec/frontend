@@ -5,6 +5,7 @@ import * as Select from "@radix-ui/react-select";
 import * as Slider from "@radix-ui/react-slider";
 import { ChevronDown, Pencil, RotateCcw } from "lucide-react";
 import { TEAM_NAMES, FranchiseCode, GameFilter, getTeamLogoUrl } from "@/lib/mlb-data";
+import TeamLogo from "@/components/team-logo";
 
 const POSTSEASON_ROUNDS: { value: GameFilter; label: string }[] = [
   { value: "playoffs", label: "All Postseason" },
@@ -15,6 +16,16 @@ const POSTSEASON_ROUNDS: { value: GameFilter; label: string }[] = [
 ];
 
 const isPostseason = (f: GameFilter) => ["playoffs", "ws", "lcs", "ds", "wc"].includes(f);
+
+// Classic-site (stacked) control styles, painted from the theme tokens in globals.css.
+const STACKED_TRIGGER =
+  "group flex w-full items-center justify-between rounded-[15px] border border-[var(--control-line)] bg-[var(--surface)] px-3 py-1.5 md:py-2 text-[15px] md:text-[17px] text-[var(--ink)] text-left shadow-[var(--shadow-soft)] hover:border-[var(--control-line-hover)] data-[state=open]:border-[var(--control-line-hover)] focus:outline-none focus-visible:border-[var(--team-accent)] focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--team-accent)_28%,transparent)]";
+const STACKED_MENU =
+  "animate-fade rounded-[12px] border border-[var(--control-line)] bg-[var(--surface)] p-1 text-[var(--ink)] shadow-[var(--shadow-pop)]";
+const STACKED_ITEM =
+  "w-full px-2 py-1 md:py-1.5 text-[14px] md:text-[16px] text-[var(--ink)] rounded-[8px] cursor-pointer hover:bg-[var(--hl)] hover:text-[var(--hl-fg)] focus:outline-none focus-visible:bg-[var(--hl)] focus-visible:text-[var(--hl-fg)]";
+const STACKED_SELECT_ITEM =
+  "cursor-pointer select-none rounded-[8px] px-2 py-1 md:py-1.5 text-[14px] md:text-[16px] outline-none text-[var(--ink)] data-[highlighted]:bg-[var(--hl)] data-[highlighted]:text-[var(--hl-fg)]";
 
 function GameTypeDropdown({
   value,
@@ -55,7 +66,7 @@ function GameTypeDropdown({
   };
 
   const itemCls = stacked
-    ? "w-full text-left px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] text-[#343434] hover:bg-[var(--team-dark)] hover:text-white rounded-md cursor-pointer"
+    ? `${STACKED_ITEM} block text-left`
     : "w-full text-left px-3 py-2 text-sm text-slate-800 dark:text-slate-200 hover:bg-blue-500 hover:text-white rounded cursor-pointer";
 
   return (
@@ -64,19 +75,19 @@ function GameTypeDropdown({
         type="button"
         onClick={() => { setOpen(o => !o); onOpenChange?.(!open); }}
         className={stacked
-          ? "flex w-full items-center justify-between rounded-[15px] border border-[#d9dee7] bg-white px-3 py-1.5 md:py-2 text-[15px] md:text-[17px] text-[#343434] text-left focus:outline-none"
+          ? `${STACKED_TRIGGER} ${open ? "border-[var(--control-line-hover)]" : ""}`
           : "flex w-full items-center justify-between rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] px-2.5 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         }
         style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif", fontWeight: 500 } : undefined}
       >
         <span className="flex-1 truncate">{triggerLabel}</span>
-        <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 ml-1 ${stacked ? "text-[var(--team-dark)]" : "text-slate-400"}`} />
+        <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 ml-1 ${stacked ? "text-[var(--team-ink)]" : "text-slate-400"}`} />
       </button>
 
       {open && (
         <div
           className={stacked
-            ? "absolute z-[99] mt-1 w-full min-w-[180px] rounded-[12px] border border-[#d9dee7] bg-white py-0.5 shadow-md"
+            ? `absolute z-[99] mt-1 w-full min-w-[180px] ${STACKED_MENU}`
             : "absolute z-[99] mt-1 w-full min-w-[180px] rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] p-1 shadow-lg"
           }
           style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}
@@ -88,16 +99,16 @@ function GameTypeDropdown({
             type="button"
             onClick={() => setPostExpanded(e => !e)}
             className={stacked
-              ? "w-full flex items-center justify-between px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] text-[#343434] hover:bg-[var(--team-dark)] hover:text-white rounded-md cursor-pointer"
+              ? `${STACKED_ITEM} flex items-center justify-between group/post`
               : "w-full flex items-center justify-between px-3 py-2 text-sm text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#2d2d30] rounded cursor-pointer"
             }
           >
             <span>Postseason</span>
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${postExpanded ? "rotate-180" : ""} ${stacked ? "text-[var(--team-dark)]" : "text-slate-400"}`} />
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${postExpanded ? "rotate-180" : ""} ${stacked ? "text-[var(--team-ink)] group-hover/post:text-[var(--hl-fg)]" : "text-slate-400"}`} />
           </button>
 
           {postExpanded && (
-            <div className={stacked ? "ml-2 border-l border-[#d9dee7] pl-1.5" : "ml-2 border-l border-slate-200 dark:border-[#3e3e42] pl-2"}>
+            <div className={stacked ? "ml-3 border-l border-[var(--line)] pl-0.5" : "ml-2 border-l border-slate-200 dark:border-[#3e3e42] pl-2"}>
               {POSTSEASON_ROUNDS.map(r => (
                 <button key={r.value} onClick={() => select(r.value)} className={itemCls}>
                   {r.label}
@@ -178,8 +189,9 @@ function yearToSliderValue(yearRange: [number, number], sentinel: number) {
 }
 
 const PILL: React.CSSProperties = {
-  background: "var(--team-dark)",
-  color: "#ffffff",
+  background: "var(--pill)",
+  color: "var(--pill-fg)",
+  boxShadow: "0 1px 2px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.06) inset",
   fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
   fontSize: 12,
   fontWeight: 600,
@@ -188,7 +200,7 @@ const PILL: React.CSSProperties = {
 function HaltNote({ note, show }: { note?: string; show: boolean }) {
   return (
     <p
-      className={`text-center text-[12px] sm:text-[13px] leading-5 text-[#5a6a7a] overflow-hidden transition-[opacity,height,margin] duration-150 ${
+      className={`text-center text-[12px] sm:text-[13px] leading-5 text-[var(--ink-3)] overflow-hidden transition-[opacity,height,margin] duration-150 ${
         show ? "h-5 mt-0.5" : "h-0 mt-0"
       }`}
       style={{
@@ -306,7 +318,7 @@ function BearYearSlider({
           }
         }}
       >
-        <div className="absolute left-0 right-0 h-4 sm:h-2 rounded-full bg-[#cbcbcb]" />
+        <div className="absolute left-0 right-0 h-4 sm:h-2 rounded-full bg-[var(--track)]" />
         <span
           className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none whitespace-nowrap rounded-full px-[10px] pt-[2px] pb-[4px]"
           style={{
@@ -487,10 +499,10 @@ function BearRangeSlider({
           }
         }}
       >
-        <div className="absolute left-0 right-0 h-4 sm:h-2 rounded-full bg-[#cbcbcb]" />
+        <div className="absolute left-0 right-0 h-4 sm:h-2 rounded-full bg-[var(--track)]" />
         {!isSingle && (
           <div
-            className="absolute h-4 sm:h-2 rounded-full bg-[#a8b0bc]"
+            className="absolute h-4 sm:h-2 rounded-full bg-[var(--track-fill)]"
             style={{
               left: pillLeft(loPct),
               width: `calc(${Math.max(hiPct - loPct, 0)} * (100% - ${RANGE_PAD * 2}px))`,
@@ -612,6 +624,8 @@ export default function FilterBar({
   // Warm the browser cache for all team logos so the dropdown paints
   // instantly on first open instead of fetching each SVG on demand.
   useEffect(() => {
+    // The classic page warms its own (theme-aware) logos.
+    if (stacked) return;
     sortedTeamsForDropdown.forEach(({ code }) => {
       const url = getTeamLogoUrl(code, isDark);
       if (url) {
@@ -619,7 +633,7 @@ export default function FilterBar({
         img.src = url;
       }
     });
-  }, [sortedTeamsForDropdown, isDark]);
+  }, [sortedTeamsForDropdown, isDark, stacked]);
 
   return (
     <div className={stacked
@@ -642,7 +656,7 @@ export default function FilterBar({
           {!inline && (
             <label
               className={stacked
-                ? "block text-[13px] md:text-[15px] mb-1 text-[#343434]"
+                ? "block text-[13px] md:text-[15px] mb-1 text-[var(--ink)]"
                 : "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5"
               }
               style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}
@@ -663,7 +677,7 @@ export default function FilterBar({
           {!inline && (
             <label
               className={stacked
-                ? "block text-[13px] md:text-[15px] mb-1 text-[#343434]"
+                ? "block text-[13px] md:text-[15px] mb-1 text-[var(--ink)]"
                 : "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5"
               }
               style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}
@@ -679,7 +693,7 @@ export default function FilterBar({
             <Select.Trigger
               aria-label="Team"
               className={stacked
-                ? "flex w-full items-center justify-between rounded-[15px] border border-[#d9dee7] bg-white px-3 py-1.5 md:py-2 text-[15px] md:text-[17px] text-[#343434] text-left focus:outline-none overflow-hidden"
+                ? `${STACKED_TRIGGER} overflow-hidden`
                 : "flex w-full items-center justify-between rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] px-3 py-1.5 text-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 overflow-hidden"
               }
               style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif", fontWeight: 500 } : undefined}
@@ -687,9 +701,11 @@ export default function FilterBar({
               <span className="flex-1 min-w-0 overflow-hidden">
                 <Select.Value>
                   <span className="flex items-center gap-2 min-w-0">
-                    {club !== "ALL" && getTeamLogoUrl(club, isDark) && (
+                    {club !== "ALL" && (stacked ? (
+                      <TeamLogo code={club} className="w-5 h-5 md:w-6 md:h-6 object-contain flex-shrink-0" />
+                    ) : getTeamLogoUrl(club, isDark) && (
                       <img src={getTeamLogoUrl(club, isDark)!} alt="" className="w-5 h-5 md:w-6 md:h-6 object-contain flex-shrink-0" />
-                    )}
+                    ))}
                     <span className="truncate">
                       {club === "ALL" ? "All Teams" : TEAM_NAMES[club] ?? club}
                     </span>
@@ -697,13 +713,13 @@ export default function FilterBar({
                 </Select.Value>
               </span>
               <Select.Icon className="flex-shrink-0 ml-1">
-                <ChevronDown className={`h-3.5 w-3.5 ${stacked ? "text-[var(--team-dark)]" : "text-slate-400"}`} />
+                <ChevronDown className={`h-3.5 w-3.5 ${stacked ? "text-[var(--team-ink)]" : "text-slate-400"}`} />
               </Select.Icon>
             </Select.Trigger>
             <Select.Portal>
               <Select.Content
                 className={stacked
-                  ? "z-[99] max-h-72 md:max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-[12px] border border-[#d9dee7] bg-white py-0.5 md:py-1 text-[14px] md:text-[16px] text-[#343434] shadow-md"
+                  ? `z-[99] max-h-72 md:max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto text-[14px] md:text-[16px] ${STACKED_MENU}`
                   : "z-[99] max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] p-1 text-sm shadow-lg"
                 }
                 style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}
@@ -716,7 +732,7 @@ export default function FilterBar({
                     onPointerEnter={() => onPrefetchTeam?.("ALL")}
                     onFocus={() => onPrefetchTeam?.("ALL")}
                     className={stacked
-                      ? "cursor-pointer select-none rounded-md px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] outline-none text-[#343434] data-[highlighted]:bg-[var(--team-dark)] data-[highlighted]:text-white"
+                      ? STACKED_SELECT_ITEM
                       : "cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white"
                     }
                   >
@@ -730,13 +746,15 @@ export default function FilterBar({
                       onPointerDown={() => onPrefetchTeam?.(team.code as FranchiseCode)}
                       onFocus={() => onPrefetchTeam?.(team.code as FranchiseCode)}
                       className={stacked
-                        ? "cursor-pointer select-none rounded-md px-2.5 py-1 md:px-3 md:py-1.5 text-[14px] md:text-[16px] outline-none text-[#343434] data-[highlighted]:bg-[var(--team-dark)] data-[highlighted]:text-white"
+                        ? STACKED_SELECT_ITEM
                         : "cursor-pointer select-none rounded px-3 py-2 text-sm outline-none text-slate-800 dark:text-slate-200 data-[highlighted]:bg-blue-500 data-[highlighted]:text-white"
                       }
                     >
                       <Select.ItemText>
                         <span className="flex items-center gap-1.5">
-                          {getTeamLogoUrl(team.code, isDark) && (
+                          {stacked ? (
+                            <TeamLogo code={team.code} className="w-5 h-5 md:w-6 md:h-6 object-contain flex-shrink-0" />
+                          ) : getTeamLogoUrl(team.code, isDark) && (
                             <img
                               src={getTeamLogoUrl(team.code, isDark)!}
                               alt=""

@@ -1,5 +1,7 @@
+import type { AllTimeTotals } from "@/lib/unique-scores";
+
 const linkCls =
-  "text-[var(--team-link)] underline underline-offset-2 decoration-[var(--team-link)] hover:text-[var(--team-dark)] hover:decoration-[var(--team-dark)] transition-colors duration-200";
+  "text-[var(--team-link)] underline underline-offset-2 decoration-[var(--team-link)] hover:text-[var(--team-ink)] hover:decoration-[var(--team-ink)] transition-colors duration-200";
 
 const h3Style = {
   fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
@@ -15,15 +17,17 @@ const pStyle = {
 };
 
 /** `className` overrides the default width classes. */
-export default function V2About({ className = "w-[90%] max-[900px]:w-[95%] max-w-[1150px] mx-auto" }: { className?: string }) {
+export default function V2About({
+  className = "w-[90%] max-[900px]:w-[95%] max-w-[1150px] mx-auto",
+  totals,
+}: { className?: string; totals?: AllTimeTotals | null }) {
   return (
     <section
-      className={`${className} mt-10 mb-0 bg-white pt-10 pb-[65px] text-center`}
+      className={`${className} mt-6 sm:mt-10 mb-0 bg-[var(--surface)] text-[var(--ink)] pt-10 pb-[65px] text-center`}
       style={{
         fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
         fontWeight: 500,
         fontStyle: "normal",
-        color: "#343434",
       }}
     >
       <h2
@@ -32,51 +36,50 @@ export default function V2About({ className = "w-[90%] max-[900px]:w-[95%] max-w
           fontFamily: "var(--v2-title-font)",
           fontWeight: "var(--v2-title-weight)",
           fontStyle: "normal",
-          color: "#343434",
         }}
       >
         What is this?
       </h2>
       <div className="w-[65%] max-[900px]:w-[80%] mx-auto text-left">
-        <p style={pStyle}>
-          MLB Scorigami tracks and identifies final scores that have never previously occurred in Major League Baseball. This website is based on the original{" "}
+        <p style={{ ...pStyle, marginBottom: 16 }}>
+          A Scorigami is a final score that&apos;s never happened before. The term comes from Jon Bois, who coined it
+          for the{" "}
           <a href="https://nflscorigami.com/" target="_blank" rel="noopener noreferrer" className={linkCls}>
-            Scorigami
-          </a>{" "}
-          concept by Jon Bois.
-        </p>
-
-        <h3 style={h3Style}>What is a Scorigami?</h3>
-        <p style={pStyle}>
-          A Scorigami is simply a final score that has never happened before. In 155+ years of Major League Baseball, only 358 unique final scores have ever occurred. Filter to a team to see that club&apos;s own version: Cubsigami, Red Soxigami, and so on.
-        </p>
-
-        <h3 style={h3Style}>How does the grid work?</h3>
-        <p style={pStyle}>
-          The winning team&apos;s score is displayed along the horizontal axis, and the losing team&apos;s score is shown along the vertical axis. Darker cells have happened more often. White cells have never occurred. The solid block below the diagonal is impossible, because a losing team cannot outscore the winner. Click any cell for the count, the most recent game, and a box score when one exists. Use the filters and year slider to explore a team, a season, or Home/Away scoring.
-        </p>
-
-        <h3 style={h3Style}>How was this created?</h3>
-        <p style={{ ...pStyle, marginBottom: 16 }}>
-          We consider 1871 the start of Major League Baseball. The game has changed a lot since then, and so has the recordkeeping. Early box scores were kept by hand and preserved imperfectly. What exists today is the result of decades of historical research, much of it done by volunteers.
+            NFL
+          </a>
+          .
         </p>
         <p style={{ ...pStyle, marginBottom: 16 }}>
-          Historical data comes from{" "}
+          This grid has every final score in MLB history, going back to 1871.
+          {totals &&
+            ` That's ${totals.games.toLocaleString("en-US")} games, but only ${totals.scores.toLocaleString("en-US")} different scores.`}{" "}
+          Winning runs go across the top and losing runs go down the side. The bolder the square, the more often that
+          score has happened, and the empty ones haven&apos;t happened yet. Click a square to see how many times
+          it&apos;s happened and the last game that ended that way.
+        </p>
+        <p style={pStyle}>
+          Pick a team to see its own grid, or narrow it down to the postseason or certain years. Double-tap the year
+          slider to switch between a single season and a range.
+        </p>
+
+        <h3 style={h3Style}>Where the data comes from</h3>
+        <p style={pStyle}>
+          Historical games come from{" "}
           <a href="https://www.retrosheet.org" target="_blank" rel="noopener noreferrer" className={linkCls}>
             Retrosheet
           </a>
-          . Modern results update daily via the MLB Stats API. Coverage includes every recognized major league: NA (1871–75), NL (1876–), AA (1882–91), UA (1884), PL (1890), AL (1901–), and FL (1914–15).
-        </p>
-        <p style={pStyle}>
-          Please note that Negro League games are currently excluded. MLB incorporated Negro League statistics into its official record in 2024, but game-level integration is still evolving. We&apos;d rather exclude them cleanly than include them incompletely.
+          , a volunteer project that has spent decades piecing together old box scores. Recent games come from the
+          MLB Stats API and update daily. Along with the NL and AL, that covers the five other leagues MLB recognizes
+          as major, like the 1870s National Association and the 1914&ndash;15 Federal League. Negro League games
+          aren&apos;t included yet, since their game-by-game records are still being filled in.
         </p>
 
-        <h3 style={h3Style}>Where else can I follow along?</h3>
+        <h3 style={h3Style}>Follow along</h3>
         <p style={pStyle}>
           <a href="https://x.com/MLBgami" target="_blank" rel="noopener noreferrer" className={linkCls}>
             @MLBgami
           </a>{" "}
-          posts after every MLB game: Scorigami, Playoffigami, Modern Era Scorigami, Franchisigami, Rarigami, and ordinary finals. Questions or corrections:{" "}
+          on X posts every final and calls out each new Scorigami. Spot a mistake? Email{" "}
           <a href="mailto:scorigami.mlb@gmail.com" className={linkCls}>
             scorigami.mlb@gmail.com
           </a>

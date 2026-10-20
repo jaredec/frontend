@@ -70,8 +70,14 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1.0,
-  themeColor: "#f2f2f2",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#2a2a2a" },
+  ],
 };
+
+// Runs before first paint so a dark-mode visitor never sees the light page flash.
+const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem("theme");var d=s?s==="dark":matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.classList.toggle("dark",d);}catch(e){}})();`;
 
 export default function RootLayout({
   children,
@@ -80,6 +86,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${sourceSans.variable} ${anonymousPro.variable} scroll-smooth`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable} ${cookie.variable} font-sans antialiased`}>
         <script
           type="application/ld+json"
