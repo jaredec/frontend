@@ -8,7 +8,7 @@ import NavBar from "@/components/nav-bar";
 import FilterBar from "@/components/filter-bar";
 import ScorigamiHeatmap from "@/components/scorigami-heatmap";
 import PageFooter from "@/components/page-footer";
-import ThemeToggle from "@/components/theme-toggle";
+import SiteHeader from "@/components/site-header";
 import V2About from "@/components/v2-about";
 import type { AllTimeTotals } from "@/lib/unique-scores";
 import {
@@ -21,7 +21,6 @@ import {
   getTeamLogoUrl,
   getTeamCapUrl,
 } from "@/lib/mlb-data";
-import TeamLogo from "@/components/team-logo";
 import type { YearlyRow } from "@/lib/scorigami-queries";
 import { getTeamTheme } from "@/lib/team-theme.mjs";
 import { CLASSIC_PAGE_CLS } from "@/lib/classic-layout";
@@ -302,7 +301,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
   const [scorigamiType, setScorigamiType] = useState<ScorigamiType>("traditional");
   const [club, setClub] = useState<FranchiseCode | "ALL">(initialClub);
   const [yearRange, setYearRange] = useState<[number, number]>([MIN_YEAR, CURRENT_YEAR]);
-  const [yearMode, setYearMode] = useState<"single" | "range">("range");
+  const [yearMode, setYearMode] = useState<"single" | "range">("single");
   const [gameFilter, setGameFilter] = useState<GameFilter>("all");
   const [gridSize, setGridSize] = useState<GridSize>(36);
   const [gridExpanded, setGridExpanded] = useState(false);
@@ -524,7 +523,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
     setClub(initialClub);
     setGameFilter("all");
     setYearRange([MIN_YEAR, CURRENT_YEAR]);
-    setYearMode("range");
+    setYearMode("single");
   };
 
   const filterProps = {
@@ -683,7 +682,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
   // arriving late must not push it down. Narrow screens drop the extras.
   const sep = <span className="text-[var(--ink-faint)]" aria-hidden>·</span>;
   const classicStatsBar = (
-    <div className="w-full border-b border-[var(--line)] bg-[var(--surface-2)]">
+    <div className="w-full">
       <div
         className={`${CLASSIC_PAGE_CLS} h-8 flex items-center justify-center gap-x-2 sm:gap-x-2.5 whitespace-nowrap overflow-hidden text-[12.5px] sm:text-[13.5px] text-[var(--ink-2)]`}
         style={{
@@ -732,25 +731,9 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
     >
       {classic ? (
         <>
-        <header className="w-full border-b border-[var(--line)] bg-[var(--surface)]">
-          <div className={`${CLASSIC_PAGE_CLS} relative h-14 sm:h-16 flex items-center justify-center`}>
-            <div className="flex items-center gap-2.5 min-w-0 max-w-[calc(100%-5.5rem)]">
-              <TeamLogo code={statsClub} className="h-9 w-9 sm:h-11 sm:w-11 object-contain flex-none" />
-              <span
-                className="truncate text-[24px] sm:text-[28px] leading-none tracking-tight text-[var(--ink)]"
-                style={{
-                  fontFamily: "var(--v2-title-font)",
-                  fontWeight: "var(--v2-title-weight)",
-                  WebkitTextStroke: "0.3px var(--ink)",
-                }}
-              >{igamiTitle}</span>
-            </div>
-            <div className="absolute inset-y-0 -right-2 flex items-center">
-              <ThemeToggle />
-            </div>
-          </div>
-        </header>
-        {classicStatsBar}
+        <SiteHeader widthCls={CLASSIC_PAGE_CLS} logoCode={statsClub} title={igamiTitle} nav="archive">
+          {classicStatsBar}
+        </SiteHeader>
         </>
       ) : variant === "single" ? (
         <header className="max-w-[1150px] mx-auto w-full px-3 sm:px-4 pt-[15px] pb-2 sm:pb-3 text-center">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import PageFooter from "@/components/page-footer";
-import NavBar from "@/components/nav-bar";
+import SiteHeader from "@/components/site-header";
+import { CLASSIC_PAGE_CLS } from "@/lib/classic-layout";
 import { getScorigamiArchive, PAGE_SIZE } from "@/lib/archive-queries";
 import ArchiveTable from "./archive-table";
 
@@ -30,17 +31,31 @@ export default async function ArchivePage({
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#1e1e1e] flex flex-col">
-      <NavBar />
+    <div
+      className="min-h-screen flex flex-col overflow-x-hidden team-scope bg-[var(--page)] text-[var(--ink)]"
+      style={{ fontFamily: "var(--v2-ui-font), system-ui, sans-serif" }}
+    >
+      <SiteHeader widthCls={CLASSIC_PAGE_CLS} logoCode="ALL" title="MLB Scorigami" titleHref="/" nav="grid">
+        <div
+          className={`${CLASSIC_PAGE_CLS} h-8 flex items-center justify-center gap-x-2 sm:gap-x-2.5 whitespace-nowrap overflow-hidden text-[12.5px] sm:text-[13.5px] text-[var(--ink-2)]`}
+        >
+          <span className="text-[var(--team-ink)]">Scorigami Archive</span>
+          <span className="text-[var(--ink-faint)]" aria-hidden>·</span>
+          <span>
+            <b className="font-semibold tabular-nums text-[var(--ink)]">{total.toLocaleString()}</b> scores, newest first
+          </span>
+        </div>
+      </SiteHeader>
 
       <ArchiveTable
+        className={`${CLASSIC_PAGE_CLS} flex-1 pt-4 sm:pt-6 pb-2 space-y-3`}
         rows={rows}
         total={total}
         currentPage={page}
         totalPages={totalPages}
       />
 
-      <PageFooter />
+      <PageFooter light className={CLASSIC_PAGE_CLS} />
     </div>
   );
 }

@@ -19,13 +19,13 @@ const isPostseason = (f: GameFilter) => ["playoffs", "ws", "lcs", "ds", "wc"].in
 
 // Classic-site (stacked) control styles, painted from the theme tokens in globals.css.
 const STACKED_TRIGGER =
-  "group flex w-full items-center justify-between rounded-[15px] border border-[var(--control-line)] bg-[var(--surface)] px-3 py-1.5 md:py-2 text-[15px] md:text-[17px] text-[var(--ink)] text-left shadow-[var(--shadow-soft)] hover:border-[var(--control-line-hover)] data-[state=open]:border-[var(--control-line-hover)] focus:outline-none focus-visible:border-[var(--team-accent)] focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--team-accent)_28%,transparent)]";
+  "group flex w-full items-center justify-between h-9 rounded-[10px] border border-[var(--control-line)] bg-[var(--surface)] px-3 text-[15px] text-[var(--ink)] text-left shadow-[var(--shadow-soft)] hover:border-[var(--control-line-hover)] data-[state=open]:border-[var(--control-line-hover)] focus:outline-none focus-visible:border-[var(--team-accent)] focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--team-accent)_28%,transparent)]";
 const STACKED_MENU =
   "animate-fade rounded-[12px] border border-[var(--control-line)] bg-[var(--surface)] p-1 text-[var(--ink)] shadow-[var(--shadow-pop)]";
 const STACKED_ITEM =
-  "w-full px-2 py-1 md:py-1.5 text-[14px] md:text-[16px] text-[var(--ink)] rounded-[8px] cursor-pointer hover:bg-[var(--hl)] hover:text-[var(--hl-fg)] focus:outline-none focus-visible:bg-[var(--hl)] focus-visible:text-[var(--hl-fg)]";
+  "w-full px-2 py-1.5 text-[14px] md:text-[15px] text-[var(--ink)] rounded-[8px] cursor-pointer hover:bg-[var(--hl)] hover:text-[var(--hl-fg)] focus:outline-none focus-visible:bg-[var(--hl)] focus-visible:text-[var(--hl-fg)]";
 const STACKED_SELECT_ITEM =
-  "cursor-pointer select-none rounded-[8px] px-2 py-1 md:py-1.5 text-[14px] md:text-[16px] outline-none text-[var(--ink)] data-[highlighted]:bg-[var(--hl)] data-[highlighted]:text-[var(--hl-fg)]";
+  "cursor-pointer select-none rounded-[8px] px-2 py-1.5 text-[14px] md:text-[15px] outline-none text-[var(--ink)] data-[highlighted]:bg-[var(--hl)] data-[highlighted]:text-[var(--hl-fg)]";
 
 function GameTypeDropdown({
   value,
@@ -702,7 +702,7 @@ export default function FilterBar({
                 <Select.Value>
                   <span className="flex items-center gap-2 min-w-0">
                     {club !== "ALL" && (stacked ? (
-                      <TeamLogo code={club} className="w-5 h-5 md:w-6 md:h-6 object-contain flex-shrink-0" />
+                      <TeamLogo code={club} className="w-5 h-5 object-contain flex-shrink-0" />
                     ) : getTeamLogoUrl(club, isDark) && (
                       <img src={getTeamLogoUrl(club, isDark)!} alt="" className="w-5 h-5 md:w-6 md:h-6 object-contain flex-shrink-0" />
                     ))}
@@ -719,7 +719,7 @@ export default function FilterBar({
             <Select.Portal>
               <Select.Content
                 className={stacked
-                  ? `z-[99] max-h-72 md:max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto text-[14px] md:text-[16px] ${STACKED_MENU}`
+                  ? `z-[99] max-h-72 md:max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto text-[14px] md:text-[15px] ${STACKED_MENU}`
                   : "z-[99] max-h-80 w-[var(--radix-select-trigger-width)] overflow-y-auto rounded-md border border-slate-200/60 dark:border-[#3e3e42]/60 bg-white dark:bg-[#252526] p-1 text-sm shadow-lg"
                 }
                 style={stacked ? { fontFamily: "var(--v2-ui-font), system-ui, sans-serif" } : undefined}
@@ -753,7 +753,7 @@ export default function FilterBar({
                       <Select.ItemText>
                         <span className="flex items-center gap-1.5">
                           {stacked ? (
-                            <TeamLogo code={team.code} className="w-5 h-5 md:w-6 md:h-6 object-contain flex-shrink-0" />
+                            <TeamLogo code={team.code} className="w-5 h-5 object-contain flex-shrink-0" />
                           ) : getTeamLogoUrl(team.code, isDark) && (
                             <img
                               src={getTeamLogoUrl(team.code, isDark)!}

@@ -23,6 +23,7 @@ export default function V2About({
 }: { className?: string; totals?: AllTimeTotals | null }) {
   return (
     <section
+      id="about"
       className={`${className} mt-6 sm:mt-10 mb-0 bg-[var(--surface)] text-[var(--ink)] pt-10 pb-[65px] text-center`}
       style={{
         fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
