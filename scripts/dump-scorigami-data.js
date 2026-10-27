@@ -46,6 +46,20 @@ function fmtBytes(n) {
 const LAST = (col) =>
   `(ARRAY_AGG(g.${col} ORDER BY g.date DESC, g.ended_at DESC NULLS LAST, g.game_id DESC))[1]`;
 
+// The Supabase pooler occasionally times out on connect; these are read-only
+// queries, so retry with backoff before failing the run.
+async function queryWithRetry(text, params, attempts = 4) {
+  for (let i = 1; ; i++) {
+    try {
+      return await pool.query(text, params);
+    } catch (err) {
+      if (i >= attempts) throw err;
+      console.warn(`Query failed (attempt ${i}/${attempts}): ${err.message}. Retrying in ${i * 10}s…`);
+      await new Promise((r) => setTimeout(r, i * 10_000));
+    }
+  }
+}
+
 async function fetchRows(type, teamId) {
   const isAll = teamId === 0;
   const scoreSelect = type === "traditional"
@@ -57,7 +71,7 @@ async function fetchRows(type, teamId) {
   const where = isAll
     ? `g.is_negro_league = false`
     : `(g.home_team_id = $1 OR g.visitor_team_id = $1)`;
-  const { rows } = await pool.query(
+  const { rows } = await queryWithRetry(
     `SELECT EXTRACT(YEAR FROM g.date)::int AS year, ${scoreSelect}, g.game_type,
             COUNT(*)::int AS occurrences, MAX(g.date)::text AS last_date,
             ${LAST("home_team")} AS last_home_team, ${LAST("visitor_team")} AS last_visitor_team,

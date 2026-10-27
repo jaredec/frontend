@@ -98,6 +98,13 @@ export default function ArchiveTable({
     }
   }, []);
 
+  // The page is prerendered at page 1; deep links like ?page=3 (or a build that
+  // couldn't reach the database) load after mount.
+  useEffect(() => {
+    const p = parseInt(new URLSearchParams(window.location.search).get("page") ?? "1", 10) || 1;
+    if (p > 1 || initialRows.length === 0) fetchData(p, false);
+  }, [fetchData, initialRows.length]);
+
   // Keep the table in sync with browser back/forward.
   useEffect(() => {
     const onPop = () => {

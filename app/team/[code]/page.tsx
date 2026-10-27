@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: TeamPageProps): Promise<Metad
 
   const title = `${name} Scorigami | Every Final Score in Franchise History`;
   const description = `Explore every unique final score in ${name} history. See which scores have never happened, when each result last occurred, and browse box scores.`;
-  const ogImage = `/og/team/${code.toLowerCase()}.png?v=2`;
+  const ogImage = `/og/team/${code.toLowerCase()}.png?v=3`;
 
   return {
     title,

@@ -49,14 +49,14 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
     siteName: "MLB Scorigami",
-    images: [{ url: "/og.png?v=2", width: 1200, height: 630, alt: "MLB Scorigami heatmap" }],
+    images: [{ url: "/og.png?v=3", width: 1200, height: 630, alt: "MLB Scorigami heatmap" }],
   },
   twitter: {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
     creator: "@MLBgami",
-    images: ["/og.png?v=2"],
+    images: ["/og.png?v=3"],
   },
   icons: {
     icon: { url: "/favicon.svg", type: "image/svg+xml" },

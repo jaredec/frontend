@@ -3,6 +3,7 @@ import PageFooter from "@/components/page-footer";
 import SiteHeader from "@/components/site-header";
 import { CLASSIC_PAGE_CLS } from "@/lib/classic-layout";
 import { getScorigamiArchive, PAGE_SIZE } from "@/lib/archive-queries";
+import { allTimeTotals } from "@/lib/unique-scores";
 import ArchiveTable from "./archive-table";
 
 export const metadata: Metadata = {
@@ -19,15 +20,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function ArchivePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string }>;
-}) {
-  const { page: pageParam } = await searchParams;
-  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
+// Static (page 1 only) so the header link can prefetch it and navigation is instant.
+// Refreshed hourly and whenever the cron busts the 'archive' tag; later pages load
+// client-side from /api/archive.
+export const revalidate = 3600;
 
-  const { rows, total } = await getScorigamiArchive(page);
+export default async function ArchivePage() {
+  // A database blip at build time shouldn't fail the deploy: ship the shell and let
+  // the table fetch its rows in the browser until the next revalidation.
+  const { rows, total } = await getScorigamiArchive(1).catch(() => ({
+    rows: [],
+    total: allTimeTotals()?.scores ?? 0,
+  }));
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -51,7 +55,7 @@ export default async function ArchivePage({
         className={`${CLASSIC_PAGE_CLS} flex-1 pt-4 sm:pt-6 pb-2 space-y-3`}
         rows={rows}
         total={total}
-        currentPage={page}
+        currentPage={1}
         totalPages={totalPages}
       />
 
