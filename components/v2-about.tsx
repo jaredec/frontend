@@ -60,7 +60,8 @@ export default function V2About({
         </p>
         <p style={pStyle}>
           Pick a team to see its own grid, or narrow it down to the postseason or certain years. Double-tap the year
-          slider to switch between a single season and a range.
+          slider to switch between a single season and a range. The expand button opens the grid up to 40 runs, which
+          covers every game but one: the Philadelphia Athletics&apos; 49&ndash;33 win over the Troy Haymakers in 1871.
         </p>
 
         <h3 style={h3Style}>Where the data comes from</h3>

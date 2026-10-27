@@ -560,8 +560,8 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
         gridSize={gridSize}
         isGhostClick={isGhostClick}
         dark={!light}
-        colCount={light ? (gridExpanded ? 51 : 30) : undefined}
-        rowCount={light ? (gridExpanded ? 51 : 30) : undefined}
+        colCount={light ? (gridExpanded ? 41 : 30) : undefined}
+        rowCount={light ? (gridExpanded ? 41 : 30) : undefined}
         skeleton={false}
         bearigamiGrid={light}
         classic={classic}

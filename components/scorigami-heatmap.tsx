@@ -110,8 +110,8 @@ const COMPACT_DESKTOP_COLS = 41;
 const COMPACT_DESKTOP_ROWS = 41;
 const COMPACT_MOBILE_COLS = 31; // scores 0–30
 const COMPACT_MOBILE_ROWS = 31;
-const EXPAND_COLS = 51;
-const EXPAND_ROWS = 51;
+const EXPAND_COLS = 41; // scores 0–40; only 1871's 49–33 lies beyond
+const EXPAND_ROWS = 41;
 const CLASSIC_COLS = 36; // scores 0–35, like the original site
 const CLASSIC_ROWS = 36;
 const CLASSIC_DESKTOP_DIM = 31; // desktop: 0–30
@@ -345,7 +345,7 @@ export default function ScorigamiHeatmap({
         }
         if (expanded) el.scrollLeft = 0;
         // Compact: 41×41 desktop (fitted). Phone: 31-wide, ~20 visible, rest scrolls.
-        // Expand: 51×51 fitted, no sideways scroll.
+        // Expand: 41×41 fitted, no sideways scroll.
         const visibleCols = expanded
           ? GRID_DIMENSION
           : window.innerWidth < 768
