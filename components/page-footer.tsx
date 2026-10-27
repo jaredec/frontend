@@ -30,9 +30,13 @@ export default function PageFooter({
               <Mail className="w-3.5 h-3.5" />
               <span>Contact</span>
             </a>
-            <a href="https://www.retrosheet.org" target="_blank" rel="noopener noreferrer" className={lightLinkCls}>
-              Data: Retrosheet &amp; MLB Stats API
-            </a>
+            <span className="text-[var(--ink)]">
+              Data:{" "}
+              <a href="https://www.retrosheet.org" target="_blank" rel="noopener noreferrer" className={lightLinkCls}>
+                Retrosheet
+              </a>{" "}
+              &amp; MLB Stats API
+            </span>
           </nav>
         </div>
       </footer>
