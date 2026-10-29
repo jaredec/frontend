@@ -175,6 +175,7 @@ export function axisTextLabels(scorigamiType: ScorigamiType, club: string) {
 
 interface ScorigamiHeatmapProps {
   rows: ApiRow[] | undefined;
+  allTimeCounts?: Record<string, number>; // per-score totals across all years, when the year filter is narrowed
   isLoading: boolean;
   scorigamiType: ScorigamiType;
   club: string;
@@ -196,6 +197,7 @@ interface ScorigamiHeatmapProps {
 
 export default function ScorigamiHeatmap({
   rows,
+  allTimeCounts,
   isLoading,
   scorigamiType,
   club,
@@ -788,6 +790,11 @@ export default function ScorigamiHeatmap({
                                     <span className="text-xs text-[var(--ink-2)]">
                                       {freqText(f)}
                                     </span>
+                                    {allTimeCounts && (
+                                      <span className="text-[11px] text-[var(--ink-3)] tabular-nums">
+                                        {(allTimeCounts[k] ?? 0).toLocaleString()} all-time
+                                      </span>
+                                    )}
                                     {f > 0 && rowData?.last_date && (
                                       <div className="mt-2 pt-2 border-t border-[var(--line)] w-full text-xs space-y-0.5">
                                         <div className="text-[var(--ink-2)]">

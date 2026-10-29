@@ -491,6 +491,20 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
     };
   }, [view, rangeLo, rangeHi]);
 
+  // Keyed on the view alone so dragging the year slider never re-sums every year.
+  const allTimeByScore = useMemo(() => {
+    if (!view) return null;
+    const counts: Record<string, number> = {};
+    for (const r of view.yearly) {
+      const k = `${r.score1}-${r.score2}`;
+      counts[k] = (counts[k] ?? 0) + Number(r.occurrences);
+    }
+    return { counts, bounds: yearBounds(view.yearly) };
+  }, [view]);
+  const yearsNarrowed =
+    !!allTimeByScore && (rangeLo > allTimeByScore.bounds[0] || rangeHi < allTimeByScore.bounds[1]);
+  const allTimeCounts = yearsNarrowed ? allTimeByScore.counts : undefined;
+
   const rows = display?.rows;
   const headerStats = display?.stats ?? null;
   const statsClub = display?.club ?? club;
@@ -554,6 +568,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
     () => (
       <ScorigamiHeatmap
         rows={rows}
+        allTimeCounts={allTimeCounts}
         isLoading={heatmapLoading}
         scorigamiType={heatmapType}
         club={heatmapClub}
@@ -579,7 +594,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
       />
     ),
     // isGhostClick only reads a ref, so a stale closure is fine.
-    [rows, heatmapLoading, heatmapType, heatmapClub, gridSize, light, classic, gridExpanded, revealed, markRevealed, scorigamiType],
+    [rows, allTimeCounts, heatmapLoading, heatmapType, heatmapClub, gridSize, light, classic, gridExpanded, revealed, markRevealed, scorigamiType],
   );
 
   const igamiTitle = statsClub === "ALL" ? "MLB Scorigami" : (TEAM_IGAMI[statsClub] ?? "MLB Scorigami");
