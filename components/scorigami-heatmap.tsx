@@ -787,14 +787,15 @@ export default function ScorigamiHeatmap({
                                         <X className="w-3.5 h-3.5" />
                                       </button>
                                     </div>
-                                    <span className="text-xs text-[var(--ink-2)]">
+                                    <span className="text-xs text-[var(--ink)]">
                                       {freqText(f)}
+                                      {allTimeCounts && (
+                                        <span className="text-[var(--ink-3)]">
+                                          {" · "}
+                                          {(allTimeCounts[k] ?? 0).toLocaleString()} all-time
+                                        </span>
+                                      )}
                                     </span>
-                                    {allTimeCounts && (
-                                      <span className="text-[11px] text-[var(--ink-3)] tabular-nums">
-                                        {(allTimeCounts[k] ?? 0).toLocaleString()} all-time
-                                      </span>
-                                    )}
                                     {f > 0 && rowData?.last_date && (
                                       <div className="mt-2 pt-2 border-t border-[var(--line)] w-full text-xs space-y-0.5">
                                         <div className="text-[var(--ink-2)]">
