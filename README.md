@@ -21,13 +21,14 @@ This is a Next.js app. `main` deploys to Vercel.
 
 ```
 app/page.tsx                 homepage grid
-app/archive/                 first-occurrence archive
 app/about/                   about
+app/api/ask/                 Ask Scorigami chat (questions answered from the database)
 app/ops/                     health dashboard
 app/api/cron/check-games/    posting cron
 app/api/scorigami/           yearly data API (filters / fallback)
 components/                  heatmap, filters, ops UI
 lib/                         queries, MLB metadata, probability
+lib/ask/                     Ask Scorigami tools, model loop, number check, rate limits
 public/scorigami-data/       static yearly dumps
 scripts/dump-scorigami-data.js
 scripts/generate-og-image.js

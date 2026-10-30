@@ -10,10 +10,7 @@ interface NavBarProps {
   uniqueScores?: number;
 }
 
-const MENU_ITEMS = [
-  { href: "/archive", label: "Archive" },
-  { href: "/about", label: "About" },
-];
+const MENU_ITEMS = [{ href: "/about", label: "About" }];
 
 export default function NavBar({ totalGames, uniqueScores }: NavBarProps) {
   const hasStats = totalGames !== undefined && uniqueScores !== undefined;

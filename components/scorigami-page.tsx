@@ -746,7 +746,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
     >
       {classic ? (
         <>
-        <SiteHeader widthCls={CLASSIC_PAGE_CLS} logoCode={statsClub} title={igamiTitle} nav="archive">
+        <SiteHeader widthCls={CLASSIC_PAGE_CLS} logoCode={statsClub} title={igamiTitle}>
           {classicStatsBar}
         </SiteHeader>
         </>
