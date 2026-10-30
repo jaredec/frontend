@@ -16,6 +16,8 @@ const anonymousPro = Anonymous_Pro({
 });
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import AskBubble from "@/components/ask-bubble";
+import { allTimeTotals } from "@/lib/unique-scores";
 import "./globals.css";
 
 const SITE_URL = "https://mlbscorigami.com";
@@ -124,6 +126,7 @@ export default function RootLayout({
           }}
         />
         {children}
+        <AskBubble totalGames={allTimeTotals()?.games ?? null} />
         <Analytics />
         <SpeedInsights />
       </body>
