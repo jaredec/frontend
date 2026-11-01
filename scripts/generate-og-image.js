@@ -29,7 +29,6 @@ const RAMP = [
 const INK = "#343434";
 const CARD_BG = "#f2f2f2";
 // The site's default accent is a blue that disappears into the blue grid.
-const SITE_HIGHLIGHT = "#f38e55";
 const SITE_HIGHLIGHT_TEXT = "#d9622b";
 
 const TITLE_FONT = "Anonymous Pro";
@@ -143,18 +142,11 @@ const CARD = { x: 48, y: 48, w: 400, h: H - 96 };
 function gridMarkup(s, theme) {
   // Gapless cells on whole pixels, so no seams show between them.
   let out = `<g shape-rendering="crispEdges">`;
-  const hl = s.recent ? `${s.recent.score1}-${s.recent.score2}` : null;
   for (let win = 0; win < COLS; win++) {
     for (let lose = 0; lose <= win && lose < ROWS; lose++) {
-      const key = `${win}-${lose}`;
-      const n = s.occ.get(key) || 0;
-      const fill = key === hl ? theme.highlight : n === 0 ? "#ffffff" : theme.cellColor(n, s.maxOcc);
-      const x = GRID_X + win * CELL;
-      const y = lose * CELL;
-      out += `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" fill="${fill}"/>`;
-      if (key === hl) {
-        out += `<rect x="${x + 5}" y="${y + 5}" width="${CELL - 10}" height="${CELL - 10}" fill="none" stroke="#ffffff" stroke-width="2"/>`;
-      }
+      const n = s.occ.get(`${win}-${lose}`) || 0;
+      const fill = n === 0 ? "#ffffff" : theme.cellColor(n, s.maxOcc);
+      out += `<rect x="${GRID_X + win * CELL}" y="${lose * CELL}" width="${CELL}" height="${CELL}" fill="${fill}"/>`;
     }
   }
   return out + `</g>`;
@@ -238,7 +230,6 @@ async function writeShareCards(all, readRows) {
     return {
       ...t,
       cellColor: (n, max) => rampColor(t.cardRamp, n, max),
-      highlight: isSite ? SITE_HIGHLIGHT : t.accent,
       highlightText: isSite ? SITE_HIGHLIGHT_TEXT : t.link,
     };
   };

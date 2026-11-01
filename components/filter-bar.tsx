@@ -197,24 +197,6 @@ const PILL: React.CSSProperties = {
   fontWeight: 600,
 };
 
-function HaltNote({ note, show }: { note?: string; show: boolean }) {
-  return (
-    <p
-      className={`text-center text-[12px] sm:text-[13px] leading-5 text-[var(--ink-3)] overflow-hidden transition-[opacity,height,margin] duration-150 ${
-        show ? "h-5 mt-0.5" : "h-0 mt-0"
-      }`}
-      style={{
-        fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
-        opacity: show ? 1 : 0,
-      }}
-      aria-hidden={!show}
-      aria-live="polite"
-    >
-      {note ?? ""}
-    </p>
-  );
-}
-
 function BearYearSlider({
   minYear,
   maxYear,
@@ -845,10 +827,6 @@ export default function FilterBar({
               onChange={setYearRange}
             />
           )}
-          <HaltNote
-            note={club === "ALL" ? undefined : `No games before ${dataMin}`}
-            show={club !== "ALL" && yearRange[0] === yearRange[1] && yearRange[0] === dataMin}
-          />
         </div>
         </div>
       ) : (
