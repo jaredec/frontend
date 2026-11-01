@@ -694,7 +694,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
   };
 
   // One line, fixed height: the grid sizes itself from its top edge, so stats
-  // arriving late must not push it down. Narrow screens drop the extras.
+  // arriving late must not push it down.
   const sep = <span className="text-[var(--ink-faint)]" aria-hidden>·</span>;
   const classicStatsBar = (
     <div className="w-full">
@@ -712,21 +712,8 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
             </span>
             {sep}
             <span>
-              <span className="sm:hidden">Unique</span>
-              <span className="hidden sm:inline">{countLabel}</span>{" "}
-              <b className="font-semibold tabular-nums text-[var(--ink)]">{headerStats.uniqueScores.toLocaleString()}</b>
+              {countLabel} <b className="font-semibold tabular-nums text-[var(--ink)]">{headerStats.uniqueScores.toLocaleString()}</b>
             </span>
-            {headerStats.recent && (
-              <>
-                {sep}
-                <span className="min-w-0 truncate">
-                  <span className="text-[var(--team-ink)]">{recentLabel}</span>{" "}
-                  <b className="font-semibold tabular-nums text-[var(--ink)]">
-                    {headerStats.recent.score1}–{headerStats.recent.score2}
-                  </b>
-                </span>
-              </>
-            )}
           </>
         )}
       </div>
