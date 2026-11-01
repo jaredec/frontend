@@ -427,7 +427,7 @@ export default function AskChat({ className = "", onClose }: { className?: strin
         <div ref={endRef} />
       </div>
 
-      <div className="px-3 pt-1 pb-3">
+      <div className="px-4 pt-1 pb-4">
         <form
           onSubmit={submit}
           className={`${BOX} flex items-end gap-2 hover:border-[var(--control-line-hover)] focus-within:border-[var(--control-line-hover)] pl-3 pr-1 py-1 shadow-[var(--shadow-soft)]`}
@@ -455,7 +455,7 @@ export default function AskChat({ className = "", onClose }: { className?: strin
             type="submit"
             disabled={!input.trim() || pending}
             aria-label="Ask"
-            className="press grid size-8 flex-none place-items-center rounded-[7px] bg-[var(--pill)] text-[var(--pill-fg)] disabled:opacity-25 disabled:cursor-not-allowed"
+            className="press grid size-8 flex-none place-items-center rounded-[5px] bg-[var(--pill)] text-[var(--pill-fg)] disabled:opacity-25 disabled:cursor-not-allowed"
           >
             <ArrowUp className="w-4 h-4" strokeWidth={2.25} />
           </button>

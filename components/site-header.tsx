@@ -35,7 +35,7 @@ export default function SiteHeader({
 
   return (
     <header className="w-full">
-      <div className={`${widthCls} relative pt-2.5 sm:pt-3 flex items-center justify-center`}>
+      <div className={`${widthCls} relative pt-5 sm:pt-6 flex items-center justify-center`}>
         {titleHref ? (
           <Link href={titleHref} className={brandCls}>
             {brand}
@@ -43,7 +43,7 @@ export default function SiteHeader({
         ) : (
           <div className={brandCls}>{brand}</div>
         )}
-        <div className="absolute top-2.5 sm:top-3 bottom-0 -right-2 flex items-center">
+        <div className="absolute top-5 sm:top-6 bottom-0 -right-2 flex items-center">
           <ThemeToggle />
         </div>
       </div>

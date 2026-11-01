@@ -1,7 +1,7 @@
 import type { AllTimeTotals } from "@/lib/unique-scores";
 
 const linkCls =
-  "text-[var(--team-link)] underline underline-offset-2 decoration-[var(--team-link)] hover:text-[var(--team-ink)] hover:decoration-[var(--team-ink)] transition-colors duration-200";
+  "text-[var(--team-link)] hover:text-[var(--team-ink)] transition-colors duration-200";
 
 const h3Style = {
   fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
@@ -69,11 +69,7 @@ export default function V2About({
 
         <h3 style={h3Style}>Where the data comes from</h3>
         <p style={pStyle}>
-          Most of the older games come from{" "}
-          <a href="https://www.retrosheet.org" target="_blank" rel="noopener noreferrer" className={linkCls}>
-            Retrosheet
-          </a>
-          , whose volunteers have spent decades piecing together baseball&apos;s history. Newer games come from the MLB
+          Most of the older games come from Retrosheet, whose volunteers have spent decades piecing together baseball&apos;s history. Newer games come from the MLB
           Stats API and are updated daily. The data goes back to the National Association in 1871 and also covers the
           American, Union, Players&apos;, and Federal leagues, along with the AL and NL. Negro League games aren&apos;t
           included for now. MLB&apos;s historical game-by-game record is still being updated, and I&apos;d rather leave
@@ -85,12 +81,8 @@ export default function V2About({
           <a href="https://x.com/MLBgami" target="_blank" rel="noopener noreferrer" className={linkCls}>
             @MLBgami
           </a>{" "}
-          on X automatically posts every final score and lets you know when one is a Scorigami. Have a suggestion or
-          spot a mistake? Email{" "}
-          <a href="mailto:scorigami.mlb@gmail.com" className={linkCls}>
-            scorigami.mlb@gmail.com
-          </a>
-          .
+          on X automatically posts every final score and lets you know when one is a Scorigami. Have a
+          suggestion or spot a mistake? Email scorigami.mlb@gmail.com.
         </p>
       </div>
     </section>

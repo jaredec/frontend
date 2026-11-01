@@ -16,7 +16,8 @@ export default function PageFooter({
   if (light) {
     return (
       <footer
-        className={`${className} py-6 sm:py-7 text-[13.5px] text-[var(--ink-2)]`}
+        // Bottom padding clears the floating Ask button (48px tall, 12px / 24px off the bottom).
+        className={`${className} pt-6 pb-[72px] sm:pt-7 sm:pb-24 text-[13.5px] text-[var(--ink-2)]`}
         style={{ fontFamily: "var(--v2-ui-font), system-ui, sans-serif" }}
       >
         <div className="flex flex-col sm:flex-row items-center justify-between gap-y-2.5 gap-x-6">

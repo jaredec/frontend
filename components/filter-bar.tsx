@@ -213,6 +213,7 @@ function BearYearSlider({
   const draggingRef = useRef(false);
   const lastFlushedRef = useRef(local);
   const trackRef = useRef<HTMLDivElement>(null);
+  const pillRef = useRef<HTMLSpanElement>(null);
 
   const flush = (v: number) => {
     if (v === lastFlushedRef.current) return;
@@ -225,9 +226,9 @@ function BearYearSlider({
     const track = trackRef.current;
     if (!track) return;
     const rect = track.getBoundingClientRect();
-    const pad = 16;
-    const usable = Math.max(rect.width - pad * 2, 1);
-    const pct = (clientX - rect.left - pad) / usable;
+    const half = (pillRef.current?.offsetWidth ?? 40) / 2;
+    const usable = Math.max(rect.width - half * 2, 1);
+    const pct = (clientX - rect.left - half) / usable;
     const raw = minYear + pct * (sentinel - minYear);
     const v = Math.round(Math.min(sentinel, Math.max(minYear, raw)));
     setLocal(v);
@@ -301,11 +302,14 @@ function BearYearSlider({
         }}
       >
         <div className="absolute left-0 right-0 h-4 sm:h-2 rounded-full bg-[var(--track)]" />
+        {/* Slides edge to edge: flush left at the first year, flush right at ALL. */}
         <span
-          className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none whitespace-nowrap rounded-full px-[10px] pt-[2px] pb-[4px]"
+          ref={pillRef}
+          className="absolute top-1/2 pointer-events-none whitespace-nowrap rounded-full px-[10px] pt-[2px] pb-[4px]"
           style={{
             ...PILL,
-            left: `calc(16px + ${pct} * (100% - 32px))`,
+            left: `${pct * 100}%`,
+            translate: `${-pct * 100}% -50%`,
           }}
         >
           {local === sentinel ? "ALL" : String(local)}
