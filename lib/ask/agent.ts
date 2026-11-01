@@ -11,6 +11,8 @@ import {
   latestGameDate,
   lookupTeam,
   lookupTeamInput,
+  missingScores,
+  missingScoresInput,
   rareGames,
   rareGamesInput,
   scoreHistory,
@@ -80,6 +82,7 @@ const VOCABULARY = `Site vocabulary (the @MLBgami bot posts these after games; u
 - Franchisigami, or a team name + "igami" (Cubsigami, Yankeesigami, Red Soxigami): the first time a franchise played a game with that score. Use scorigamis with scope team.
 - Socloseigami: the score had happened only 1–4 times before. Use rare_games with min_prior 1 and max_prior 4.
 - Rarigami: the score had happened fewer than 100 times before. Use rare_games with min_prior 5 and max_prior 99 (1–4 is a Socloseigami instead).
+- Possible, remaining or "most likely next" Scorigamis are scores that have never happened. Use missing_scores (with team_ids for a team's possible Franchisigamis). Its chances are rough estimates; say so. When the user asks for scores (plural), name the top few in one sentence.
 - When explaining one of these terms, state its definition briefly.`;
 
 export function instructions(today: string, latest: string | null) {
@@ -95,6 +98,7 @@ ${VOCABULARY}
 - Make as many tool calls as you need, then stop as soon as you can answer.
 - Ballparks are stored under the name they had at the time of each game, so a renamed park (Oracle Park, Rate Field, Progressive Field) only matches games played under that name. When a ballpark answer could be affected by a rename, say which name it covers.
 - Game results include final scores, winners and losers, margins, runs, ballparks, dates, postseason rounds and how many innings a game lasted. For counts ("how many games…"), use total_matching from find_games. For averages and rankings by ballpark, season, decade or team, use group_stats, and group by exactly what the user asked about: a question about a team must be answered with a team. "Highest-scoring team" or "best team" means a single team-season (group_by team_season) unless the user says franchise or all-time; when the answer names a team-season, include the year. Scoring was much higher in the 1800s, so when an all-time ballpark ranking is topped by 19th-century parks, also call group_stats with start_year 1901 and give both answers.
+- For head-to-head questions ("most lopsided rivalry", "Cubs record against every team"), use group_stats with group_by matchup. "Widest gap" or "most lopsided" means win_loss_gap (wins minus losses) unless the user asks about percentage, in which case use win_pct. Matchups are between franchises across all their names and cities, so say "franchise" when an older name could matter. Give the head-to-head record (like 1270-1090) along with the gap.
 - For the oldest ballpark or team, use group_stats with sort_by first_game and no year filters; add still_active for "still in use" or "still playing". Team names are the franchise's current name, so the oldest team may have started under another name and city. Because ballparks are stored by name, a park renamed recently (UNIQLO Field at Dodger Stadium from 2026) starts over under its new name; say so when it could change the answer.
 - If the tools can't answer the question (for example streaks, player stats, standings, or anything that isn't about game results), say so in one sentence and suggest a related question you can answer.
 
@@ -170,7 +174,7 @@ export function buildTools(sink: GameSink, teamNames: Map<number, string>) {
     }),
     group_stats: tool({
       description:
-        "Games grouped by ballpark, season, decade, franchise (team) or single team-season (team_season), ranked by runs per game, average margin, shutout rate, extra-inning rate, game count, win percentage or first game. Use for 'highest-scoring ballpark', 'lowest-scoring season', 'highest-scoring team', 'best record since 2000', 'Cubs record by decade', 'oldest ballpark still in use', 'oldest franchise'. Groups below min_games are skipped; mention the threshold when it matters.",
+        "Games grouped by ballpark, season, decade, franchise (team), single team-season (team_season) or head-to-head franchise pair (matchup), ranked by runs per game, average margin, shutout rate, extra-inning rate, game count, win percentage, win-loss gap or first game. Use for 'highest-scoring ballpark', 'lowest-scoring season', 'highest-scoring team', 'best record since 2000', 'Cubs record by decade', 'oldest ballpark still in use', 'oldest franchise'. Groups below min_games are skipped; mention the threshold when it matters.",
       inputSchema: groupStatsInput,
       execute: (input) => run("group_stats", input, () => groupStats(input)),
     }),
@@ -185,6 +189,12 @@ export function buildTools(sink: GameSink, teamNames: Map<number, string>) {
         "Games whose final score was rare at the time, newest first, each with times_happened_before. Use for Rarigami, Socloseigami, or 'recent games with rare scores'.",
       inputSchema: rareGamesInput,
       execute: (input) => run("rare_games", input, () => rareGames(input, sink)),
+    }),
+    missing_scores: tool({
+      description:
+        "Final scores that have never happened (possible future Scorigamis), ranked by estimated chance per game or by lowest total runs, each with a rough chance per game and how many seasons it would take on average. Use for 'most likely next scorigami', 'lowest-scoring score that's never happened', 'what scores are left'.",
+      inputSchema: missingScoresInput,
+      execute: (input) => run("missing_scores", input, () => missingScores(input)),
     }),
   };
 }
@@ -245,7 +255,7 @@ function describeStep(toolName: string, input: any, output: any, teamNames: Map<
       };
     case "group_stats":
       return {
-        label: `Grouped games by ${String(input.group_by).replace("team_season", "team season")}, ranked by ${String(output?.sorted_by ?? input.sort_by ?? "").replace(/ \(.*/, "").replaceAll("_", " ")}${input.still_active ? ", still active only" : ""}${describeFilters(input.filters, teamNames)}`,
+        label: `Grouped games by ${String(input.group_by).replace("team_season", "team season")}, ranked by ${String(output?.sorted_by ?? input.sort_by ?? "").replace(/ \(.*/, "").replaceAll("_", " ")}${String(output?.sorted_by ?? "").includes("lowest") ? ", lowest first" : ""}${input.still_active ? ", still active only" : ""}${describeFilters(input.filters, teamNames)}`,
         result: `${fmt(output?.groups_meeting_min_games ?? 0)} with ${fmt(output?.min_games ?? 1)}+ games`,
       };
     case "scorigamis": {
@@ -261,6 +271,11 @@ function describeStep(toolName: string, input: any, output: any, teamNames: Map<
       return {
         label: `Found games whose score had happened ${input.min_prior ?? 1}–${input.max_prior ?? 99} times before${describeFilters(input.filters, teamNames)}`,
         result: `${fmt(output?.total_matching ?? 0)} matched`,
+      };
+    case "missing_scores":
+      return {
+        label: `Listed scores that have never happened, ${input.sort === "lowest_total" ? "fewest runs" : "most likely"} first${describeFilters({ team_ids: input.team_ids }, teamNames)}`,
+        result: `${fmt(output?.never_happened_with_winner_up_to_30_runs ?? 0)} missing with 30 runs or fewer`,
       };
     default:
       return { label: toolName, result: "" };

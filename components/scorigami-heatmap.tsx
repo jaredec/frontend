@@ -295,7 +295,7 @@ export default function ScorigamiHeatmap({
   const rampVars = useMemo(() => {
     const vars: Record<string, string> = {};
     theme.ramp.forEach((c, i) => (vars[`--rl${i}`] = c));
-    theme.nightRamp.forEach((c, i) => (vars[`--rd${i}`] = c));
+    theme.cardRamp.forEach((c, i) => (vars[`--rd${i}`] = c));
     vars["--imp-l"] = theme.dark;
     return vars as React.CSSProperties;
   }, [theme]);

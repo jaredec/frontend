@@ -145,7 +145,7 @@ function gamesSql(f: Filters, params: unknown[], { everyTeam = false } = {}): st
     const w = [...where];
     if (team) w.push(`${mine}_team_id = ANY(${team}::bigint[])`);
     if (opp) w.push(`${theirs}_team_id = ANY(${opp}::bigint[])`);
-    return `SELECT ${cols}, ${mine}_team_id AS team_id, ${mine}_team AS team_name, ${theirs}_team AS opp_name,
+    return `SELECT ${cols}, ${mine}_team_id AS team_id, ${theirs}_team_id AS opp_id, ${mine}_team AS team_name, ${theirs}_team AS opp_name,
       ${mine}_score AS team_score, ${theirs}_score AS opp_score, '${side}'::text AS side
       FROM gamelogs ${w.length ? `WHERE ${w.join(" AND ")}` : ""}`;
   };
@@ -428,6 +428,11 @@ const GROUPS = {
   decade: { cols: `(${YEAR} / 10) * 10 AS grp`, by: `(${YEAR} / 10) * 10`, minGames: 1 },
   team: { cols: "(SELECT t.team FROM teams t WHERE t.team_id = g.team_id) AS grp", by: "team_id", minGames: 500 },
   team_season: { cols: `${YEAR} || ' ' || max(team_name) AS grp`, by: `team_id, ${YEAR}`, minGames: 50 },
+  matchup: {
+    cols: "(SELECT t.team FROM teams t WHERE t.team_id = g.team_id) || ' vs ' || (SELECT t.team FROM teams t WHERE t.team_id = g.opp_id) AS grp",
+    by: "team_id, opp_id",
+    minGames: 100,
+  },
 } as const;
 
 const GROUP_SORTS = {
@@ -438,21 +443,32 @@ const GROUP_SORTS = {
   shutout_rate: "avg((LEAST(team_score, opp_score) = 0)::int)",
   extra_inning_rate: "avg((innings > 9)::int)",
   win_pct: "avg((team_score > opp_score)::int)",
+  win_loss_gap: "sum((team_score > opp_score)::int) - sum((team_score < opp_score)::int)",
   first_game: "min(date)",
 } as const;
 
 export const groupStatsInput = z.object({
   group_by: z
-    .enum(["ballpark", "season", "decade", "team", "team_season"])
+    .enum(["ballpark", "season", "decade", "team", "team_season", "matchup"])
     .describe(
-      "team = a franchise across all the filtered years; team_season = one team in one season (e.g. the 1930 Yankees). Both rank every team unless team_ids is set.",
+      "team = a franchise across all the filtered years; team_season = one team in one season (e.g. the 1930 Yankees); matchup = one franchise's head-to-head record against another (each pair appears once from each side). All rank every team unless team_ids is set; with team_ids, matchup gives that team's record against each opponent.",
     ),
   filters: filtersSchema.optional(),
   sort_by: z
-    .enum(["avg_total_runs", "avg_team_runs", "avg_margin", "games", "shutout_rate", "extra_inning_rate", "win_pct", "first_game"])
+    .enum([
+      "avg_total_runs",
+      "avg_team_runs",
+      "avg_margin",
+      "games",
+      "shutout_rate",
+      "extra_inning_rate",
+      "win_pct",
+      "win_loss_gap",
+      "first_game",
+    ])
     .optional()
     .describe(
-      "Defaults to avg_team_runs (runs scored per game) for team and team_season, avg_total_runs otherwise. avg_team_runs and win_pct need a team grouping or team_ids. first_game ranks by each group's earliest game, for oldest ballparks or franchises.",
+      "Defaults to win_loss_gap for matchup, avg_team_runs (runs scored per game) for team and team_season, avg_total_runs otherwise. avg_team_runs, win_pct and win_loss_gap (wins minus losses) need a team grouping or team_ids. first_game ranks by each group's earliest game, for oldest ballparks or franchises.",
     ),
   order: z
     .enum(["highest", "lowest"])
@@ -471,18 +487,19 @@ export const groupStatsInput = z.object({
     .max(5000)
     .optional()
     .describe(
-      "Skip groups with fewer games. Defaults: ballpark 100 (so one-off neutral sites don't top the list), team_season 50, team 500, otherwise 1.",
+      "Skip groups with fewer games. Defaults: ballpark 100 (so one-off neutral sites don't top the list), matchup 100, team_season 50, team 500, otherwise 1.",
     ),
   limit: z.number().int().min(1).max(25).optional().describe("Defaults to 10."),
 });
 
-/** Games grouped by ballpark, season, decade, franchise or team-season, with per-group averages. */
+/** Games grouped by ballpark, season, decade, franchise, team-season or matchup, with per-group averages. */
 export async function groupStats(input: z.infer<typeof groupStatsInput>) {
   const f = input.filters ?? {};
-  const byTeam = input.group_by === "team" || input.group_by === "team_season";
+  const byTeam = ["team", "team_season", "matchup"].includes(input.group_by);
   const teamSide = byTeam || !!f.team_ids?.length;
-  const sortBy = input.sort_by ?? (byTeam ? "avg_team_runs" : "avg_total_runs");
-  if ((sortBy === "avg_team_runs" || sortBy === "win_pct") && !teamSide) {
+  const sortBy =
+    input.sort_by ?? (input.group_by === "matchup" ? "win_loss_gap" : byTeam ? "avg_team_runs" : "avg_total_runs");
+  if ((sortBy === "avg_team_runs" || sortBy === "win_pct" || sortBy === "win_loss_gap") && !teamSide) {
     throw new ToolInputError(`sort_by ${sortBy} needs group_by team or team_season, or team_ids.`);
   }
   const group = GROUPS[input.group_by];
@@ -559,12 +576,13 @@ export async function groupStats(input: z.infer<typeof groupStatsInput>) {
             runs_allowed: r.runs_allowed,
             wins: r.wins,
             losses: r.losses,
+            win_loss_gap: r.wins - r.losses,
           }
         : { avg_total_runs: Number(r.avg_total) }),
       avg_margin: Number(r.avg_margin),
       shutouts: r.shutouts,
       extra_inning_games: r.extra,
-      ...((input.group_by === "ballpark" || input.group_by === "team") && {
+      ...(["ballpark", "team", "matchup"].includes(input.group_by) && {
         years: span(r),
         seasons: r.seasons,
         first_game: r.first_game,
@@ -691,6 +709,85 @@ export async function rareGames(input: z.infer<typeof rareGamesInput>, sink?: Ga
     total_matching: rows[0]?.total ?? 0,
     prior_range: `${min}–${max}`,
     newest_first: rows.map((r) => ({ ...toGame(r, sink), times_happened_before: r.prior })),
+  };
+}
+
+// --- missing_scores ---
+
+/** Run distribution for the odds estimate: recent enough to match today's scoring. */
+const ODDS_SINCE = 2000;
+const GAMES_PER_SEASON = 2430;
+const MISSING_MAX_RUNS = 50;
+
+export const missingScoresInput = z.object({
+  sort: z
+    .enum(["most_likely", "lowest_total"])
+    .optional()
+    .describe("most_likely (default) ranks by estimated chance per game; lowest_total ranks by fewest total runs."),
+  team_ids: z
+    .array(z.number().int())
+    .max(5)
+    .optional()
+    .describe("team_ids for ONE team, from lookup_team: scores that franchise has never played (possible Franchisigamis)."),
+  limit: z.number().int().min(1).max(20).optional().describe("Defaults to 10."),
+});
+
+/**
+ * Final scores that have never happened (possible future Scorigamis), with an
+ * estimated chance per game: each team's runs are treated as independent draws
+ * from how often MLB teams have scored each run total since ODDS_SINCE.
+ */
+export async function missingScores(input: z.infer<typeof missingScoresInput>) {
+  const params: unknown[] = [];
+  const p = (v: unknown) => `$${params.push(v)}`;
+  const team = input.team_ids?.length ? p(input.team_ids) : null;
+  const rows = await readOnlyQuery<{ w: number; l: number; chance: number; missing: number; missing_30: number }>(
+    `WITH base AS (
+       SELECT home_score, visitor_score FROM gamelogs
+       WHERE is_negro_league = false AND date >= ${p(`${ODDS_SINCE}-01-01`)}::date
+     ),
+     runs AS (
+       SELECT r, count(*)::float8 / (2 * (SELECT count(*) FROM base)) AS share
+       FROM (SELECT home_score AS r FROM base UNION ALL SELECT visitor_score FROM base) x
+       GROUP BY r
+     ),
+     seen AS (
+       SELECT DISTINCT GREATEST(home_score, visitor_score) AS w, LEAST(home_score, visitor_score) AS l
+       FROM gamelogs WHERE is_negro_league = false
+       ${team ? `AND (home_team_id = ANY(${team}::bigint[]) OR visitor_team_id = ANY(${team}::bigint[]))` : ""}
+     ),
+     missing AS (
+       SELECT c.w, d.l, 2 * coalesce(a.share, 0) * coalesce(b.share, 0) AS chance
+       FROM generate_series(1, ${p(MISSING_MAX_RUNS)}::int) c(w)
+       CROSS JOIN LATERAL generate_series(0, c.w - 1) d(l)
+       LEFT JOIN seen s ON s.w = c.w AND s.l = d.l
+       LEFT JOIN runs a ON a.r = c.w
+       LEFT JOIN runs b ON b.r = d.l
+       WHERE s.w IS NULL
+     )
+     SELECT w, l, chance,
+       count(*) OVER ()::int AS missing,
+       (count(*) FILTER (WHERE w <= 30) OVER ())::int AS missing_30
+     FROM missing
+     ORDER BY ${input.sort === "lowest_total" ? "w + l, w" : "chance DESC, w + l"}
+     LIMIT ${p(input.limit ?? 10)}`,
+    params,
+  );
+  const sig = (n: number) => Number(n.toPrecision(3)).toLocaleString("en-US");
+  return {
+    never_happened_with_winner_up_to_30_runs: rows[0]?.missing_30 ?? 0,
+    sorted_by: input.sort ?? "most_likely",
+    how_chance_is_estimated: `Each team's runs treated as independent, using how often MLB teams scored each run total since ${ODDS_SINCE}. A rough estimate, not a prediction.`,
+    scores: rows.map((r) => ({
+      score: `${r.w}-${r.l}`,
+      total_runs: r.w + r.l,
+      ...(r.chance > 0
+        ? {
+            chance_per_game: `1 in ${sig(1 / r.chance)}`,
+            expected_about_once_every: `${sig(1 / (r.chance * GAMES_PER_SEASON))} seasons`,
+          }
+        : { chance_per_game: `no team has scored that many runs since ${ODDS_SINCE}` }),
+    })),
   };
 }
 

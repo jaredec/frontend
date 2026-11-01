@@ -84,7 +84,7 @@ body {
   --ink-2: #b4b4b4;
   --ink-3: #8f8f8f;
   --ink-faint: #5c5c5c;
-  --cell-empty: #343434;
+  --cell-empty: #404040;
   --cross-tint: rgba(255, 255, 255, 0.08);
   --track: #3a3a3a;
   --track-fill: #555555;
@@ -124,7 +124,7 @@ body {
 .dark .sg-cells {
   --r0: var(--rd0); --r1: var(--rd1); --r2: var(--rd2); --r3: var(--rd3); --r4: var(--rd4);
   --r5: var(--rd5); --r6: var(--rd6); --r7: var(--rd7); --r8: var(--rd8);
-  --imp: #161616;
+  --imp: #1c1c1e;
 }
 
 ::selection {
