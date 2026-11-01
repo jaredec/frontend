@@ -1,57 +1,86 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useId, useRef, useState } from "react";
-import { ArrowUp, ArrowUpRight, RotateCcw, ThumbsDown, ThumbsUp } from "lucide-react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  AlertCircle,
+  ArrowUp,
+  ArrowUpRight,
+  BarChart3,
+  CalendarDays,
+  ChevronDown,
+  Hash,
+  ListChecks,
+  MapPin,
+  RotateCcw,
+  Shield,
+  Sparkles,
+  SquarePen,
+  ThumbsDown,
+  ThumbsUp,
+  Timer,
+  Trophy,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import type { AskStep } from "@/lib/ask/agent";
 import type { GameLink } from "@/lib/ask/queries";
 
-const EXAMPLES = [
-  "When did the Cubs last lose 14-2?",
-  "Has a World Series game ever ended 13-12?",
-  "What's the most common final score at Coors Field?",
-  "What was the last scorigami?",
-];
-
 const MAX_QUESTION = 300;
 
-const KNOWS = [
-  "Final scores, winners and losers for every MLB game since 1871",
-  "Dates, home and away teams, and how many innings each game lasted",
-  "Ballparks, under the name each park had at the time (Oracle Park only goes back to 2019)",
-  "Postseason rounds: World Series from 1903, LCS from 1969, Division Series from 1981, Wild Card from 2012",
-  "Averages and rankings by ballpark, season or decade, like runs per game or a team's record",
-  "Franchise histories, so the Brooklyn Dodgers count as the Dodgers",
-  "The site's terms: Scorigami, Rarigami, Socloseigami, Franchisigami and the rest",
+const KNOWS: { icon: LucideIcon; label: string; detail: string }[] = [
+  { icon: Hash, label: "Final scores", detail: "Every MLB final score, winner and loser since 1871" },
+  { icon: CalendarDays, label: "Dates & matchups", detail: "Dates and home and away teams for every game" },
+  { icon: Timer, label: "Innings", detail: "How many innings each game lasted" },
+  { icon: MapPin, label: "Ballparks", detail: "Under the name each park had at the time (Oracle Park only goes back to 2019)" },
+  { icon: Trophy, label: "Postseason", detail: "World Series from 1903, LCS from 1969, Division Series from 1981, Wild Card from 2012" },
+  { icon: BarChart3, label: "Averages & ranks", detail: "By ballpark, season, decade or team, like runs per game, a team's record or the oldest park still in use" },
+  { icon: Shield, label: "Franchises", detail: "Franchise histories, so the Brooklyn Dodgers count as the Dodgers" },
+  { icon: Sparkles, label: "-igami terms", detail: "Scorigami, Rarigami, Socloseigami, Franchisigami and the rest" },
 ];
 
-const DOESNT_KNOW = [
-  "Players, lineups or individual stats",
-  "Hits, errors, home runs or inning-by-inning scoring, only final scores",
-  "Standings, streaks, attendance, weather or betting odds",
-  "Spring training, exhibitions or All-Star Games",
-  "Negro League games (1920–1948), unless you ask for them",
+const DOESNT_KNOW: { label: string; detail: string }[] = [
+  { label: "Players & stats", detail: "Players, lineups or individual stats" },
+  { label: "Hits & HRs", detail: "Hits, errors, home runs or inning-by-inning scoring, only final scores" },
+  { label: "Standings", detail: "Standings, streaks, attendance, weather or betting odds" },
+  { label: "All-Star & spring", detail: "Spring training, exhibitions or All-Star Games" },
+  { label: "Negro Leagues", detail: "Negro League games (1920–1948), unless you ask for them" },
 ];
+
+const BOX = "rounded-[10px] border border-[var(--control-line)] bg-[var(--surface)]";
+const ICON_BTN =
+  "press grid size-8 place-items-center rounded-full text-[var(--ink-3)] hover:text-[var(--ink)] hover:bg-[var(--surface-hover)] transition-colors";
 
 function Coverage() {
-  const list = (items: string[]) => (
-    <ul className="mt-1.5 space-y-1 pl-4 list-disc marker:text-[var(--ink-faint)]">
-      {items.map((t) => (
-        <li key={t}>{t}</li>
-      ))}
-    </ul>
-  );
-  const heading = "text-[12px] uppercase tracking-wider font-semibold text-[var(--ink-3)]";
   return (
-    <div className="grid gap-4 text-[13px] leading-snug text-[var(--ink-2)]">
-      <div>
-        <p className={heading}>What it knows</p>
-        {list(KNOWS)}
-      </div>
-      <div>
-        <p className={heading}>What it doesn&apos;t</p>
-        {list(DOESNT_KNOW)}
-      </div>
-    </div>
+    <details className="group">
+      <summary className="inline-flex cursor-pointer select-none list-none items-center gap-1 text-[13px] text-[var(--ink-3)] hover:text-[var(--ink)] transition-colors group-open:text-[var(--ink)] group-open:font-semibold [&::-webkit-details-marker]:hidden">
+        What can it answer?
+        <ChevronDown aria-hidden className="size-3.5 transition-transform group-open:rotate-180" />
+      </summary>
+      <ul className="mt-2 grid grid-cols-2 gap-1.5">
+        {KNOWS.map(({ icon: Icon, label, detail }) => (
+          <li key={label} title={detail} className={`${BOX} flex items-center gap-2 px-2.5 py-2 text-[13px] text-[var(--ink)]`}>
+            <Icon aria-hidden className="size-4 flex-none text-[var(--team-ink)]" strokeWidth={1.75} />
+            <span className="min-w-0 truncate">{label}</span>
+            <span className="sr-only">: {detail}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 text-[13px] font-semibold text-[var(--ink)]">Not covered</p>
+      <ul className="mt-2 flex flex-wrap gap-1.5">
+        {DOESNT_KNOW.map(({ label, detail }) => (
+          <li
+            key={label}
+            title={detail}
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--control-line)] px-2.5 py-1 text-[12.5px] text-[var(--ink-3)]"
+          >
+            <X aria-hidden className="size-3" />
+            {label}
+            <span className="sr-only">: {detail}</span>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -103,38 +132,11 @@ function formatDate(iso: string): string {
   });
 }
 
-/** Turns [g123] citations into box score links; unknown refs disappear. */
-function Inline({ text, games }: { text: string; games: Map<string, GameLink> }) {
-  return (
-    <>
-      {text.split(/(\[g\d+\])/g).map((part, i) => {
-        const ref = /^\[(g\d+)\]$/.exec(part)?.[1];
-        if (!ref) return <Fragment key={i}>{part}</Fragment>;
-        const game = games.get(ref);
-        if (!game?.url) return null;
-        return (
-          <a
-            key={i}
-            href={game.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={`Box score: ${game.label}, ${formatDate(game.date)}`}
-            aria-label={`Box score: ${game.label}, ${formatDate(game.date)}`}
-            className="inline-flex align-[-1px] ml-0.5 text-[var(--ink-3)] hover:text-[var(--team-link)] transition-colors"
-          >
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </a>
-        );
-      })}
-    </>
-  );
-}
-
-function AnswerText({ text, games }: { text: string; games: GameLink[] }) {
-  const byRef = new Map(games.map((g) => [g.ref, g]));
+/** Cited games show as cards under the answer, so their [g123] refs are dropped from the text. */
+function AnswerText({ text }: { text: string }) {
   const blocks: { list: boolean; lines: string[] }[] = [];
   for (const raw of text.split("\n")) {
-    const line = raw.trim();
+    const line = raw.replace(/\s*\[g\d+\]/g, "").trim();
     if (!line) continue;
     const isItem = /^[-•*]\s+/.test(line);
     const prev = blocks[blocks.length - 1];
@@ -148,15 +150,11 @@ function AnswerText({ text, games }: { text: string; games: GameLink[] }) {
         b.list ? (
           <ul key={i} className="space-y-1 pl-4 list-disc marker:text-[var(--ink-faint)]">
             {b.lines.map((l, j) => (
-              <li key={j}>
-                <Inline text={l} games={byRef} />
-              </li>
+              <li key={j}>{l}</li>
             ))}
           </ul>
         ) : (
-          <p key={i}>
-            <Inline text={b.lines[0]} games={byRef} />
-          </p>
+          <p key={i}>{b.lines[0]}</p>
         ),
       )}
     </div>
@@ -174,42 +172,60 @@ function Feedback({ id }: { id: string }) {
       body: JSON.stringify({ id, value }),
     }).catch(() => {});
   };
-  const btn = "press grid size-7 place-items-center rounded-full transition-colors disabled:cursor-default";
-  if (sent) return <span className="text-xs text-[var(--ink-3)]">Thanks for the feedback</span>;
+  const btn = (value: 1 | -1, Icon: LucideIcon, label: string) => (
+    <button
+      type="button"
+      onClick={() => send(value)}
+      disabled={sent !== null}
+      aria-label={label}
+      aria-pressed={sent === value}
+      title={sent === value ? "Thanks for the feedback" : label}
+      className={`${ICON_BTN} disabled:cursor-default disabled:hover:bg-transparent ${
+        sent === value ? "text-[var(--ink)]" : sent ? "opacity-30" : ""
+      }`}
+    >
+      <Icon className="size-3.5" fill={sent === value ? "currentColor" : "none"} />
+    </button>
+  );
   return (
-    <div className="flex items-center gap-0.5">
-      <button type="button" onClick={() => send(1)} aria-label="Good answer" title="Good answer" className={`${btn} text-[var(--ink-3)] hover:text-[var(--ink)] hover:bg-[var(--surface-hover)]`}>
-        <ThumbsUp className="w-3.5 h-3.5" />
-      </button>
-      <button type="button" onClick={() => send(-1)} aria-label="Bad answer" title="Bad answer" className={`${btn} text-[var(--ink-3)] hover:text-[var(--ink)] hover:bg-[var(--surface-hover)]`}>
-        <ThumbsDown className="w-3.5 h-3.5" />
-      </button>
-    </div>
+    <>
+      {btn(1, ThumbsUp, "Good answer")}
+      {btn(-1, ThumbsDown, "Bad answer")}
+    </>
   );
 }
 
 function AnswerCard({ result }: { result: Answer }) {
+  const [showSteps, setShowSteps] = useState(false);
   return (
-    <div className="border border-[var(--line)] bg-[var(--surface)]">
-      <div className="px-3.5 pt-3.5 pb-3 text-[15px] leading-relaxed text-[var(--ink)]">
-        <AnswerText text={result.answer} games={result.games} />
+    <div>
+      <div className="text-[15px] leading-relaxed text-[var(--ink)]">
+        <AnswerText text={result.answer} />
       </div>
 
       {result.games.length > 0 && (
-        <ul className="border-t border-[var(--line)] divide-y divide-[var(--line)]">
+        <ul className="mt-2.5 grid gap-1.5">
           {result.games.map((g) => {
             const row = (
               <>
-                <span className="w-[86px] flex-none tabular-nums text-[var(--ink-3)]">{formatDate(g.date)}</span>
-                <span className="min-w-0 flex-1 truncate text-[var(--ink)]">{g.label}</span>
-                {g.url && <ArrowUpRight className="w-3 h-3 flex-none text-[var(--ink-faint)]" />}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] font-medium text-[var(--ink)]">{g.label}</span>
+                  <span className="block text-[12px] tabular-nums text-[var(--ink-3)]">{formatDate(g.date)}</span>
+                </span>
+                {g.url && <ArrowUpRight className="size-4 flex-none text-[var(--ink-3)]" />}
               </>
             );
-            const cls = "flex items-center gap-3 px-3.5 py-2 text-[12.5px]";
+            const cls = `${BOX} flex items-center gap-2 px-3 py-2`;
             return (
               <li key={g.ref}>
                 {g.url ? (
-                  <a href={g.url} target="_blank" rel="noopener noreferrer" className={`${cls} hover:bg-[var(--surface-hover)] transition-colors`}>
+                  <a
+                    href={g.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Box score"
+                    className={`${cls} hover:border-[var(--control-line-hover)] transition-colors`}
+                  >
                     {row}
                   </a>
                 ) : (
@@ -221,50 +237,61 @@ function AnswerCard({ result }: { result: Answer }) {
         </ul>
       )}
 
-      <div className="flex items-center justify-between gap-3 border-t border-[var(--line)] px-3.5 py-1.5 min-h-10">
-        {result.steps.length > 0 ? (
-          <details className="group min-w-0 flex-1 text-[12.5px] sm:text-[13px]">
-            <summary className="cursor-pointer select-none list-none py-1 text-[var(--ink-3)] hover:text-[var(--ink)] transition-colors [&::-webkit-details-marker]:hidden">
-              <span className="group-open:hidden">How I found this</span>
-              <span className="hidden group-open:inline">Hide steps</span>
-              <span className="text-[var(--ink-faint)]"> · {result.steps.length} {result.steps.length === 1 ? "lookup" : "lookups"}</span>
-            </summary>
-            <ol className="mt-1 mb-1.5 space-y-1 text-[var(--ink-2)]">
-              {result.steps.map((s, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="flex-none w-4 text-right tabular-nums text-[var(--ink-faint)]">{i + 1}</span>
-                  <span className="min-w-0">
-                    {s.label}
-                    {s.result && <span className="text-[var(--ink-3)]"> → {s.result}</span>}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </details>
-        ) : (
-          <span className="text-[12.5px] text-[var(--ink-3)]">{result.status === "unverified" ? "Blocked by the number check" : ""}</span>
+      <div className="mt-1 -ml-1.5 flex items-center">
+        {result.steps.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowSteps((v) => !v)}
+            aria-expanded={showSteps}
+            aria-label={showSteps ? "Hide steps" : "How I found this"}
+            title={showSteps ? "Hide steps" : "How I found this"}
+            className={`${ICON_BTN} ${showSteps ? "text-[var(--ink)]" : ""}`}
+          >
+            <ListChecks className="size-3.5" />
+          </button>
         )}
         {result.id && <Feedback id={result.id} />}
+        {result.status === "unverified" && (
+          <span title="Blocked by the number check" className="ml-1 text-[var(--ink-3)]">
+            <AlertCircle aria-label="Blocked by the number check" className="size-3.5" />
+          </span>
+        )}
       </div>
+
+      {showSteps && (
+        <ol className={`${BOX} mt-1 space-y-1 px-3 py-2 text-[12.5px] text-[var(--ink-2)]`}>
+          {result.steps.map((s, i) => (
+            <li key={i} className="flex gap-2">
+              <span className="flex-none w-4 text-right tabular-nums text-[var(--ink-faint)]">{i + 1}</span>
+              <span className="min-w-0">
+                {s.label}
+                {s.result && <span className="text-[var(--ink-3)]"> → {s.result}</span>}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }
 
-function Thinking({ totalGames }: { totalGames: number | null }) {
+function Thinking() {
   return (
-    <div className="relative border border-[var(--line)] bg-[var(--surface)] overflow-hidden" role="status">
-      <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden">
-        <div className="h-full w-full bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--team-accent)_45%,transparent),transparent)] animate-shimmer" />
-      </div>
-      <p className="px-3.5 py-3.5 text-[15px] text-[var(--ink-3)]">
-        Searching {totalGames ? `${totalGames.toLocaleString()} games` : "every game since 1871"}…
-      </p>
+    <div role="status" className="flex h-6 items-center gap-1">
+      <span className="sr-only">Searching</span>
+      {[0, 150, 300].map((d) => (
+        <span
+          key={d}
+          className="size-1.5 rounded-full bg-[var(--ink-3)] animate-bounce"
+          style={{ animationDelay: `${d}ms` }}
+        />
+      ))}
     </div>
   );
 }
 
 /** The Ask Scorigami conversation, shown inside the floating chat panel. */
-export default function AskChat({ className = "", totalGames }: { className?: string; totalGames: number | null }) {
+export default function AskChat({ className = "", onClose }: { className?: string; onClose: () => void }) {
   const inputId = useId();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
@@ -339,122 +366,100 @@ export default function AskChat({ className = "", totalGames }: { className?: st
 
   const thread = turns.map((t, i) =>
     t.role === "user" ? (
-      <p key={i} className={`text-[15.5px] font-semibold leading-snug text-[var(--ink)] ${i > 0 ? "pt-3" : ""}`}>
-        {t.text}
-      </p>
+      <div key={i} className={`flex justify-end ${i > 0 ? "pt-3" : ""}`}>
+        <p className="max-w-[85%] rounded-[12px] rounded-br-[4px] bg-[var(--pill)] px-3 py-2 text-[14.5px] leading-snug text-[var(--pill-fg)]">
+          {t.text}
+        </p>
+      </div>
     ) : t.role === "assistant" ? (
       <AnswerCard key={i} result={t.result} />
     ) : (
-      <div
-        key={i}
-        className="flex items-center justify-between gap-3 border border-[var(--line)] bg-[var(--surface)] px-3.5 py-3 text-[14.5px] text-[var(--ink-2)]"
-      >
-        <span>{t.text}</span>
+      <div key={i} className={`${BOX} flex items-start gap-2 px-3 py-2.5 text-[14px] text-[var(--ink-2)]`}>
+        <AlertCircle aria-hidden className="mt-0.5 size-4 flex-none text-[var(--ink-3)]" />
+        <span className="min-w-0 flex-1">{t.text}</span>
         {t.retry && i === turns.length - 1 && !pending && (
           <button
             type="button"
             onClick={() => ask(t.question, turns.slice(0, -2))}
-            className="press flex-none text-[13px] text-[var(--ink)] hover:text-[var(--team-link)]"
+            aria-label="Try again"
+            title="Try again"
+            className={`${ICON_BTN} -my-1.5 -mr-1.5 flex-none`}
           >
-            Try again
+            <RotateCcw className="size-3.5" />
           </button>
         )}
       </div>
     ),
   );
 
-  const form = (
-    <form
-      onSubmit={submit}
-      className="flex items-end gap-2 border border-[var(--control-line)] focus-within:border-[var(--control-line-hover)] bg-[var(--surface)] pl-3.5 pr-1.5 py-1.5 shadow-[var(--shadow-soft)]"
-    >
-      <label htmlFor={inputId} className="sr-only">
-        Your question
-      </label>
-      <textarea
-        id={inputId}
-        ref={inputRef}
-        rows={1}
-        value={input}
-        maxLength={MAX_QUESTION}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-            e.preventDefault();
-            submit();
-          }
-        }}
-        placeholder={empty ? "Ask about any score, team, or ballpark…" : "Ask a follow-up…"}
-        className="flex-1 resize-none bg-transparent py-1.5 text-[16px] leading-6 text-[var(--ink)] placeholder:text-[var(--ink-3)] outline-none"
-      />
-      <button
-        type="submit"
-        disabled={!input.trim() || pending}
-        aria-label="Ask"
-        className="press grid size-9 flex-none place-items-center rounded-full bg-[var(--pill)] text-[var(--pill-fg)] disabled:opacity-30 disabled:cursor-not-allowed"
-      >
-        <ArrowUp className="w-4 h-4" strokeWidth={2.25} />
-      </button>
-    </form>
-  );
-
-  const examples = (
-    <ul className="grid gap-2">
-      {EXAMPLES.map((q) => (
-        <li key={q}>
-          <button
-            type="button"
-            onClick={() => ask(q, [])}
-            className="press w-full text-left border border-[var(--line)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] px-3.5 py-2.5 text-[14px] text-[var(--ink-2)] hover:text-[var(--ink)]"
-          >
-            {q}
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-
-  const footnote = (
-    <div className="mt-2 flex items-center justify-between gap-3 text-[12px] text-[var(--ink-3)]">
-      <span>Answers can still be wrong. Check the box scores.</span>
-      <button type="button" onClick={reset} disabled={pending} className="press inline-flex flex-none items-center gap-1 hover:text-[var(--ink)] disabled:opacity-40">
-        <RotateCcw className="w-3 h-3" />
-        New question
-      </button>
-    </div>
-  );
-
   return (
     <div className={`flex min-h-0 flex-col ${className}`}>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4" aria-live="polite">
+      <div className="flex h-12 flex-none items-center pl-4 pr-1.5 pt-1">
+        <h2
+          className="flex-1 text-[19px] leading-none tracking-tight"
+          style={{
+            fontFamily: "var(--v2-title-font)",
+            fontWeight: "var(--v2-title-weight)",
+            WebkitTextStroke: "0.3px var(--ink)",
+          }}
+        >
+          Ask Scorigami
+        </h2>
+        {!empty && (
+          <button type="button" onClick={reset} disabled={pending} aria-label="New chat" title="New chat" className={`${ICON_BTN} size-9 disabled:opacity-40`}>
+            <SquarePen className="size-[17px]" />
+          </button>
+        )}
+        <button type="button" onClick={onClose} aria-label="Close" title="Close" className={`${ICON_BTN} size-9`}>
+          <X className="size-[18px]" />
+        </button>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-2 pb-4" aria-live="polite">
         {empty ? (
-          <>
-            <p className="text-[14.5px] leading-relaxed text-[var(--ink-2)]">
-              Ask anything about MLB final scores. Answers come from{" "}
-              {totalGames ? `${totalGames.toLocaleString()} games` : "every game"} since 1871, and every number is checked against the data.
-            </p>
-            <div className="mt-4">{examples}</div>
-            <details className="group mt-4">
-              <summary className="cursor-pointer select-none list-none text-[13px] text-[var(--ink-3)] hover:text-[var(--ink)] transition-colors [&::-webkit-details-marker]:hidden">
-                <span className="group-open:hidden">What can it answer?</span>
-                <span className="hidden group-open:inline">Hide</span>
-              </summary>
-              <div className="mt-3">
-                <Coverage />
-              </div>
-            </details>
-          </>
+          <Coverage />
         ) : (
-          <div className="space-y-3.5">
+          <div className="space-y-2.5">
             {thread}
-            {pending && <Thinking totalGames={totalGames} />}
+            {pending && <Thinking />}
           </div>
         )}
         <div ref={endRef} />
       </div>
-      <div className="border-t border-[var(--line)] bg-[var(--page)] px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        {form}
-        {!empty && footnote}
+
+      <div className="px-3 pt-1 pb-3">
+        <form
+          onSubmit={submit}
+          className={`${BOX} flex items-end gap-2 hover:border-[var(--control-line-hover)] focus-within:border-[var(--control-line-hover)] pl-3 pr-1 py-1 shadow-[var(--shadow-soft)]`}
+        >
+          <label htmlFor={inputId} className="sr-only">
+            Your question
+          </label>
+          <textarea
+            id={inputId}
+            ref={inputRef}
+            rows={1}
+            value={input}
+            maxLength={MAX_QUESTION}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            placeholder={empty ? "Ask about a score, team, or ballpark" : "Ask a follow-up"}
+            className="flex-1 resize-none bg-transparent py-1 text-[16px] leading-6 text-[var(--ink)] placeholder:text-[var(--ink-3)] outline-none"
+          />
+          <button
+            type="submit"
+            disabled={!input.trim() || pending}
+            aria-label="Ask"
+            className="press grid size-8 flex-none place-items-center rounded-[7px] bg-[var(--pill)] text-[var(--pill-fg)] disabled:opacity-25 disabled:cursor-not-allowed"
+          >
+            <ArrowUp className="w-4 h-4" strokeWidth={2.25} />
+          </button>
+        </form>
       </div>
     </div>
   );

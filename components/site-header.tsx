@@ -34,7 +34,7 @@ export default function SiteHeader({
   const brandCls = "flex items-center gap-2.5 min-w-0 max-w-[calc(100%-5.5rem)]";
 
   return (
-    <header className="w-full border-b border-[var(--line)] bg-[var(--surface)]">
+    <header className="w-full">
       <div className={`${widthCls} relative pt-2.5 sm:pt-3 flex items-center justify-center`}>
         {titleHref ? (
           <Link href={titleHref} className={brandCls}>

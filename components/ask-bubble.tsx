@@ -10,12 +10,14 @@ const AskChat = dynamic(loadChat, { ssr: false, loading: () => <div className="f
 
 const HIDDEN_ON = ["/ops"];
 
-/** Floating "Ask" button that opens Ask Scorigami in a panel (a full-screen sheet on phones). */
-export default function AskBubble({ totalGames }: { totalGames: number | null }) {
+/** Floating "Ask" button that opens Ask Scorigami in a popup panel above it. */
+export default function AskBubble() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // The chat stays mounted after the first open so closing the panel keeps the conversation.
   const [started, setStarted] = useState(false);
+  // On phones the keyboard covers the bottom of the layout viewport; the panel rides above it.
+  const [viewport, setViewport] = useState<{ height: number; keyboard: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const close = () => {
@@ -29,16 +31,26 @@ export default function AskBubble({ totalGames }: { totalGames: number | null })
       if (e.key === "Escape") close();
     };
     window.addEventListener("keydown", onKey);
-    // On phones the sheet covers the page, so the page behind it shouldn't scroll.
-    const prevOverflow = document.body.style.overflow;
-    if (window.matchMedia("(max-width: 639px)").matches) document.body.style.overflow = "hidden";
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!open || !vv) return;
+    const sync = () =>
+      setViewport({ height: vv.height, keyboard: Math.max(0, window.innerHeight - vv.height - vv.offsetTop) });
+    sync();
+    vv.addEventListener("resize", sync);
+    vv.addEventListener("scroll", sync);
     return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
+      vv.removeEventListener("resize", sync);
+      vv.removeEventListener("scroll", sync);
     };
   }, [open]);
 
   if (HIDDEN_ON.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return null;
+
+  const keyboardOpen = (viewport?.keyboard ?? 0) > 80;
 
   return (
     <>
@@ -46,22 +58,16 @@ export default function AskBubble({ totalGames }: { totalGames: number | null })
         <div
           role="dialog"
           aria-label="Ask Scorigami"
-          className={`${open ? "flex" : "hidden"} fixed z-50 inset-0 h-[100dvh] flex-col bg-[var(--page)] text-[var(--ink)] sm:inset-auto sm:bottom-[5.5rem] sm:right-6 sm:h-[min(640px,calc(100dvh-7.5rem))] sm:w-[400px] sm:border sm:border-[var(--line)] sm:shadow-[var(--shadow-pop)] sm:origin-bottom-right sm:animate-in sm:fade-in-0 sm:zoom-in-95 sm:duration-150 motion-reduce:animate-none`}
-          style={{ fontFamily: "var(--v2-ui-font), system-ui, sans-serif" }}
+          className={`${open ? "flex" : "hidden"} fixed z-50 inset-x-3 bottom-[var(--ask-bottom)] h-[var(--ask-h)] flex-col overflow-hidden rounded-[12px] border border-[var(--control-line)] bg-[var(--page)] text-[var(--ink)] shadow-[var(--shadow-pop)] origin-bottom-right animate-in fade-in-0 zoom-in-95 duration-150 motion-reduce:animate-none sm:inset-x-auto sm:right-6 sm:bottom-[5.5rem] sm:h-[min(600px,calc(100dvh-7.5rem))] sm:w-[380px]`}
+          style={{
+            fontFamily: "var(--v2-ui-font), system-ui, sans-serif",
+            ["--ask-bottom" as string]: keyboardOpen ? `${viewport!.keyboard + 12}px` : "4.75rem",
+            ["--ask-h" as string]: keyboardOpen
+              ? `${Math.min(560, viewport!.height - 24)}px`
+              : `min(560px, calc(${viewport ? `${viewport.height}px` : "100dvh"} - 6.25rem))`,
+          }}
         >
-          <div className="flex h-12 flex-none items-center gap-2 border-b border-[var(--line)] bg-[var(--surface)] pl-4 pr-1.5">
-            <MessageCircleQuestion aria-hidden className="size-[18px] text-[var(--ink-2)]" strokeWidth={1.75} />
-            <h2 className="flex-1 text-[15px] font-semibold">Ask Scorigami</h2>
-            <button
-              type="button"
-              onClick={close}
-              aria-label="Close"
-              className="press grid size-9 place-items-center rounded-full text-[var(--ink-2)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink)]"
-            >
-              <X className="size-[18px]" />
-            </button>
-          </div>
-          <AskChat totalGames={totalGames} className="flex-1" />
+          <AskChat onClose={close} className="flex-1" />
         </div>
       )}
 
@@ -77,7 +83,7 @@ export default function AskBubble({ totalGames }: { totalGames: number | null })
         aria-expanded={open}
         aria-label={open ? "Close Ask Scorigami" : "Ask Scorigami"}
         title={open ? undefined : "Ask Scorigami"}
-        className={`press fixed z-50 bottom-4 right-4 sm:bottom-6 sm:right-6 flex h-12 items-center justify-center gap-2 rounded-full bg-[var(--pill)] text-[var(--pill-fg)] shadow-[var(--shadow-pop)] ${open ? "max-sm:hidden w-12" : "pl-4 pr-5"}`}
+        className={`press fixed z-50 bottom-3 right-3 sm:bottom-6 sm:right-6 flex h-12 items-center justify-center gap-2 rounded-full bg-[var(--pill)] text-[var(--pill-fg)] shadow-[var(--shadow-pop)] ${open ? "w-12" : "pl-4 pr-5"}`}
         style={{ fontFamily: "var(--v2-ui-font), system-ui, sans-serif" }}
       >
         {open ? (

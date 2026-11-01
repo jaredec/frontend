@@ -724,9 +724,6 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
                   <b className="font-semibold tabular-nums text-[var(--ink)]">
                     {headerStats.recent.score1}–{headerStats.recent.score2}
                   </b>
-                  {headerStats.recent.date && (
-                    <span className="hidden sm:inline text-[var(--ink)]"> ({formatMetaDate(headerStats.recent.date)})</span>
-                  )}
                 </span>
               </>
             )}

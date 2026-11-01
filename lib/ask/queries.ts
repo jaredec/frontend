@@ -438,6 +438,7 @@ const GROUP_SORTS = {
   shutout_rate: "avg((LEAST(team_score, opp_score) = 0)::int)",
   extra_inning_rate: "avg((innings > 9)::int)",
   win_pct: "avg((team_score > opp_score)::int)",
+  first_game: "min(date)",
 } as const;
 
 export const groupStatsInput = z.object({
@@ -448,12 +449,21 @@ export const groupStatsInput = z.object({
     ),
   filters: filtersSchema.optional(),
   sort_by: z
-    .enum(["avg_total_runs", "avg_team_runs", "avg_margin", "games", "shutout_rate", "extra_inning_rate", "win_pct"])
+    .enum(["avg_total_runs", "avg_team_runs", "avg_margin", "games", "shutout_rate", "extra_inning_rate", "win_pct", "first_game"])
     .optional()
     .describe(
-      "Defaults to avg_team_runs (runs scored per game) for team and team_season, avg_total_runs otherwise. avg_team_runs and win_pct need a team grouping or team_ids.",
+      "Defaults to avg_team_runs (runs scored per game) for team and team_season, avg_total_runs otherwise. avg_team_runs and win_pct need a team grouping or team_ids. first_game ranks by each group's earliest game, for oldest ballparks or franchises.",
     ),
-  order: z.enum(["highest", "lowest"]).optional().describe("Defaults to highest."),
+  order: z
+    .enum(["highest", "lowest"])
+    .optional()
+    .describe("Defaults to highest, except first_game defaults to lowest (oldest first)."),
+  still_active: z
+    .boolean()
+    .optional()
+    .describe(
+      "Only groups that played in the latest season in the data, e.g. ballparks still in use or franchises still playing. Don't combine with year filters when asking about the oldest.",
+    ),
   min_games: z
     .number()
     .int()
@@ -479,7 +489,11 @@ export async function groupStats(input: z.infer<typeof groupStatsInput>) {
   const minGames = input.min_games ?? group.minGames;
   const params: unknown[] = [];
   const games = gamesSql(f, params, { everyTeam: byTeam });
-  const dir = input.order === "lowest" ? "ASC" : "DESC";
+  const order = input.order ?? (sortBy === "first_game" ? "lowest" : "highest");
+  const dir = order === "lowest" ? "ASC" : "DESC";
+  const active = input.still_active
+    ? ` AND max(date) >= (SELECT make_date(max(${YEAR}), 1, 1) FROM gamelogs)`
+    : "";
   const rows = await readOnlyQuery<{
     grp: string | number;
     games: number;
@@ -495,6 +509,9 @@ export async function groupStats(input: z.infer<typeof groupStatsInput>) {
     losses: number;
     first_year: number;
     last_year: number;
+    first_game: string;
+    last_game: string;
+    seasons: number;
     groups: number;
   }>(
     `WITH g AS (${games})
@@ -512,10 +529,13 @@ export async function groupStats(input: z.infer<typeof groupStatsInput>) {
        count(*) FILTER (WHERE team_score < opp_score)::int AS losses,
        min(${YEAR}) AS first_year,
        max(${YEAR}) AS last_year,
+       min(date)::text AS first_game,
+       max(date)::text AS last_game,
+       count(DISTINCT ${YEAR})::int AS seasons,
        (count(*) OVER())::int AS groups
      FROM g WHERE ${resultSql(f)}${input.group_by === "ballpark" ? " AND venue_name IS NOT NULL" : ""}
      GROUP BY ${group.by}
-     HAVING count(*) >= $${params.push(minGames)}
+     HAVING count(*) >= $${params.push(minGames)}${active}
      ORDER BY ${GROUP_SORTS[sortBy]} ${dir}, count(*) DESC
      LIMIT $${params.push(input.limit ?? 10)}`,
     params,
@@ -524,8 +544,9 @@ export async function groupStats(input: z.infer<typeof groupStatsInput>) {
     r.first_year === r.last_year ? `${r.first_year}` : `${r.first_year}–${r.last_year}`;
   return {
     group_by: input.group_by,
-    sorted_by: `${sortBy} (${input.order ?? "highest"} first)`,
+    sorted_by: `${sortBy} (${order} first)`,
     min_games: minGames,
+    ...(input.still_active && { still_active: "only groups that played in the latest season" }),
     groups_meeting_min_games: rows[0]?.groups ?? 0,
     groups: rows.map((r) => ({
       [input.group_by]: r.grp,
@@ -543,7 +564,12 @@ export async function groupStats(input: z.infer<typeof groupStatsInput>) {
       avg_margin: Number(r.avg_margin),
       shutouts: r.shutouts,
       extra_inning_games: r.extra,
-      ...((input.group_by === "ballpark" || input.group_by === "team") && { years: span(r) }),
+      ...((input.group_by === "ballpark" || input.group_by === "team") && {
+        years: span(r),
+        seasons: r.seasons,
+        first_game: r.first_game,
+        last_game: r.last_game,
+      }),
     })),
   };
 }
