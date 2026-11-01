@@ -9,16 +9,22 @@ import {
   CalendarDays,
   ChevronDown,
   Hash,
+  History,
   ListChecks,
+  ListOrdered,
   MapPin,
   RotateCcw,
   Shield,
   Sparkles,
   SquarePen,
+  Star,
+  Sun,
+  Target,
   ThumbsDown,
   ThumbsUp,
   Timer,
   Trophy,
+  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -27,23 +33,24 @@ import type { GameLink } from "@/lib/ask/queries";
 
 const MAX_QUESTION = 300;
 
-const KNOWS: { icon: LucideIcon; label: string; detail: string }[] = [
-  { icon: Hash, label: "Final scores", detail: "Every MLB final score, winner and loser since 1871" },
-  { icon: CalendarDays, label: "Dates & matchups", detail: "Dates and home and away teams for every game" },
-  { icon: Timer, label: "Innings", detail: "How many innings each game lasted" },
-  { icon: MapPin, label: "Ballparks", detail: "Under the name each park had at the time (Oracle Park only goes back to 2019)" },
-  { icon: Trophy, label: "Postseason", detail: "World Series from 1903, LCS from 1969, Division Series from 1981, Wild Card from 2012" },
-  { icon: BarChart3, label: "Averages & ranks", detail: "By ballpark, season, decade or team, like runs per game, a team's record or the oldest park still in use" },
-  { icon: Shield, label: "Franchises", detail: "Franchise histories, so the Brooklyn Dodgers count as the Dodgers" },
-  { icon: Sparkles, label: "-igami terms", detail: "Scorigami, Rarigami, Socloseigami, Franchisigami and the rest" },
+const KNOWS: { icon: LucideIcon; label: string }[] = [
+  { icon: Hash, label: "Final scores" },
+  { icon: CalendarDays, label: "Dates & matchups" },
+  { icon: Timer, label: "Innings" },
+  { icon: MapPin, label: "Ballparks" },
+  { icon: Trophy, label: "Postseason" },
+  { icon: BarChart3, label: "Averages & ranks" },
+  { icon: Shield, label: "Franchises" },
+  { icon: Sparkles, label: "-igami terms" },
 ];
 
-const DOESNT_KNOW: { label: string; detail: string }[] = [
-  { label: "Players & stats", detail: "Players, lineups or individual stats" },
-  { label: "Hits & HRs", detail: "Hits, errors, home runs or inning-by-inning scoring, only final scores" },
-  { label: "Standings", detail: "Standings, streaks, attendance, weather or betting odds" },
-  { label: "All-Star & spring", detail: "Spring training, exhibitions or All-Star Games" },
-  { label: "Negro Leagues", detail: "Negro League games (1920–1948), unless you ask for them" },
+const DOESNT_KNOW: { icon: LucideIcon; label: string }[] = [
+  { icon: Users, label: "Players & stats" },
+  { icon: Target, label: "Hits & home runs" },
+  { icon: ListOrdered, label: "Standings" },
+  { icon: Sun, label: "Spring training" },
+  { icon: Star, label: "All-Star Games" },
+  { icon: History, label: "Negro Leagues" },
 ];
 
 const BOX = "rounded-[10px] border border-[var(--control-line)] bg-[var(--surface)]";
@@ -57,26 +64,20 @@ function Coverage() {
         What can it answer?
         <ChevronDown aria-hidden className="size-3.5 transition-transform group-open:rotate-180" />
       </summary>
-      <ul className="mt-2 grid grid-cols-2 gap-1.5">
-        {KNOWS.map(({ icon: Icon, label, detail }) => (
-          <li key={label} title={detail} className={`${BOX} flex items-center gap-2 px-2.5 py-2 text-[13px] text-[var(--ink)]`}>
-            <Icon aria-hidden className="size-4 flex-none text-[var(--team-ink)]" strokeWidth={1.75} />
-            <span className="min-w-0 truncate">{label}</span>
-            <span className="sr-only">: {detail}</span>
+      <ul className="mt-2 grid grid-cols-2 gap-x-4">
+        {KNOWS.map(({ icon: Icon, label }) => (
+          <li key={label} className="flex items-center gap-3 py-1.5 text-[13.5px] text-[var(--ink)]">
+            <Icon aria-hidden className="size-4 flex-none text-[var(--ink-2)]" strokeWidth={1.75} />
+            {label}
           </li>
         ))}
       </ul>
       <p className="mt-4 text-[13px] font-semibold text-[var(--ink)]">Not covered</p>
-      <ul className="mt-2 flex flex-wrap gap-1.5">
-        {DOESNT_KNOW.map(({ label, detail }) => (
-          <li
-            key={label}
-            title={detail}
-            className="inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--control-line)] px-2.5 py-1 text-[12.5px] text-[var(--ink-3)]"
-          >
-            <X aria-hidden className="size-3" />
+      <ul className="mt-2 grid grid-cols-2 gap-x-4">
+        {DOESNT_KNOW.map(({ icon: Icon, label }) => (
+          <li key={label} className="flex items-center gap-3 py-1.5 text-[13.5px] text-[var(--ink-3)]">
+            <Icon aria-hidden className="size-4 flex-none" strokeWidth={1.75} />
             {label}
-            <span className="sr-only">: {detail}</span>
           </li>
         ))}
       </ul>
