@@ -112,9 +112,7 @@ const COMPACT_MOBILE_COLS = 31; // scores 0–30
 const COMPACT_MOBILE_ROWS = 31;
 const EXPAND_COLS = 41; // scores 0–40; only 1871's 49–33 lies beyond
 const EXPAND_ROWS = 41;
-const CLASSIC_COLS = 36; // scores 0–35, like the original site
-const CLASSIC_ROWS = 36;
-const CLASSIC_DESKTOP_DIM = 31; // desktop: 0–30
+const CLASSIC_DIM = 31; // scores 0–30
 const CLASSIC_DESKTOP_VISIBLE_ROWS = 26; // rows 0–25 fit above the fold; the rest may scroll
 const CLASSIC_MIN_CELL = 12;
 const CLASSIC_BOTTOM_GAP = 16;
@@ -125,7 +123,7 @@ const CLASSIC_HEIGHT_FIT_MIN_W = 1024; // matches the page's lg breakpoint
 // two-digit labels never touch.
 function classicTicks(cell: number) {
   // Small (phone) cells get a slightly larger share so labels stay legible.
-  const font = Math.min(13, Math.max(cell * 0.65, Math.min(cell * 0.75, 7.5)));
+  const font = Math.min(13, Math.max(cell * 0.65, Math.min(cell * 0.75, 9)));
   const axisW = Math.min(CLASSIC_Y_AXIS_MAX_W, Math.max(BEAR_Y_AXIS_W, Math.ceil(font * 1.2 + 5)));
   // Label row tracks the font (20px at desktop's 13px) so phones get no dead band.
   const labelH = Math.min(BEAR_LABEL_H, Math.round(font + 7));
@@ -232,7 +230,7 @@ export default function ScorigamiHeatmap({
     ? expanded
       ? EXPAND_COLS
       : classic
-        ? isWide ? CLASSIC_DESKTOP_DIM : CLASSIC_COLS
+        ? CLASSIC_DIM
         : isDesktop
           ? COMPACT_DESKTOP_COLS
           : COMPACT_MOBILE_COLS
@@ -241,7 +239,7 @@ export default function ScorigamiHeatmap({
     ? expanded
       ? EXPAND_ROWS
       : classic
-        ? isWide ? CLASSIC_DESKTOP_DIM : CLASSIC_ROWS
+        ? CLASSIC_DIM
         : isDesktop
           ? COMPACT_DESKTOP_ROWS
           : COMPACT_MOBILE_ROWS
