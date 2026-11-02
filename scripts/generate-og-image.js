@@ -135,18 +135,18 @@ function batterMarkup(x, y, size, fill, opacity = 1) {
 // --- Share card: Bearigami-style panel on the left, live grid on the right.
 const CELL = 30;
 const GRID_X = 480; // x of the 0-win column; staircase runs down-right from here
-const COLS = Math.ceil((W - GRID_X) / CELL); // winning scores 0..23
-const ROWS = Math.ceil(H / CELL); // losing scores 0..20
 const CARD = { x: 48, y: 48, w: 400, h: H - 96 };
 
-function gridMarkup(s, theme) {
+function gridMarkup(s, theme, cell = CELL, gridX = GRID_X) {
+  const cols = Math.ceil((W - gridX) / cell);
+  const rows = Math.ceil(H / cell);
   // Gapless cells on whole pixels, so no seams show between them.
   let out = `<g shape-rendering="crispEdges">`;
-  for (let win = 0; win < COLS; win++) {
-    for (let lose = 0; lose <= win && lose < ROWS; lose++) {
+  for (let win = 0; win < cols; win++) {
+    for (let lose = 0; lose <= win && lose < rows; lose++) {
       const n = s.occ.get(`${win}-${lose}`) || 0;
       const fill = n === 0 ? "#ffffff" : theme.cellColor(n, s.maxOcc);
-      out += `<rect x="${GRID_X + win * CELL}" y="${lose * CELL}" width="${CELL}" height="${CELL}" fill="${fill}"/>`;
+      out += `<rect x="${gridX + win * cell}" y="${lose * cell}" width="${cell}" height="${cell}" fill="${fill}"/>`;
     }
   }
   return out + `</g>`;
@@ -218,6 +218,42 @@ function shareCard({ s, logo, title, nickname, recentLabel, theme }) {
 </svg>`;
 }
 
+// Site card (og.png): a compact panel over a wider, finer grid that runs behind
+// it, in the site's light-mode palette.
+function siteCard(s, theme) {
+  const x = 72, w = 400, h = 440;
+  const y = Math.round((H - h) / 2);
+  const cx = x + w / 2;
+  const logoSize = 112;
+  const logoH = Math.round((logoSize * 867) / 900);
+  // Batter to the tagline's descenders, centered in the card.
+  const top = y + Math.round((h - (logoH + 198)) / 2);
+  const titleY = top + logoH + 68;
+  const swatchY = titleY + 26;
+  const tag1 = swatchY + 62;
+  const tag2 = tag1 + 32;
+  const title = "MLB Scorigami";
+  const titleSize = Math.min(58, Math.floor((w - 56) / (title.length * 0.546)));
+  const swatches = ["#ffffff", theme.ramp[3], theme.ramp[7], theme.dark];
+  const sw = 14, gap = 14;
+  const swTotal = swatches.length * sw + (swatches.length - 1) * gap;
+  const swatchRow = swatches
+    .map((c, i) => `<rect x="${cx - swTotal / 2 + i * (sw + gap)}" y="${swatchY}" width="${sw}" height="${sw}" fill="${c}" stroke="${c === "#ffffff" ? "#c3cad6" : c}" stroke-width="1"/>`)
+    .join("");
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${W}" height="${H}" fill="${theme.dark}"/>
+  ${gridMarkup(s, theme, 29, 158)}
+  <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${CARD_BG}" stroke="#c3cad6" stroke-width="1"/>
+  ${batterMarkup(cx - logoSize / 2, top, logoSize, INK)}
+  <text x="${cx}" y="${titleY}" text-anchor="middle" font-family="${TITLE_FONT}" font-weight="700" font-size="${titleSize}" fill="${INK}">${esc(title)}</text>
+  ${swatchRow}
+  <g font-family="${UI_FONT}" font-size="26" fill="${INK}" text-anchor="middle">
+    <text x="${cx}" y="${tag1}">Tracking every unique</text>
+    <text x="${cx}" y="${tag2}">MLB score since ${s.firstYear}</text>
+  </g>
+</svg>`;
+}
+
 const LOGO_BOX = 150;
 const logoX = CARD.x + (CARD.w - LOGO_BOX) / 2;
 const logoY = CARD.y + 44;
@@ -234,15 +270,8 @@ async function writeShareCards(all, readRows) {
     };
   };
 
-  const batterSize = 128;
-  write("og.png", render(shareCard({
-    s: all,
-    logo: batterMarkup(CARD.x + (CARD.w - batterSize) / 2, logoY + 12, batterSize, INK),
-    title: "MLB Scorigami",
-    nickname: "MLB",
-    recentLabel: "Last Scorigami",
-    theme: cardTheme("ALL"),
-  })));
+  const site = getTeamTheme("ALL");
+  write("og.png", render(siteCard(all, { ...site, cellColor: (n, max) => rampColor(site.ramp, n, max) })));
   console.log(`og.png written — ${fmt(all.totalGames)} games, ${all.uniqueScores} scores`);
 
   const TEAM_IGAMI = loadTeamIgami();
