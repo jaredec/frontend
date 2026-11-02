@@ -4,7 +4,7 @@ Source for [mlbscorigami.com](https://mlbscorigami.com): an interactive heatmap 
 
 Filter by team, era, or game type. Cell tooltips show frequency, the last game, and a box score. [@MLBgami](https://x.com/MLBgami) tweets after each final.
 
-Based on [Scorigami](https://nflscorigami.com/) by Jon Bois. Historical games from [Retrosheet](https://www.retrosheet.org); modern results from the MLB Stats API. Negro League games are not included yet.
+Based on [Scorigami](https://www.youtube.com/watch?v=9l5C8cGMueY&t=0s) by Jon Bois. Historical games from [Retrosheet](https://www.retrosheet.org); modern results from the MLB Stats API. Negro League games are not included yet.
 
 ## How it is put together
 
