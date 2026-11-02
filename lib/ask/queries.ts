@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { readOnlyQuery } from "@/lib/ask/db";
+import { checkSql, MAX_ROWS } from "@/lib/ask/sql-guard";
 
 // Plain query functions behind the Ask tools. Kept free of any AI SDK types so
 // the same functions can back an MCP server or an eval harness.
+// run_sql is the only one that executes model-written SQL.
 
 const GAME_TYPE_CODES = {
   all: null,
@@ -662,6 +664,12 @@ export async function scorigamis(input: z.infer<typeof scorigamisInput>, sink?: 
 // --- rare_games ---
 
 export const rareGamesInput = z.object({
+  label: z
+    .enum(["socloseigami", "rarigami"])
+    .optional()
+    .describe(
+      "Sets the range for you: socloseigami is 1–4 times before, rarigami is 1–99 (fewer than 100, so it includes Socloseigamis). Use for every Socloseigami or Rarigami question.",
+    ),
   min_prior: z
     .number()
     .int()
@@ -683,8 +691,8 @@ export const rareGamesInput = z.object({
 /** Games whose final score was rare at the time, newest first, with how many times it had happened before. */
 export async function rareGames(input: z.infer<typeof rareGamesInput>, sink?: GameSink) {
   const f = input.filters ?? {};
-  const min = input.min_prior ?? 1;
-  const max = input.max_prior ?? 99;
+  const min = input.label ? 1 : input.min_prior ?? 1;
+  const max = input.label === "socloseigami" ? 4 : input.label === "rarigami" ? 99 : input.max_prior ?? 99;
   if (min > max) throw new ToolInputError("min_prior must be less than or equal to max_prior.");
   const params: unknown[] = [];
   const p = (v: unknown) => `$${params.push(v)}`;
@@ -712,11 +720,94 @@ export async function rareGames(input: z.infer<typeof rareGamesInput>, sink?: Ga
   };
 }
 
+// --- gamis ---
+
+export const gamisInput = z.object({
+  filters: filtersSchema
+    .optional()
+    .describe("Which games to list. With team_ids, Franchisigami means a first for that team. Labels always use all of MLB history."),
+  limit: z.number().int().min(1).max(20).optional().describe("Defaults to 10."),
+});
+
+/**
+ * CTEs ending in `labeled` (game_id, date, prior, labels): every gami label each
+ * game earned, using all of MLB history. A Scorigami is a first for both
+ * franchises and the postseason, so it gets only that label. With `team`,
+ * Franchisigami means a first for that team.
+ */
+function labeledSql(p: (v: unknown) => string, team: string | null): string {
+  const post = p(GAME_TYPE_CODES.postseason);
+  return `s AS MATERIALIZED (
+       SELECT game_id, date, game_type, home_team_id, visitor_team_id,
+         GREATEST(home_score, visitor_score) AS w, LEAST(home_score, visitor_score) AS l
+       FROM gamelogs WHERE is_negro_league = false
+     ),
+     ranked AS (
+       SELECT game_id, date, game_type,
+         (ROW_NUMBER() OVER w0 - 1)::int AS prior,
+         (count(*) FILTER (WHERE game_type = ANY(${post}::text[])) OVER w1)::int AS prior_post,
+         (count(*) FILTER (WHERE date >= '1901-01-01') OVER w1)::int AS prior_modern
+       FROM s
+       WINDOW w0 AS (PARTITION BY w, l ORDER BY date, game_id),
+              w1 AS (w0 ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)
+     ),
+     sides AS MATERIALIZED (
+       SELECT s.game_id, s.date, s.w, s.l, t.team_id, coalesce(t.franchise, t.team_id::text) AS fr
+       FROM s CROSS JOIN LATERAL (VALUES (s.home_team_id), (s.visitor_team_id)) v(team_id)
+       JOIN teams t ON t.team_id = v.team_id
+     ),
+     first_dates AS (SELECT fr, w, l, min(date) AS d FROM sides GROUP BY fr, w, l),
+     franchise_firsts AS (
+       SELECT DISTINCT ON (x.fr, x.w, x.l) x.game_id, x.team_id
+       FROM sides x JOIN first_dates fd ON fd.fr = x.fr AND fd.w = x.w AND fd.l = x.l AND fd.d = x.date
+       ORDER BY x.fr, x.w, x.l, x.game_id
+     ),
+     labeled AS (
+       SELECT r.game_id, r.date, r.prior,
+         CASE WHEN r.prior = 0 THEN ARRAY['Scorigami'] ELSE array_remove(ARRAY[
+           CASE WHEN r.date >= '1901-01-01' AND r.prior_modern = 0 THEN 'Modern Era Scorigami' END,
+           CASE WHEN r.game_type = ANY(${post}::text[]) AND r.prior_post = 0 THEN 'Playoffigami' END,
+           CASE WHEN r.prior <= 4 THEN 'Socloseigami' END,
+           CASE WHEN ff.game_id IS NOT NULL THEN 'Franchisigami' END,
+           CASE WHEN r.prior <= 99 THEN 'Rarigami' END
+         ], NULL) END AS labels
+       FROM ranked r
+       LEFT JOIN (
+         SELECT DISTINCT game_id FROM franchise_firsts
+         ${team ? `WHERE team_id = ANY(${team}::bigint[])` : ""}
+       ) ff USING (game_id)
+     )`;
+}
+
+/** Games of any gami type, newest first, each with every label it earned. */
+export async function gamis(input: z.infer<typeof gamisInput>, sink?: GameSink) {
+  const f = input.filters ?? {};
+  const params: unknown[] = [];
+  const p = (v: unknown) => `$${params.push(v)}`;
+  const games = gamesSql({ ...f, include_negro_leagues: false }, params);
+  const labeled = labeledSql(p, f.team_ids?.length ? p(f.team_ids) : null);
+  const rows = await readOnlyQuery<GameRow & { prior: number; labels: string[]; total: number }>(
+    `WITH ${labeled},
+     g AS (${games})
+     SELECT g.*, l.prior, l.labels, count(*) OVER()::int AS total
+     FROM g JOIN labeled l USING (game_id)
+     WHERE cardinality(l.labels) > 0 AND ${resultSql(f)}
+     ORDER BY g.date DESC, g.game_id DESC
+     LIMIT ${p(input.limit ?? 10)}`,
+    params,
+  );
+  return {
+    total_matching: rows[0]?.total ?? 0,
+    newest_first: rows.map((r) => ({ ...toGame(r, sink), labels: r.labels, times_happened_before: r.prior })),
+  };
+}
+
 // --- missing_scores ---
 
 /** Run distribution for the odds estimate: recent enough to match today's scoring. */
 const ODDS_SINCE = 2000;
 const GAMES_PER_SEASON = 2430;
+const TEAM_GAMES_PER_SEASON = 162;
 const MISSING_MAX_RUNS = 50;
 
 export const missingScoresInput = z.object({
@@ -737,11 +828,18 @@ export const missingScoresInput = z.object({
  * estimated chance per game: each team's runs are treated as independent draws
  * from how often MLB teams have scored each run total since ODDS_SINCE.
  */
-export async function missingScores(input: z.infer<typeof missingScoresInput>) {
+export async function missingScores(input: z.infer<typeof missingScoresInput>, opts: { seasonGames?: number } = {}) {
   const params: unknown[] = [];
   const p = (v: unknown) => `$${params.push(v)}`;
   const team = input.team_ids?.length ? p(input.team_ids) : null;
-  const rows = await readOnlyQuery<{ w: number; l: number; chance: number; missing: number; missing_30: number }>(
+  const rows = await readOnlyQuery<{
+    w: number;
+    l: number;
+    chance: number;
+    total_chance: number;
+    missing: number;
+    missing_30: number;
+  }>(
     `WITH base AS (
        SELECT home_score, visitor_score FROM gamelogs
        WHERE is_negro_league = false AND date >= ${p(`${ODDS_SINCE}-01-01`)}::date
@@ -766,6 +864,7 @@ export async function missingScores(input: z.infer<typeof missingScoresInput>) {
        WHERE s.w IS NULL
      )
      SELECT w, l, chance,
+       (sum(chance) OVER ())::float8 AS total_chance,
        count(*) OVER ()::int AS missing,
        (count(*) FILTER (WHERE w <= 30) OVER ())::int AS missing_30
      FROM missing
@@ -774,8 +873,13 @@ export async function missingScores(input: z.infer<typeof missingScoresInput>) {
     params,
   );
   const sig = (n: number) => Number(n.toPrecision(3)).toLocaleString("en-US");
+  const seasonGames = opts.seasonGames ?? (team ? TEAM_GAMES_PER_SEASON : GAMES_PER_SEASON);
+  const anyPerGame = rows[0]?.total_chance ?? 0;
+  const anyPerSeason = 1 - (1 - anyPerGame) ** seasonGames;
   return {
     never_happened_with_winner_up_to_30_runs: rows[0]?.missing_30 ?? 0,
+    [team ? "chance_of_at_least_one_new_score_for_this_team_in_a_season" : "chance_of_at_least_one_scorigami_in_a_season"]:
+      `${sig(anyPerSeason * 100)}%`,
     sorted_by: input.sort ?? "most_likely",
     how_chance_is_estimated: `Each team's runs treated as independent, using how often MLB teams scored each run total since ${ODDS_SINCE}. A rough estimate, not a prediction.`,
     scores: rows.map((r) => ({
@@ -784,10 +888,172 @@ export async function missingScores(input: z.infer<typeof missingScoresInput>) {
       ...(r.chance > 0
         ? {
             chance_per_game: `1 in ${sig(1 / r.chance)}`,
-            expected_about_once_every: `${sig(1 / (r.chance * GAMES_PER_SEASON))} seasons`,
+            expected_about_once_every: `${sig(1 / (r.chance * seasonGames))} seasons`,
           }
         : { chance_per_game: `no team has scored that many runs since ${ODDS_SINCE}` }),
     })),
+  };
+}
+
+// --- gami_odds ---
+
+const GAMI_TYPES = ["Scorigami", "Modern Era Scorigami", "Playoffigami", "Socloseigami", "Franchisigami", "Rarigami"];
+
+export const gamiOddsInput = z.object({});
+
+/**
+ * Chance of each gami type next season and, while a season is underway, in the
+ * rest of it. Scorigamis are too rare since ODDS_SINCE for history to say much,
+ * so they use the missing_scores estimate; the rest use the share of past
+ * seasons since ODDS_SINCE with at least one (after the same date, for the rest
+ * of a season). `asOf` (YYYY-MM-DD) stands in for the latest game date in tests.
+ */
+export async function gamiOdds(asOf?: string) {
+  const params: unknown[] = [];
+  const p = (v: unknown) => `$${params.push(v)}`;
+  const labeled = labeledSql(p, null);
+  const since = p(ODDS_SINCE);
+  const latest = asOf ? `${p(asOf)}::date` : "(SELECT max(date) FROM gamelogs WHERE is_negro_league = false)";
+  const rows = await readOnlyQuery<{
+    yr: number | null;
+    label: string | null;
+    n: number;
+    n_after: number;
+    cur: number;
+    from_md: string;
+    rest_games: number;
+    season_over: boolean;
+  }>(
+    `WITH ${labeled},
+     cutoff AS (SELECT d, extract(year FROM d)::int AS cur, to_char(d + 1, 'MM-DD') AS md FROM (SELECT ${latest} AS d) x),
+     rest AS (
+       SELECT count(*)::float8 / greatest(1, (SELECT cur FROM cutoff) - ${since}::int) AS games
+       FROM gamelogs
+       WHERE is_negro_league = false
+         AND date >= make_date(${since}::int, 1, 1) AND date < make_date((SELECT cur FROM cutoff), 1, 1)
+         AND to_char(date, 'MM-DD') >= (SELECT md FROM cutoff)
+     ),
+     ws_wins AS (
+       SELECT count(*) AS n FROM gamelogs
+       WHERE game_type = 'W' AND date >= make_date((SELECT cur FROM cutoff), 1, 1) AND date <= (SELECT d FROM cutoff)
+       GROUP BY CASE WHEN home_score > visitor_score THEN home_team_id ELSE visitor_team_id END
+     ),
+     counts AS (
+       SELECT extract(year FROM date)::int AS yr, x.label, count(*)::int AS n,
+         (count(*) FILTER (WHERE to_char(date, 'MM-DD') >= (SELECT md FROM cutoff)))::int AS n_after
+       FROM labeled CROSS JOIN LATERAL unnest(labels) x(label)
+       WHERE date >= make_date(${since}::int, 1, 1) AND date <= (SELECT d FROM cutoff)
+       GROUP BY 1, 2
+     )
+     SELECT c.yr, c.label, c.n, c.n_after, k.cur, k.md AS from_md, r.games AS rest_games,
+       coalesce((SELECT max(n) FROM ws_wins), 0) >= 4 AS season_over
+     FROM cutoff k CROSS JOIN rest r LEFT JOIN counts c ON TRUE`,
+    params,
+  );
+  const { cur, from_md: fromMd, rest_games: restGames, season_over: seasonOver } = rows[0];
+  // A season is over once someone wins the World Series, or once past seasons had no games left by this date.
+  const inSeason = !seasonOver && restGames >= 1;
+  const lastFull = inSeason ? cur - 1 : cur;
+  const seasons = lastFull - ODDS_SINCE + 1;
+  const pastSeasons = cur - ODDS_SINCE;
+  const [full, rest] = await Promise.all([
+    missingScores({ limit: 1 }),
+    inSeason ? missingScores({ limit: 1 }, { seasonGames: Math.min(Math.round(restGames), GAMES_PER_SEASON) }) : null,
+  ]);
+  const sig = (n: number) => Number(n.toPrecision(3)).toLocaleString("en-US");
+  const share = (withOne: number, of: number) => (withOne === of ? "nearly 100%" : `${sig((withOne / of) * 100)}%`);
+  const from = new Date(`2000-${fromMd}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const byType = (type: string) => rows.filter((r) => r.label === type && r.yr !== null) as { yr: number; n: number; n_after: number }[];
+
+  return {
+    next_season: {
+      season: cur + 1,
+      seasons_counted: `${ODDS_SINCE}–${lastFull} (${seasons} seasons)`,
+      types: GAMI_TYPES.map((type) => {
+        const done = byType(type).filter((r) => r.yr <= lastFull);
+        const withOne = done.length;
+        const total = done.reduce((a, r) => a + r.n, 0);
+        const perSeason = total / seasons;
+        return {
+          type,
+          chance_of_at_least_one:
+            type === "Scorigami" ? (full.chance_of_at_least_one_scorigami_in_a_season as string) : share(withOne, seasons),
+          how_chance_is_estimated:
+            type === "Scorigami"
+              ? `From the scores that have never happened and how often teams score each run total. History alone says little: ${total} since ${ODDS_SINCE}.`
+              : `${withOne} of the ${seasons} seasons since ${ODDS_SINCE} had at least one.`,
+          how_often:
+            perSeason === 0
+              ? `none since ${ODDS_SINCE}`
+              : perSeason < 1
+                ? `about one every ${sig(1 / perSeason)} seasons since ${ODDS_SINCE}`
+                : `about ${sig(perSeason)} per season since ${ODDS_SINCE}`,
+          [`in_${lastFull}`]: done.find((r) => r.yr === lastFull)?.n ?? 0,
+        };
+      }),
+    },
+    ...(inSeason && {
+      rest_of_this_season: {
+        season: cur,
+        from,
+        types: GAMI_TYPES.map((type) => {
+          const past = byType(type).filter((r) => r.yr < cur && r.n_after > 0).length;
+          return {
+            type,
+            chance_of_at_least_one:
+              type === "Scorigami" ? (rest!.chance_of_at_least_one_scorigami_in_a_season as string) : share(past, pastSeasons),
+            how_chance_is_estimated:
+              type === "Scorigami"
+                ? "From the scores that have never happened, how often teams score each run total, and the games left."
+                : `${past} of the ${pastSeasons} seasons since ${ODDS_SINCE} had at least one from ${from} on.`,
+            so_far_this_season: byType(type).find((r) => r.yr === cur)?.n ?? 0,
+          };
+        }),
+      },
+    }),
+  };
+}
+
+// --- run_sql ---
+
+export const runSqlInput = z.object({
+  sql: z
+    .string()
+    .min(10)
+    .max(4000)
+    .describe("One PostgreSQL SELECT over gamelogs, teams and lineage. Aggregate in SQL; at most 200 rows come back."),
+});
+
+async function registerGames(ids: string[], sink: GameSink) {
+  const params: unknown[] = [];
+  const games = gamesSql({ include_negro_leagues: true }, params);
+  const rows = await readOnlyQuery<GameRow>(
+    `SELECT * FROM (${games}) g WHERE game_id = ANY($${params.push(ids)}::bigint[])`,
+    params,
+  );
+  for (const r of rows) toGame(r, sink);
+}
+
+export async function runSql({ sql }: z.infer<typeof runSqlInput>, sink?: GameSink) {
+  const checked = await checkSql(sql);
+  if ("error" in checked) throw new ToolInputError(checked.error);
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await readOnlyQuery<Record<string, unknown>>(checked.sql, [], { readerOnly: true });
+  } catch (err) {
+    // The model needs Postgres's message (unknown column, bad GROUP BY) to fix its query.
+    throw new ToolInputError(`Query failed: ${(err as Error).message}`);
+  }
+  const truncated = rows.length > MAX_ROWS;
+  const kept = rows.slice(0, MAX_ROWS).map(({ game_id, ...rest }) =>
+    game_id != null ? { ref: `g${game_id}`, ...rest } : rest,
+  );
+  const ids = rows.slice(0, MAX_ROWS).flatMap((r) => (r.game_id != null ? [String(r.game_id)] : []));
+  if (sink && ids.length) await registerGames(ids, sink);
+  return {
+    row_count: kept.length,
+    ...(truncated && { truncated: `Only the first ${MAX_ROWS} rows are shown. Aggregate or add LIMIT.` }),
+    rows: kept,
   };
 }
 

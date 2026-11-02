@@ -23,7 +23,7 @@ const QUESTIONS = process.argv.slice(2).length
       console.log(`\n## ${q}\n[${r.status}${r.retried ? ", retried" : ""}] ${Date.now() - started}ms, ${r.usage.inputTokens} in / ${r.usage.outputTokens} out`);
       console.log(r.answer);
       if (r.status !== "answered") console.log("draft:", r.draft, "| unverified:", r.unverified);
-      for (const s of r.steps) console.log(`  - ${s.label} → ${s.result}`);
+      for (const s of r.steps) console.log(`  - ${s.label} → ${s.result}${s.sql ? `\n      ${s.sql.replace(/\s+/g, " ")}` : ""}`);
       for (const g of r.games) console.log(`  * ${g.date} ${g.label} ${g.url ? "(link)" : ""}`);
     } catch (e) {
       console.log(`\n## ${q}\nFAILED: ${(e as Error).message}`);

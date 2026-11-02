@@ -103,6 +103,12 @@ export async function POST(req: NextRequest) {
     if (/quota|rate limit|high demand|overloaded/i.test(message)) {
       return NextResponse.json({ error: "Ask Scorigami is busy right now. Try again in a minute." }, { status: 503 });
     }
+    if (err instanceof Error && err.name === "TimeoutError") {
+      return NextResponse.json(
+        { error: "That one took too long to work out. Try asking it a simpler way." },
+        { status: 504 },
+      );
+    }
     return NextResponse.json({ error: "Something went wrong answering that. Please try again." }, { status: 500 });
   }
 }
