@@ -60,23 +60,23 @@ export default function V2About({
         <p>
           A Scorigami is a final score that has never happened before. Jon Bois{" "}
           <a href="https://www.youtube.com/watch?v=9l5C8cGMueY&t=0s" target="_blank" rel="noopener noreferrer" className={linkCls}>
-            coined the term
+            created the term
           </a>{" "}
-          for the NFL. Baseball&apos;s lower scores make them far rarer.{" "}
+          for the NFL, we made one for MLB.{" "}
           {totals
-            ? `In ${totals.games.toLocaleString("en-US")} games dating back to 1871, only ${totals.scores.toLocaleString("en-US")} different final scores have occurred,`
-            : "Only 358 different final scores have occurred,"}{" "}
-          and just one new one since 2000. We also track team-level
-          Scorigamis, which happen several times a season, a little more often than NFL Scorigamis.
+            ? `Across ${totals.games.toLocaleString("en-US")} games in MLB history, only ${totals.scores.toLocaleString("en-US")} unique final scores have occurred,`
+            : "Only 358 unique final scores have occurred,"}{" "}
+          with just one Scorigami since 2000. Because true Scorigamis are so rare, we also track other
+          &apos;gami&apos; types, including Franchisigamis (team-level), which happen several times a season.
         </p>
       </Faq>
 
       <Faq question="How do I use the grid?">
         <p>
-          Winning runs run across the top, and losing runs run down the side. Darker squares have happened more often,
-          while empty squares haven&apos;t happened yet. Click any square to see its total and the most recent game that
-          ended that way. Pick a team to see that franchise&apos;s grid, or narrow the results to the postseason, a
-          single year, or a range of years. Double-tap the year slider to switch between a single season and a range.
+          Each square is a final score, with the winning score along the x-axis and the losing score along the y-axis. Darker squares have happened more often,
+          while empty squares haven&apos;t happened yet. Tap any square to see how many times that score has happened and the
+          most recent game to end with that score. Filters narrow the grid to a single team, the postseason, a single
+          season, or a range of years. Double-tap the year slider to switch between a single season and a range.
           The expand button shows scores up to 40 runs, covering every game but one: the Philadelphia Athletics&apos;
           49&ndash;33 win over the Troy Haymakers in 1871.
         </p>
@@ -87,8 +87,7 @@ export default function V2About({
           Most of the older games come from Retrosheet, whose volunteers have spent decades piecing together
           baseball&apos;s history. Newer games come from the MLB Stats API and are updated daily. The data goes back to
           the National Association in 1871 and also covers the American, Union, Players&apos;, and Federal leagues,
-          along with the AL and NL. Negro League games aren&apos;t included for now. MLB&apos;s historical game-by-game
-          record is still being updated, and I&apos;d rather leave them out than show an incomplete picture.
+          along with the AL and NL. Negro League games aren&apos;t included for now.
         </p>
       </Faq>
 
@@ -97,7 +96,7 @@ export default function V2About({
           <a href="https://x.com/MLBgami" target="_blank" rel="noopener noreferrer" className={linkCls}>
             @MLBgami
           </a>{" "}
-          on X automatically posts every final score and lets you know when one is a Scorigami. Have a suggestion or
+          on X automatically posts every final score and lets you know when a game is a Scorigami. Have a suggestion or
           spot a mistake? Email scorigami.mlb@gmail.com.
         </p>
       </Faq>
