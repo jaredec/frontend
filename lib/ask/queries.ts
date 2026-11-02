@@ -606,8 +606,18 @@ export const scorigamisInput = z.object({
     .describe(
       "mlb (default): scores new to all of MLB history (Scorigami). team: scores new for that team (Franchisigami), requires team_ids. postseason: scores new to postseason history (Playoffigami). modern_era: first time since 1901 for a score that had only happened before 1901 (Modern Era Scorigami). With mlb, postseason or modern_era, team_ids keeps only games involving that team.",
     ),
+  sort: z
+    .enum(["newest", "most_runs", "biggest_margin"])
+    .optional()
+    .describe("newest (default), most_runs (highest-scoring first) or biggest_margin (most lopsided first)."),
   limit: z.number().int().min(1).max(25).optional().describe("Defaults to 15."),
 });
+
+const SCORIGAMI_ORDER = {
+  newest: "date DESC, game_id DESC",
+  most_runs: "team_score + opp_score DESC, date",
+  biggest_margin: "abs(team_score - opp_score) DESC, date",
+};
 
 export async function scorigamis(input: z.infer<typeof scorigamisInput>, sink?: GameSink) {
   const scope = input.scope ?? "mlb";
@@ -650,14 +660,15 @@ export async function scorigamis(input: z.infer<typeof scorigamisInput>, sink?: 
      )
      SELECT *, count(*) OVER()::int AS total FROM firsts
      WHERE ${where.join(" AND ")}
-     ORDER BY date DESC, game_id DESC
+     ORDER BY ${SCORIGAMI_ORDER[input.sort ?? "newest"]}
      LIMIT ${limit}`,
     params,
   );
   return {
     scope,
     total: rows[0]?.total ?? 0,
-    newest_first: rows.map((r) => toGame(r, sink)),
+    sorted_by: input.sort ?? "newest",
+    games: rows.map((r) => ({ ...toGame(r, sink), total_runs: r.team_score + r.opp_score })),
   };
 }
 

@@ -84,7 +84,7 @@ const UNVERIFIED_ANSWER =
 
 /** Also a number source for the answer check, so definitions can quote their thresholds. */
 const VOCABULARY = `Scorigami terms (the @MLBgami bot posts these after games; users will use them, so never say they aren't real terms)
-- Scorigami: a final score that had never happened before in MLB history. Use scorigamis.
+- Scorigami: a final score that had never happened before in MLB history. Use scorigamis. Every final score was a Scorigami the first time it happened, so for the highest-scoring, most lopsided or "craziest" one, use its sort option instead of picking from the newest. If asked for your opinion, pick one from the results and say what makes it stand out.
 - Modern Era Scorigami: the first time since 1901 for a score that had only happened before 1901. Use scorigamis with scope modern_era.
 - Playoffigami: the first time a score happened in the postseason. Use scorigamis with scope postseason.
 - Franchisigami, or a team name + "igami" (Cubsigami, Yankeesigami, Red Soxigami): the first time a franchise played a game with that score. Use scorigamis with scope team.
