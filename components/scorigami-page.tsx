@@ -17,7 +17,6 @@ import {
   FranchiseCode,
   ScorigamiType,
   GameFilter,
-  TEAM_IGAMI,
   getTeamLogoUrl,
   getTeamCapUrl,
 } from "@/lib/mlb-data";
@@ -597,21 +596,18 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
     [rows, allTimeCounts, heatmapLoading, heatmapType, heatmapClub, gridSize, light, classic, gridExpanded, revealed, markRevealed, scorigamiType],
   );
 
-  const igamiTitle = statsClub === "ALL" ? "MLB Scorigami" : (TEAM_IGAMI[statsClub] ?? "MLB Scorigami");
-  const logoSrc = statsClub === "ALL" ? "/logo3.svg" : (getTeamLogoUrl(statsClub) ?? "/logo3.svg");
+  const siteTitle = "MLB Scorigami";
   const countLabel = "Unique scores";
   const shownRange = display?.yearRange ?? yearRange;
   const isSingleSeason = shownRange[0] === shownRange[1];
   const statsType = display?.scorigamiType ?? scorigamiType;
   const recentLabel = isSingleSeason
     ? "Rarest score"
-    : statsClub !== "ALL"
-      ? `Last ${igamiTitle}`
-      : statsType === "home_away"
-        ? (headerStats?.recent && headerStats.recent.score1 < headerStats.recent.score2
-            ? "Last Awayigami"
-            : "Last Homeigami")
-        : "Last Scorigami";
+    : statsType === "home_away" && statsClub === "ALL"
+      ? (headerStats?.recent && headerStats.recent.score1 < headerStats.recent.score2
+          ? "Last Awayigami"
+          : "Last Homeigami")
+      : "Last Scorigami";
 
   const statsLines = (align: "center" | "start") => {
     if (!headerStats) return null;
@@ -730,7 +726,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
     >
       {classic ? (
         <>
-        <SiteHeader widthCls={CLASSIC_PAGE_CLS} logoCode={statsClub} title={igamiTitle}>
+        <SiteHeader widthCls={CLASSIC_PAGE_CLS} logoCode="ALL" title={siteTitle}>
           {classicStatsBar}
         </SiteHeader>
         </>
@@ -743,13 +739,9 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
                     <div className="h-[88px] w-[88px] sm:h-[112px] sm:w-[115px] flex items-center justify-center flex-none">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={logoSrc}
-                        alt={igamiTitle}
-                        className={`object-contain ${
-                          statsClub === "ALL"
-                            ? "h-[76px] w-[76px] sm:h-[96px] sm:w-[96px]"
-                            : "h-full w-full"
-                        }`}
+                        src="/logo3.svg"
+                        alt={siteTitle}
+                        className="object-contain h-[76px] w-[76px] sm:h-[96px] sm:w-[96px]"
                       />
                     </div>
                     <span
@@ -759,7 +751,7 @@ export default function ScorigamiPage({ initialClub = "ALL", variant = "single",
                         fontWeight: "var(--v2-title-weight)",
                         WebkitTextStroke: "0.4px #343434",
                       }}
-                    >{igamiTitle}</span>
+                    >{siteTitle}</span>
                   </div>
                   <div
                     className="mt-3.5 sm:mt-4 min-h-[5.25rem] sm:min-h-[3.3rem] px-1 sm:px-4 text-[16px] sm:text-[17px] leading-snug sm:leading-[1.55]"
